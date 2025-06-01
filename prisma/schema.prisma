@@ -1,0 +1,102 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   Int                     @id @default(autoincrement()) @db.UnsignedInt
+  username             String                  @unique @db.VarChar(50)
+  email                String                  @unique @db.VarChar(100)
+  password_hash        String                  @map("password_hash") @db.VarChar(255)
+  first_name           String?                 @db.VarChar(50)
+  last_name            String?                 @db.VarChar(50)
+  role                 String                  @default("user") @db.VarChar(20)
+  is_verified          Boolean                 @default(false)
+  verification_token   String?                 @db.VarChar(255)
+  verification_expires_at DateTime?
+  reset_token          String?                 @db.VarChar(255)
+  reset_expires_at     DateTime?
+  created_at           DateTime                @default(now()) @map("created_at")
+  updated_at           DateTime                @default(now()) @updatedAt @map("updated_at")
+  teams                Team[]
+  emailVerificationTokens EmailVerificationToken[]
+  sessionTokens        SessionToken[]
+
+  @@map("users")
+}
+
+model Team {
+  id             Int       @id @default(autoincrement()) @db.UnsignedInt
+  name           String    @db.VarChar(100)
+  description    String?   @db.Text
+  logo_filename  String?   @db.VarChar(255)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         Int       @map("user_id") @db.UnsignedInt
+  created_at     DateTime  @default(now()) @map("created_at")
+  updated_at     DateTime  @default(now()) @updatedAt @map("updated_at")
+  tournaments    TournamentTeam[]
+
+  @@map("teams")
+}
+
+model EmailVerificationToken {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  user_id    Int      @db.UnsignedInt
+  token      String   @unique @db.Char(64)
+  expires_at DateTime
+  created_at DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("email_verification_tokens")
+}
+
+model SessionToken {
+  id              Int      @id @default(autoincrement()) @db.UnsignedInt
+  user_id         Int      @db.UnsignedInt
+  token           String   @unique @db.Char(64)
+  last_activity_at DateTime @map("last_activity_at")
+  expires_at      DateTime @map("expires_at")
+  created_at      DateTime @default(now()) @map("created_at")
+  user            User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("session_tokens")
+}
+
+model Tournament {
+  id             Int       @id @default(autoincrement()) @db.UnsignedInt
+  name           String    @db.VarChar(100)
+  description    String?   @db.Text
+  start_date     DateTime
+  end_date       DateTime
+  location       String?   @db.VarChar(255)
+  max_teams      Int?      @db.UnsignedInt
+  status         String    @default("draft") @db.VarChar(20)
+  banner_filename String?  @db.VarChar(255)
+  created_at     DateTime  @default(now()) @map("created_at")
+  updated_at     DateTime  @default(now()) @updatedAt @map("updated_at")
+  teams          TournamentTeam[]
+
+  @@map("tournaments")
+}
+
+model TournamentTeam {
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tournamentId Int       @map("tournament_id") @db.UnsignedInt
+  team         Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId       Int       @map("team_id") @db.UnsignedInt
+  status       String    @default("pending") @db.VarChar(20)
+  registered_at DateTime @default(now()) @map("registered_at")
+  updated_at   DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([tournamentId, teamId])
+  @@map("tournament_teams")
+}
+
+// You can add more models according to your application needs 

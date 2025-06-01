@@ -1,0 +1,43 @@
+# Dependencias
+node_modules/
+vendor/
+
+# Builds
+dist/
+build/
+*.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Entornos
+.env
+.env.*
+!.env.development
+!.env.production
+
+# Docker
+docker/volumes/
+docker/db/data/
+*.pid
+docker/ssl/*.crt
+docker/ssl/*.key
+docker/ssl/*.pem
+
+# IDEs y editores
+.vscode/
+.idea/
+.cursor/
+*.iml
+
+# Tests y cobertura
+coverage/
+*.test.*
+*.spec.*
+
+# Otros
+*.zip
+*.bak
+*.tmp
+*.txt
