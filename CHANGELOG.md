@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.3](https://github.com/acamae/acamae-backend/compare/v1.1.2...v1.1.3) (2025-06-15)
+
+### Bug Fixes
+
+- **publish:** resolve GitHub Packages permission issues ([6fa3362](https://github.com/acamae/acamae-backend/commit/6fa33624a5480b8b1088fdc3d250f25569b3dfc4))
+
+## [1.1.3](https://github.com/acamae/acamae-backend/compare/v1.1.2...v1.1.3) (2025-06-15)
+
+### Bug Fixes
+
+- **publish:** resolve GitHub Packages permission issues ([6fa3362](https://github.com/acamae/acamae-backend/commit/6fa33624a5480b8b1088fdc3d250f25569b3dfc4))
+
 ## [1.1.2](https://github.com/acamae/acamae-backend/compare/v1.1.1...v1.1.2) (2025-06-15)
 
 **Note:** Version bump only for package @acamae/backend
