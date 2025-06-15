@@ -4,7 +4,6 @@ WORKDIR /app
 
 # Copiar archivos de configuración
 COPY package*.json ./
-# COPY package-lock.json ./
 COPY prisma ./prisma/
 COPY ./src /app/src
 
