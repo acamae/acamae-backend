@@ -1,4 +1,4 @@
-# EManager Backend
+# Acamae Backend
 
 A robust, scalable, and secure backend built with Node.js, Express, and Prisma, following Clean Architecture principles.
 
@@ -106,7 +106,7 @@ MIT
 
 ## Authors
 
-EManager Team
+@alfonsomartinde (Alfonso Martin)
 
 ## Acknowledgments
 

@@ -1,7 +1,7 @@
 {
-  "name": "@emanager/backend",
+  "name": "@acamae/backend",
   "version": "1.1.2",
-  "description": "Backend for EManager application",
+  "description": "Backend for Acamae application",
   "type": "module",
   "main": "src/index.js",
   "publishConfig": {
@@ -24,7 +24,7 @@
     "docker:build:nocache": "docker compose -f docker/docker-compose.yml build --no-cache",
     "docker:down": "docker compose -f docker/docker-compose.yml down -v --remove-orphans",
     "docker:reset": "docker compose -f docker/docker-compose.yml down -v --rmi all --remove-orphans",
-    "lerna:start": "lerna run --scope=emanager-backend start --passWithNoTests",
+    "lerna:start": "lerna run --scope=acamae/backend start --passWithNoTests",
     "lerna:build": "lerna run build",
     "lerna:test": "lerna run test",
     "lerna:lint": "lerna run lint",
@@ -68,7 +68,7 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "author": "EManager Team",
+  "author": "Alfonso Martin",
   "license": "MIT",
   "lint-staged": {
     "*.{js,jsx}": [
