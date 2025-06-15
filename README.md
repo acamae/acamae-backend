@@ -1,197 +1,115 @@
-# @emanager.com/backend
+# EManager Backend
 
-Backend API for the Esports Management platform.
-Built with Node.js, Express, and Prisma ORM, following Clean/Hexagonal Architecture.
+A robust, scalable, and secure backend built with Node.js, Express, and Prisma, following Clean Architecture principles.
 
----
+## Features
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Project Structure](#project-structure)
-- [Development Workflow](#development-workflow)
-- [API Endpoints](#api-endpoints)
-- [Database & Persistence](#database--persistence)
-- [Security](#security)
-- [Testing & Quality](#testing--quality)
-- [Docker & Deployment](#docker--deployment)
-- [Environment Variables](#environment-variables)
-- [Contributing](#contributing)
-- [License](#license)
-
----
-
-## Overview
-
-This package provides the backend API for the Esports Management platform, with robust authentication, business logic, and data persistence.
-It is designed for scalability, security, and maintainability.
-
----
-
-## Tech Stack
-
-- Node.js 20+
-- Express
-- Prisma ORM (MariaDB/MySQL)
-- JWT for authentication
-- Joi for validation
-- Docker for local and production environments
-- Jest for unit and integration tests
-- GitHub Actions for CI/CD
-
----
-
-## Architecture
-
-- Hexagonal/Clean Architecture:
-  - `domain/`, `application/`, `infrastructure/`, `shared/`
-- CQRS Pattern:
-  - Separation of read and write operations
-- Repository Pattern:
-  - Abstracted data access via repositories
-
----
+- Clean Architecture with clear separation of concerns
+- Type safety with Zod validation
+- Database integration with PostgreSQL and Prisma
+- JWT-based authentication
+- Comprehensive security features
+- Testing with Jest
+- Documentation with OpenAPI/Swagger
 
 ## Project Structure
 
 ```
 src/
-  domain/
-  application/
-  infrastructure/
-  shared/
-prisma/
+├── application/    # Application business rules
+├── domain/        # Enterprise business rules
+├── infrastructure/# Frameworks, drivers, and tools
+├── shared/        # Shared utilities and constants
+└── index.js       # Application entry point
 ```
 
----
+## Security Features
 
-## Development Workflow
+### Input Validation and Sanitization
 
-### Prerequisites
+- **Zod Schema Validation**: All request data is validated using Zod schemas
+- **Custom Sanitization**: Built-in sanitization for:
+  - HTML content
+  - SQL injection prevention
+  - XSS protection
+  - Parameter pollution prevention
 
-- Node.js 20+
-- MariaDB/MySQL
-- npm or yarn
+### Security Middleware
 
-### Installation
+- **Helmet**: Sets various HTTP headers for security
+- **CORS**: Configurable Cross-Origin Resource Sharing
+- **Rate Limiting**: Prevents brute force attacks
+- **Custom HPP Protection**: Prevents HTTP Parameter Pollution
+- **Custom XSS Protection**: Sanitizes all input data
 
-```
-npm install
-```
+### Authentication & Authorization
 
-### Database Setup
+- JWT-based authentication
+- Role-based access control
+- Secure password hashing with bcryptjs
+- Token refresh mechanism
 
-```
-# Generate Prisma client
-npm run db:generate
+## Prerequisites
 
-# Run migrations
-npm run db:migrate
-```
+- Node.js >= 18.0.0
+- PostgreSQL >= 14.0
 
-### Running Locally
+## Getting Started
 
-```
-npm run dev
-```
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-### Running with Docker
+## Available Scripts
 
-```
-npm run docker-start
-```
+- `npm start`: Start the production server
+- `npm run dev`: Start the development server with hot reload
+- `npm test`: Run tests
+- `npm run test:watch`: Run tests in watch mode
+- `npm run test:coverage`: Run tests with coverage report
+- `npm run lint`: Run ESLint
+- `npm run format`: Format code with Prettier
 
-### Linting & Testing
+## Testing
 
-```
-npm run lint
-npm run test
-```
+Tests are organized by layer:
 
----
+- Unit tests for domain and application layers
+- Integration tests for infrastructure layer
+- E2E tests for API endpoints
 
-## API Endpoints
+## API Documentation
 
-### Authentication
-
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - Login
-- `POST /api/auth/logout` - Logout
-- `GET /api/auth/me` - Get current user
-
-> See OpenAPI/Swagger documentation for the full API specification.
-
----
-
-## Database & Persistence
-
-- Prisma ORM: Type-safe, auto-generated client
-- Migrations: Managed with Prisma Migrate
-- Entities: User, Team, Tournament, etc.
-- Session Management: Stateless JWT, session expiration enforced
-
----
-
-## Security
-
-- Cookie-based authentication (httpOnly)
-- Password hashing with bcrypt
-- CSRF protection
-- Input validation with Joi
-- Security headers with Helmet
-- Rate limiting
-- CORS: Secure configuration
-
----
-
-## Testing & Quality
-
-- Unit tests: Isolated functions and services
-- Integration tests: APIs and endpoints
-- Repository tests: Database interactions
-- Coverage: Minimum 90% for statements, branches, functions, and lines
-- Linting: ESLint with strict rules
-
----
-
-## Docker & Deployment
-
-- Dockerfile: Located in this package
-- Docker Compose: For local and production environments
-- Nginx: Used as reverse proxy in production
-- CI/CD: GitHub Actions for linting, testing, and deployment
-
-### Running in Production
-
-```
-npm run docker-prod
-```
-
----
-
-## Environment Variables
-
-| Variable      | Description                          | Sensitive |
-| ------------- | ------------------------------------ | :-------: |
-| COOKIE_SECRET | Cookie secret                        |    Yes    |
-| DATABASE_URL  | Database connection URL              |    Yes    |
-| JWT_SECRET    | JWT signing secret                   |    Yes    |
-| ...           | See `.env.development` for full list |           |
-
-> Never commit real secrets to the repository.
-
----
+API documentation is available at `/api-docs` when running the server.
 
 ## Contributing
 
-- Follow [Conventional Commits](https://www.conventionalcommits.org/)
-- Use `npm run commit` for standardized commit messages
-- See [Architecture](#architecture) and [Testing & Quality](#testing--quality) for guidelines
-
----
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
-[MIT](LICENSE)
+MIT
+
+## Authors
+
+EManager Team
+
+## Acknowledgments
+
+- Clean Architecture principles
+- Express.js community
+- Prisma team

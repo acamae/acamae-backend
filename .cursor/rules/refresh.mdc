@@ -1,0 +1,101 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: To be used when fixing errors, not only on tests but anywhere
+---
+
+Diagnose and resolve the issue described above using a systematic, validation-driven approach:
+
+1. **Collect Precise Context**:
+   - Gather all relevant details: error messages, logs, stack traces, and observed behaviors tied to the issue.
+   - Use `grep_search` for exact terms (e.g., function names) or `codebase_search` for broader context.
+   - Trace the data flow or execution path to define the issue's boundaries.
+   - Verify the issue's location within the Hexagonal Architecture layers.
+
+2. **Investigate Root Causes**:
+   - List at least three plausible causes, spanning code logic, dependencies, or configuration.
+   - Validate each using `cat -n <file path>` to inspect code with line numbers.
+   - Confirm or rule out hypotheses by cross-referencing execution paths.
+   - Check API response structure: `{ success, data, message, code, status }`.
+
+3. **Reuse Existing Patterns**:
+   - Search the codebase with `codebase_search` for prior fixes or similar issues.
+   - Identify reusable utilities or error-handling strategies.
+   - Check `shared/` directory for common error handling patterns.
+   - Validate reuse candidates against the current issue's specifics.
+
+4. **Analyze Impact**:
+   - Trace all affected dependencies to assess the issue's scope.
+   - Determine if it's a localized bug or a symptom of a broader design flaw.
+   - Highlight potential side effects on performance or maintainability.
+   - Consider impact on accessibility (WCAG2) and internationalization.
+
+5. **Propose Targeted Fixes**:
+   - Suggest specific, minimal changes with file paths and line numbers.
+   - Justify each fix with clear reasoning.
+   - Ensure fixes follow project conventions:
+     * Components: PascalCase
+     * Hooks: `use` + camelCase
+     * Utilities: camelCase
+     * Constants: UPPER_SNAKE_CASE
+   - Avoid broad refactoring unless explicitly requested.
+
+6. **Validate and Monitor**:
+   - Outline test cases for normal, edge, and failure scenarios.
+   - Use Jest & Testing Library for unit tests, Cypress for E2E tests.
+   - Follow test patterns:
+     * Use `I18nextProvider` and `MemoryRouter` for integration
+     * Mock only what is necessary
+     * For route tests, mock layouts with `<Outlet />`
+   - Ensure 90%+ test coverage for modified code.
+
+7. **Test Environment Safety**:
+   - Never modify `process.env` directly in tests
+   - Use `jest.spyOn` for environment variable mocking:
+     ```typescript
+     let envSpy: jest.SpyInstance;
+     
+     beforeEach(() => {
+       envSpy = jest.spyOn(process.env, 'VARIABLE_NAME', 'get')
+         .mockReturnValue('test-value');
+     });
+     
+     afterEach(() => {
+       envSpy.mockRestore();
+     });
+     ```
+   - Ensure test isolation by restoring all spies and mocks
+   - Design tests to work correctly in parallel execution
+   - Clean up environment modifications to prevent test pollution
+
+8. **Debugging Best Practices**:
+   - Use console.log strategically for debugging
+   - Verify mock configurations are correct
+   - Check that expectations match actual behavior
+   - Isolate issues in specific tests
+   - Verify the order of operations
+   - Document the debugging process
+   - Keep track of common solutions
+
+9. **State Management**:
+   - Clean state between tests
+   - Restore original environment variables
+   - Verify mocks don't affect other tests
+   - Use `beforeEach` for setup and `afterEach` for cleanup
+   - Document test dependencies
+   - Avoid shared state between tests
+   - Verify state is properly restored
+
+10. **Documentation**:
+    - Explain each test's purpose
+    - Document non-obvious test cases
+    - Explain mock configuration
+    - Document state management
+    - Explain expectations
+    - Document debugging process
+    - Keep documentation updated
+
+This process ensures a thorough, efficient resolution that strengthens the codebase while directly addressing the reported issue.

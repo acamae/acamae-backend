@@ -1,0 +1,109 @@
+---
+description: 
+globs: *.test.ts,*.test.tsx
+alwaysApply: false
+---
+**Testing Guidelines**
+
+* **Test Structure**:
+  - Use `act` for state updates and `waitFor` for verifications
+  - Group related assertions in a single `waitFor`
+  - Order assertions from most specific to most general
+  - Add clear comments explaining the purpose of each verification step
+
+* **DOM Queries**:
+  - Be specific with selectors to avoid false positives
+  - Scope queries to specific containers when possible
+  - Prefer `getByTestId` over generic selectors
+  - Check the actual HTML rendered in test errors
+
+* **Environment Safety**:
+  - Never modify `process.env` directly in tests
+  - Use `jest.spyOn(process.env, 'VARIABLE_NAME', 'get')` to mock environment variables
+  - Restore all spies and mocks in `afterEach` blocks
+  - Design tests to work correctly when run in parallel
+
+* **Type Safety in Tests**:
+  - Prefer specific types over `any` when possible
+  - Use `unknown` instead of `any` for better type safety
+  - Implement type guards for runtime type checking
+  - Define clear interfaces for test data structures
+  - Document type expectations in test comments
+  - Handle type errors with descriptive messages
+
+* **Test Code Formatting**:
+  - Follow Prettier rules for test files
+  - Keep test descriptions clear and concise
+  - Use consistent indentation for test blocks
+  - Format long conditions across multiple lines when required
+  - Maintain consistent spacing around operators
+
+* **Test Coverage**:
+  - Maintain 90%+ test coverage for all new code
+  - Focus on testing behavior, not implementation details
+  - Test edge cases and error scenarios
+  - Verify component behavior before writing tests
+
+* **Redux Testing Best Practices**:
+  - Use type-safe action creators in tests
+  - Mock Redux store with proper typing
+  - Test both success and failure scenarios
+  - Verify action types and payloads
+  - Test middleware behavior with proper type checking
+  - Use type guards for thunk testing
+  - Disable serialization checks in tests when needed (`serializableCheck: false`)
+  - Use specific selectors instead of returning full state
+  - Configure store with proper middleware and extra arguments
+  - Clean state between tests
+  - Mock external dependencies through `extraArgument`
+
+* **Error Handling in Tests**:
+  - Test error scenarios explicitly
+  - Verify error messages and types
+  - Handle async errors properly
+  - Test error boundaries when applicable
+  - Document expected error behavior
+
+* **Hook Testing Best Practices**:
+  - Create custom wrapper for hook tests
+  - Configure Redux Provider correctly
+  - Handle async operations with `act`
+  - Clean up between tests
+  - Mock external dependencies
+  - Test all hook states (loading, error, success)
+  - Verify state transitions
+  - Test edge cases and error scenarios
+
+* **Test Environment Safety**:
+  - Never modify `process.env` directly in tests
+  - Use `jest.spyOn` for environment variable mocking
+  - Ensure test isolation by restoring all spies and mocks
+  - Design tests to work correctly in parallel execution
+  - Clean up environment modifications to prevent test pollution
+
+* **Test Configuration**:
+  - Configure ALL mocks BEFORE importing the module to test
+  - Use `jest.isolateModules()` to prevent test pollution
+  - Clean mocks and state in `beforeEach`
+  - Restore mocks and spies in `afterEach/afterAll`
+  - Document test purpose with clear comments
+  - Verify environment variables are correctly mocked
+  - Use `expect.any()` for dynamic values instead of hardcoding
+
+* **State Management**:
+  - Clean state between tests
+  - Restore original environment variables
+  - Verify mocks don't affect other tests
+  - Use `beforeEach` for setup and `afterEach` for cleanup
+  - Document test dependencies
+  - Avoid shared state between tests
+  - Verify state is properly restored
+
+* **Test Documentation**:
+  - Explain each test's purpose
+  - Document non-obvious test cases
+  - Explain mock configuration
+  - Document state management
+  - Explain expectations
+  - Document debugging process
+  - Keep documentation updated

@@ -1,0 +1,25 @@
+{
+  "prettier.singleQuote": true,
+  "prettier.bracketSameLine": true,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "files.eol": "auto",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "prettier.endOfLine": "auto",
+  "eslint.nodeEnv": "development",
+  "eslint.workingDirectories": [
+    {
+      "directory": "src",
+      "mode": "auto",
+      "configFile": "eslint.config.js"
+    }
+  ],
+  "eslint.validate": ["javascript"],
+  "vscode-edge-devtools.defaultUrl": "https://localhost",
+  "vscode-edge-devtools.useHttps": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "prettier.requireConfig": true
+}

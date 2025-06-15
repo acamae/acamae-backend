@@ -1,0 +1,40 @@
+---
+description: Generar commit messages
+globs: 
+alwaysApply: false
+---
+**Commit Message Guidelines**
+
+* **Format**:
+  ```
+  type(scope): concise description
+
+  - Optional bullet points for details
+  ```
+
+* **Types**:
+  - `feat`: New feature
+  - `fix`: Bug fix
+  - `docs`: Documentation changes
+  - `style`: Code style changes (formatting, etc)
+  - `refactor`: Code changes that neither fix bugs nor add features
+  - `test`: Adding or modifying tests
+  - `chore`: Changes to build process, tools, etc
+
+* **Rules**:
+  - Keep first line under 100 characters
+  - Use imperative mood ("add" not "added")
+  - No period at the end
+  - Scope is optional but recommended
+  - Bullet points should be under 100 characters
+  - Prefer single-line messages when possible
+  - Use English for all messages
+
+* **Examples**:
+  ```
+  feat(auth): add OpenAPI documentation for authentication endpoints
+  fix(api): handle null response in user service
+  docs(readme): update installation instructions
+  test(hooks): add unit tests for useAuth hook
+  refactor(store): simplify Redux middleware configuration
+  ```

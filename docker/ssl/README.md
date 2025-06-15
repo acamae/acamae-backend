@@ -25,4 +25,4 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout selfsigned.key -out 
 
 ## Configuración en Nginx
 
-Los certificados se montan en el contenedor Nginx en la ruta `/etc/nginx/ssl/` y se referencian en el archivo `docker/nginx/default.conf`. 
+Los certificados se montan en el contenedor Nginx en la ruta `/etc/nginx/ssl/` y se referencian en el archivo `docker/nginx/default.conf`.

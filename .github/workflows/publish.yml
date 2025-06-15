@@ -1,30 +1,56 @@
-name: Publish Package
+name: Publish
 
 on:
   push:
     branches:
       - main
-    tags:
-      - 'v*'
 
 jobs:
-  build-and-publish:
+  lerna-publish:
     runs-on: ubuntu-latest
+    permissions: write-all
+    environment:
+      name: development
     steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/setup-node@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
         with:
-          node-version: 18
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@emanager.com'
+          fetch-depth: 0
 
-      # Install build and test
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@acamae'
+
+      - name: Create .npmrc file
+        run: |
+          echo "@acamae:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${NPM_TOKEN}" >> .npmrc
+          cat .npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NODE_AUTH_TOKEN || secrets.GITHUB_TOKEN }}
+
       - name: Install dependencies
         run: npm ci
+        env:
+          NPM_TOKEN: ${{ secrets.NODE_AUTH_TOKEN || secrets.GITHUB_TOKEN }}
 
-      # TODO: Add publish with Lerna
-      # - name: Lerna publish
-      #   run: npx lerna publish from-package --yes
-      #   env:
-      #     NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      - name: Publish to GitHub Packages
+        run: npx lerna publish from-git --yes
+        env:
+          NPM_TOKEN: ${{ secrets.NODE_AUTH_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Configure git user
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Lerna version (conventional commits)
+        run: 'npx lerna version --conventional-commits --yes --create-release github --message "chore(release): %s [skip ci]"'
+        env:
+          GH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Publish to GitHub Packages
+        run: npx lerna publish from-git --yes

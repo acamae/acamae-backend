@@ -55,4 +55,4 @@ docker exec -i container_name mysql -uroot -ppassword database_name < backup.sql
 ## Notas importantes
 
 - Los scripts SQL en `init/` solo se ejecutan cuando el volumen de datos está vacío
-- Para forzar la ejecución de los scripts, elimina el volumen: `docker-compose down -v` 
+- Para forzar la ejecución de los scripts, elimina el volumen: `docker-compose down -v`

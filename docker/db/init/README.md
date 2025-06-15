@@ -55,4 +55,4 @@ mysql -u root -p < /docker-entrypoint-initdb.d/db_schema.sql
 # O conectarse a MySQL y ejecutar el script
 mysql -u root -p
 source /docker-entrypoint-initdb.d/db_schema.sql
-``` 
+```

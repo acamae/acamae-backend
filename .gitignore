@@ -1,9 +1,6 @@
 # Dependencies (node_modules)
 node_modules/
 
-# Backend dependencies (Composer - if used in the future)
-vendor/
-
 # Webpack generated files (dist)
 dist/
 
@@ -21,8 +18,6 @@ Thumbs.db
 
 # Docker volumes and persistent data folders
 docker/volumes/
-mariadb_data/
-docker/db/data/
 
 # Jest coverage files
 coverage/
@@ -33,8 +28,6 @@ coverage/
 
 # IDEs (IntelliJ IDEA, Visual Studio Code, etc.)
 .idea/
-.vscode/
-.cursor/
 *.iml
 
 # Other temporary files
@@ -48,3 +41,6 @@ coverage/
 docker/ssl/*.crt
 docker/ssl/*.key
 docker/ssl/*.pem
+.npmrc
+.nvmrc
+/dependency-graph*.*
