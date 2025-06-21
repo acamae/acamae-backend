@@ -1,28 +1,28 @@
-# Certificados SSL
+# SSL Certificates
 
-Este directorio contiene los certificados SSL para habilitar HTTPS en el proyecto.
+This directory contains the SSL certificates used to enable HTTPS in the project.
 
-## Archivos necesarios
+## Required files
 
-Para funcionamiento en producción, se requieren los siguientes archivos:
+For production use, you need the following files:
 
-- `selfsigned.crt`: Certificado SSL
-- `selfsigned.key`: Clave privada del certificado
+- `selfsigned.crt`: SSL certificate
+- `selfsigned.key`: Private key for the certificate
 
-## Generación de certificados de desarrollo
+## Generating development certificates
 
-Para entornos de desarrollo, puedes generar certificados autofirmados con el siguiente comando:
+For development environments you can generate self-signed certificates with the following command:
 
 ```bash
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout selfsigned.key -out selfsigned.crt
 ```
 
-## Notas de seguridad
+## Security notes
 
-- **No commitear**: Los certificados y claves no deben añadirse al control de versiones
-- **Permisos**: Asegúrate de que solo los usuarios adecuados tengan acceso a las claves privadas
-- **Producción**: Para entornos de producción, se recomienda usar certificados de una Autoridad Certificadora reconocida
+- **Do not commit**: Certificates and keys should never be added to version control
+- **Permissions**: Make sure only the appropriate users have access to private keys
+- **Production**: In production, use certificates issued by a trusted Certificate Authority (CA)
 
-## Configuración en Nginx
+## Nginx configuration
 
-Los certificados se montan en el contenedor Nginx en la ruta `/etc/nginx/ssl/` y se referencian en el archivo `docker/nginx/default.conf`.
+The certificates are mounted inside the Nginx container at `/etc/nginx/ssl/` and referenced in `docker/nginx/default.conf`.

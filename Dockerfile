@@ -25,6 +25,3 @@ ENV PORT=$PORT
 
 # Exponer puerto
 EXPOSE $PORT
-
-# Iniciar la aplicación en modo desarrollo
-CMD ["npm", "run", "dev"]
