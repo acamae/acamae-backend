@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - release
+    paths-ignore:
+      - 'CHANGELOG.md'
+      - 'package.json'
+      - 'lerna.json'
+      - 'package-lock.json'
+
+jobs:
+  version-and-publish:
+    runs-on: ubuntu-latest
+    environment: development
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify branch
+        run: |
+          if [[ "${{ github.ref }}" != "refs/heads/release" ]]; then
+            echo "❌ This workflow should only run on the release branch"
+            exit 1
+          fi
+      - name: Setup environment
+        uses: ./.github/actions/setup-env
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          npm-token: ${{ secrets.NODE_AUTH_TOKEN || secrets.GITHUB_TOKEN }}
+          setup-git-identity: true
+      - run: npm run build
+      - name: Version packages
+        if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+        run: npx lerna version --yes --no-push
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Push tags
+        run: git push --follow-tags
+      - name: Lerna publish
+        run: npx lerna publish from-package --yes

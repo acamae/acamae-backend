@@ -1,7 +1,2 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-npx lint-staged
-
-echo "🧪 Ejecutando tests y comprobando cobertura..."
-npm run test:coverage
+#!/bin/sh
+node "$(dirname "$0")/pre-commit.js"

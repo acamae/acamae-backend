@@ -25,38 +25,20 @@ export default [
     },
     rules: {
       'linebreak-style': 0,
-      'no-unused-vars': [
-        'error',
-        {
-          argsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
-          ignoreRestSiblings: true,
-        },
-      ],
       'prettier/prettier': [
         'error',
         {
           endOfLine: 'auto',
         },
       ],
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
-      'no-debugger': 'warn',
+
+      // Console y debugging
+      'no-console':
+        process.env.NODE_ENV === 'production' ? ['warn', { allow: ['warn', 'error'] }] : 'off',
+      'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
+
+      // Imports y exports
       'no-duplicate-imports': 'error',
-      'no-unused-expressions': 'error',
-      'no-var': 'error',
-      'prefer-const': 'error',
-      'prefer-arrow-callback': 'error',
-      'prefer-template': 'error',
-      'sort-imports': [
-        'error',
-        {
-          ignoreCase: false,
-          ignoreDeclarationSort: true,
-          ignoreMemberSort: false,
-          memberSyntaxSortOrder: ['none', 'all', 'multiple', 'single'],
-          allowSeparatedGroups: true,
-        },
-      ],
       'import/order': [
         'error',
         {
@@ -68,6 +50,33 @@ export default [
       'import/no-unresolved': 'error',
       'import/no-named-as-default': 'warn',
       'import/no-named-as-default-member': 'warn',
+      'sort-imports': [
+        'error',
+        {
+          ignoreCase: false,
+          ignoreDeclarationSort: true,
+          ignoreMemberSort: false,
+          memberSyntaxSortOrder: ['none', 'all', 'multiple', 'single'],
+          allowSeparatedGroups: true,
+        },
+      ],
+
+      // Variables y declaraciones
+      'no-unused-expressions': 'error',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          ignoreRestSiblings: true,
+        },
+      ],
+      'no-var': 'error',
+      'prefer-const': 'error',
+
+      'prefer-arrow-callback': 'error',
+      'prefer-template': 'error',
     },
     settings: {
       'import/resolver': {
