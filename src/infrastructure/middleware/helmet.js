@@ -1,5 +1,6 @@
 import helmet from 'helmet';
 
+import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 import { config } from '../config/environment.js';
 
 /**
@@ -55,8 +56,8 @@ export const helmetErrorHandler = (error, _req, res, next) => {
     res.status(400).json({
       success: false,
       error: {
-        code: 'HELMET_ERROR',
-        message: 'Security policy violation',
+        code: API_ERROR_CODES.SECURITY_POLICY_VIOLATION,
+        message: ERROR_MESSAGES[API_ERROR_CODES.SECURITY_POLICY_VIOLATION],
         status: 400,
       },
     });

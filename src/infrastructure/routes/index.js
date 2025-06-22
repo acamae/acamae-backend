@@ -14,7 +14,14 @@ import {
   isManagerOrAdmin,
 } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { validateRequest } from '../middleware/validation.js';
+import {
+  registerValidation,
+  loginValidation,
+  teamValidation,
+  updateUserValidation,
+  validateRequest,
+  logoutValidation,
+} from '../middleware/validation.js';
 
 const router = Router();
 
@@ -33,7 +40,7 @@ router.get(
   asyncHandler(async (_req, res) => {
     res.json({
       status: 'success',
-      message: 'Welcome to the Esports Management API',
+      message: 'Welcome to the Acamae API',
       data: {
         version: process.env.npm_package_version,
         environment: config.env,
@@ -142,32 +149,15 @@ router.get(
   })
 );
 
-// Root route (always available)
-router.get(
-  API_ROUTES.BASE,
-  asyncHandler(async (_req, res) => {
-    res.json({
-      status: 'success',
-      message: 'Welcome to the Esports Management API',
-      data: {
-        version: process.env.npm_package_version,
-        environment: config.env,
-        timestamp: new Date().toISOString(),
-        documentation: '/api-docs',
-      },
-    });
-  })
-);
-
-// Rutas de autenticación
+// Authentication routes
 router.post(
   API_ROUTES.AUTH.LOGIN,
-  validateRequest,
+  loginValidation,
   asyncHandler(authController.login.bind(authController))
 );
 router.post(
   API_ROUTES.AUTH.REGISTER,
-  validateRequest,
+  registerValidation,
   asyncHandler(authController.register.bind(authController))
 );
 router.post(
@@ -177,7 +167,7 @@ router.post(
 );
 router.post(
   API_ROUTES.AUTH.LOGOUT,
-  validateRequest,
+  logoutValidation,
   asyncHandler(authController.logout.bind(authController))
 );
 router.get(
@@ -206,7 +196,7 @@ router.get(
   asyncHandler(authController.getMe.bind(authController))
 );
 
-// Rutas de usuarios
+// Users routes
 router.get(
   API_ROUTES.USERS.GET_ALL,
   authMiddleware,
@@ -223,7 +213,7 @@ router.put(
   API_ROUTES.USERS.UPDATE_BY_ID,
   authMiddleware,
   authorize('users', 'update'),
-  validateRequest,
+  updateUserValidation,
   asyncHandler(userController.updateUser.bind(userController))
 );
 router.delete(
@@ -233,7 +223,7 @@ router.delete(
   asyncHandler(userController.deleteUser.bind(userController))
 );
 
-// Rutas de equipos
+// Teams routes
 router.get(
   API_ROUTES.TEAMS.GET_ALL,
   authMiddleware,
@@ -250,14 +240,14 @@ router.post(
   API_ROUTES.TEAMS.CREATE,
   authMiddleware,
   authorize('teams', 'create'),
-  validateRequest,
+  teamValidation,
   asyncHandler(teamController.createTeam.bind(teamController))
 );
 router.put(
   API_ROUTES.TEAMS.UPDATE_BY_ID,
   authMiddleware,
   authorize('teams', 'update'),
-  validateRequest,
+  teamValidation,
   asyncHandler(teamController.updateTeam.bind(teamController))
 );
 router.delete(
@@ -267,7 +257,7 @@ router.delete(
   asyncHandler(teamController.deleteTeam.bind(teamController))
 );
 
-// Admin only routes
+// Admin routes
 router.get(
   API_ROUTES.ADMIN.STATS,
   authMiddleware,
@@ -277,7 +267,7 @@ router.get(
   })
 );
 
-// Manager or Admin routes
+// Manager routes
 router.get(
   API_ROUTES.MANAGER.DASHBOARD,
   authMiddleware,
