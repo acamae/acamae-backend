@@ -31,7 +31,8 @@
     "docker:dev": "cross-env START_MODE=dev NODE_ENV=development npm run docker:up",
     "docker:debug": "cross-env START_MODE=debug NODE_ENV=development npm run docker:up",
     "docker:prod": "cross-env START_MODE=prod NODE_ENV=production npm run docker:up:build",
-    "generate-ssl": "node scripts/generate-ssl.js"
+    "generate-ssl": "node scripts/generate-ssl.js",
+    "build": "npm run prisma:generate && npm run lint && npm test"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
