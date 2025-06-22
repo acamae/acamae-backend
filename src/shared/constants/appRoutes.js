@@ -1,0 +1,16 @@
+export const APP_ROUTES = {
+  HOME: '/',
+  LOGIN: '/login',
+  REGISTER: '/register',
+  FORGOT_PASSWORD: '/forgot-password',
+  RESET_PASSWORD: '/reset-password',
+  VERIFY_EMAIL: '/verify-email',
+  VERIFY_EMAIL_SENT: '/verify-email-sent',
+  VERIFY_EMAIL_SUCCESS: '/verify-email-success',
+  VERIFY_EMAIL_EXPIRED: '/verify-email-expired',
+  VERIFY_EMAIL_ALREADY_VERIFIED: '/verify-email-already-verified',
+  VERIFY_EMAIL_RESEND: '/verify-email-resend',
+  DASHBOARD: '/dashboard',
+  PROFILE: '/profile',
+  TEAMS: '/teams',
+};

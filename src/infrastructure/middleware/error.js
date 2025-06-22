@@ -32,7 +32,7 @@ export const errorHandler = (error, req, res, _next) => {
           success: false,
           error: {
             code: API_ERROR_CODES.DUPLICATE_ENTRY,
-            message: 'A record with this value already exists',
+            message: ERROR_MESSAGES[API_ERROR_CODES.DUPLICATE_ENTRY],
             status: HTTP_STATUS.CONFLICT,
             field: error.meta?.target?.[0],
           },
@@ -42,7 +42,7 @@ export const errorHandler = (error, req, res, _next) => {
           success: false,
           error: {
             code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
-            message: 'Record not found',
+            message: ERROR_MESSAGES[API_ERROR_CODES.RESOURCE_NOT_FOUND],
             status: HTTP_STATUS.NOT_FOUND,
           },
         });
@@ -51,7 +51,7 @@ export const errorHandler = (error, req, res, _next) => {
           success: false,
           error: {
             code: API_ERROR_CODES.DATABASE_ERROR,
-            message: 'Database error',
+            message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
             status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
           },
         });

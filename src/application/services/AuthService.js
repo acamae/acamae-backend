@@ -4,7 +4,8 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 
 import { config } from '../../infrastructure/config/environment.js';
-import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
+import { APP_ROUTES } from '../../shared/constants/appRoutes.js';
 import { USER_ROLES } from '../../shared/constants/validation.js';
 import { createError } from '../../shared/utils/error.js';
 
@@ -71,6 +72,7 @@ export class AuthService {
     try {
       return jwt.verify(token, isRefresh ? this.JWT_REFRESH_SECRET : this.JWT_SECRET);
     } catch (error) {
+      console.error('Error verifying token:', error);
       throw createError(
         ERROR_MESSAGES[API_ERROR_CODES.INVALID_TOKEN],
         API_ERROR_CODES.INVALID_TOKEN
@@ -113,9 +115,9 @@ export class AuthService {
     const user = await prisma.user.create({
       data: {
         email,
-        password: hashedPassword,
+        password_hash: hashedPassword,
         username,
-        verificationToken,
+        verification_token: verificationToken,
         role: USER_ROLES.USER,
       },
       select: {
@@ -123,12 +125,12 @@ export class AuthService {
         email: true,
         username: true,
         role: true,
-        isEmailVerified: true,
+        is_verified: true,
       },
     });
 
-    // @TODO: Enviar email de verificación
-    console.log('Verification token:', verificationToken);
+    // Enviar email de verificación
+    await this.sendVerificationEmail(user.email, verificationToken);
 
     return user;
   }
@@ -140,7 +142,7 @@ export class AuthService {
    */
   async verifyEmail(token) {
     const user = await prisma.user.findFirst({
-      where: { verificationToken: token },
+      where: { verification_token: token },
     });
 
     if (!user) {
@@ -153,8 +155,8 @@ export class AuthService {
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        isEmailVerified: true,
-        verificationToken: null,
+        is_verified: true,
+        verification_token: null,
       },
     });
 
@@ -173,10 +175,10 @@ export class AuthService {
       select: {
         id: true,
         email: true,
-        password: true,
+        password_hash: true,
         username: true,
         role: true,
-        isEmailVerified: true,
+        is_verified: true,
       },
     });
 
@@ -187,7 +189,7 @@ export class AuthService {
       );
     }
 
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       throw createError(
         ERROR_MESSAGES[API_ERROR_CODES.INVALID_CREDENTIALS],
@@ -195,15 +197,29 @@ export class AuthService {
       );
     }
 
-    if (!user.isEmailVerified) {
+    if (!user.is_verified) {
       throw createError(
         ERROR_MESSAGES[API_ERROR_CODES.EMAIL_NOT_VERIFIED],
         API_ERROR_CODES.EMAIL_NOT_VERIFIED
       );
     }
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { ...userWithoutPassword } = user;
     const tokens = this.generateTokens(userWithoutPassword);
+
+    // Guardar refreshToken en session_tokens
+    try {
+      await prisma.sessionToken.create({
+        data: {
+          user_id: user.id,
+          token: tokens.refreshToken,
+          last_activity_at: new Date(),
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días
+        },
+      });
+    } catch (err) {
+      console.error('Error guardando session token:', err);
+    }
 
     return {
       user: userWithoutPassword,
@@ -224,7 +240,7 @@ export class AuthService {
         email: true,
         username: true,
         role: true,
-        isEmailVerified: true,
+        is_verified: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -247,26 +263,43 @@ export class AuthService {
    */
   async refreshToken(refreshToken) {
     try {
-      const decoded = this.verifyToken(refreshToken, true);
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.id },
-        select: {
-          id: true,
-          email: true,
-          username: true,
-          role: true,
-        },
-      });
-
-      if (!user) {
+      // Verificar que el refreshToken exista en session_tokens
+      const sessionToken = await prisma.sessionToken.findUnique({ where: { token: refreshToken } });
+      if (!sessionToken) {
         throw createError(
-          ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
-          API_ERROR_CODES.USER_NOT_FOUND
+          ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
+          API_ERROR_CODES.INVALID_REFRESH_TOKEN
         );
       }
 
-      return this.generateTokens(user);
-    } catch (error) {
+      if (sessionToken.expires_at < new Date()) {
+        // Token expirado -> eliminar registro y lanzar error
+        await prisma.sessionToken.delete({ where: { id: sessionToken.id } });
+        throw createError(
+          ERROR_MESSAGES[API_ERROR_CODES.TOKEN_EXPIRED],
+          API_ERROR_CODES.TOKEN_EXPIRED
+        );
+      }
+
+      // Actualizar última actividad
+      await prisma.sessionToken.update({
+        where: { id: sessionToken.id },
+        data: { last_activity_at: new Date() },
+      });
+
+      // Generar nuevos tokens y reemplazar refresh en BD
+      const newTokens = this.generateTokens(user);
+      await prisma.sessionToken.update({
+        where: { id: sessionToken.id },
+        data: {
+          token: newTokens.refreshToken,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+
+      return newTokens;
+    } catch (_error) {
+      console.error('Error refreshing token:', _error);
       throw createError(
         ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
         API_ERROR_CODES.INVALID_REFRESH_TOKEN
@@ -280,11 +313,18 @@ export class AuthService {
    * @param {string} refreshToken
    * @returns {Promise<void>}
    */
-  // eslint-disable-next-line
   async logout(refreshToken) {
-    // En una implementación real, podríamos invalidar el refreshToken
-    // almacenándolo en una lista negra o eliminándolo de la base de datos
-    return true;
+    try {
+      // Eliminar token de la base de datos para invalidarlo
+      await prisma.sessionToken.delete({ where: { token: refreshToken } });
+      return true;
+    } catch (err) {
+      console.error('Error during logout:', err);
+      throw createError(
+        ERROR_MESSAGES[API_ERROR_CODES.UNKNOWN_ERROR],
+        API_ERROR_CODES.UNKNOWN_ERROR
+      );
+    }
   }
 
   /**
@@ -344,12 +384,47 @@ export class AuthService {
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        password: hashedPassword,
+        password_hash: hashedPassword,
         resetToken: null,
         resetTokenExpires: null,
       },
     });
 
     return true;
+  }
+
+  /**
+   * Send verification email
+   * @param {string} email
+   * @param {string} token
+   */
+  async sendVerificationEmail(email, token) {
+    if (!config.mail) {
+      console.log(`Verification email for ${email}: ${token}`);
+      return;
+    }
+
+    try {
+      const nodemailer = await import('nodemailer');
+      const transporter = nodemailer.createTransport('SMTP', {
+        host: config.mail.host,
+        port: config.mail.port,
+        auth: {
+          user: config.mail.user,
+          pass: config.mail.password,
+        },
+      });
+
+      const verifyUrl = `${config.cors.frontendUrl}${APP_ROUTES.VERIFY_EMAIL}?token=${token}`;
+
+      await transporter.sendMail({
+        from: config.mail.from,
+        to: email,
+        subject: 'Verifica tu correo',
+        html: `<p>Por favor verifica tu correo haciendo clic en el siguiente enlace:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`,
+      });
+    } catch (err) {
+      console.error('Error enviando email de verificación:', err);
+    }
   }
 }

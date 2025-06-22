@@ -37,7 +37,10 @@ export class UserService {
     });
 
     if (!user) {
-      throw createError('User not found', API_ERROR_CODES.USER_NOT_FOUND);
+      throw createError(
+        ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
+        API_ERROR_CODES.USER_NOT_FOUND
+      );
     }
 
     return user;
@@ -59,10 +62,16 @@ export class UserService {
 
       if (existingUser) {
         if (existingUser.email === email) {
-          throw createError('The email already exists', API_ERROR_CODES.EMAIL_ALREADY_EXISTS);
+          throw createError(
+            ERROR_MESSAGES[API_ERROR_CODES.EMAIL_ALREADY_EXISTS],
+            API_ERROR_CODES.EMAIL_ALREADY_EXISTS
+          );
         }
         if (existingUser.username === username) {
-          throw createError('The username already exists', API_ERROR_CODES.USERNAME_ALREADY_EXISTS);
+          throw createError(
+            ERROR_MESSAGES[API_ERROR_CODES.USERNAME_ALREADY_EXISTS],
+            API_ERROR_CODES.USERNAME_ALREADY_EXISTS
+          );
         }
       }
     }
@@ -90,7 +99,10 @@ export class UserService {
     });
 
     if (!user) {
-      throw createError('User not found', API_ERROR_CODES.USER_NOT_FOUND);
+      throw createError(
+        ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
+        API_ERROR_CODES.USER_NOT_FOUND
+      );
     }
 
     await prisma.user.delete({

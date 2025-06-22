@@ -21,5 +21,9 @@
   "vscode-edge-devtools.defaultUrl": "https://localhost",
   "vscode-edge-devtools.useHttps": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "prettier.requireConfig": true
+  "prettier.requireConfig": true,
+  "sonarlint.connectedMode.project": {
+    "connectionId": "acamae",
+    "projectKey": "acamae_acamae-frontend"
+  }
 }
