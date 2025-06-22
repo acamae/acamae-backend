@@ -1,4 +1,4 @@
-import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 
 export class UserController {
   constructor(userService) {
@@ -32,7 +32,10 @@ export class UserController {
       const user = await this.userService.getUserById(id);
 
       if (!user) {
-        return res.notFound('Usuario no encontrado', API_ERROR_CODES.USER_NOT_FOUND);
+        return res.notFound(
+          ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
+          API_ERROR_CODES.USER_NOT_FOUND
+        );
       }
 
       res.success(user);
@@ -55,10 +58,13 @@ export class UserController {
       const updatedUser = await this.userService.updateUser(id, userData);
 
       if (!updatedUser) {
-        return res.notFound('Usuario no encontrado', API_ERROR_CODES.USER_NOT_FOUND);
+        return res.notFound(
+          ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
+          API_ERROR_CODES.USER_NOT_FOUND
+        );
       }
 
-      res.success(updatedUser, 'Usuario actualizado correctamente');
+      res.success(updatedUser, 'User updated successfully');
     } catch (error) {
       res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
     }
@@ -76,10 +82,13 @@ export class UserController {
       const deleted = await this.userService.deleteUser(id);
 
       if (!deleted) {
-        return res.notFound('Usuario no encontrado', API_ERROR_CODES.USER_NOT_FOUND);
+        return res.notFound(
+          ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
+          API_ERROR_CODES.USER_NOT_FOUND
+        );
       }
 
-      res.success(null, 'Usuario eliminado correctamente');
+      res.success(null, 'User deleted successfully');
     } catch (error) {
       res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
     }

@@ -1,6 +1,6 @@
 import express from 'express';
 
-import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
 
@@ -17,7 +17,12 @@ export const applyBodyParser = (app) => {
         try {
           JSON.parse(buf);
         } catch (error) {
-          throw createError('Invalid JSON', API_ERROR_CODES.INVALID_JSON, HTTP_STATUS.BAD_REQUEST);
+          console.error('Invalid JSON received:', error.message);
+          throw createError(
+            ERROR_MESSAGES[API_ERROR_CODES.INVALID_JSON],
+            API_ERROR_CODES.INVALID_JSON,
+            HTTP_STATUS.BAD_REQUEST
+          );
         }
       },
     })
@@ -57,11 +62,17 @@ export const applyBodyParser = (app) => {
  */
 export const bodyParserErrorHandler = (error, _req, _res, next) => {
   if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
-    next(createError('Invalid JSON', API_ERROR_CODES.INVALID_JSON, HTTP_STATUS.BAD_REQUEST));
+    next(
+      createError(
+        ERROR_MESSAGES[API_ERROR_CODES.INVALID_JSON],
+        API_ERROR_CODES.INVALID_JSON,
+        HTTP_STATUS.BAD_REQUEST
+      )
+    );
   } else if (error.type === 'entity.too.large') {
     next(
       createError(
-        'Request entity too large',
+        ERROR_MESSAGES[API_ERROR_CODES.REQUEST_TOO_LARGE],
         API_ERROR_CODES.REQUEST_TOO_LARGE,
         HTTP_STATUS.PAYLOAD_TOO_LARGE
       )

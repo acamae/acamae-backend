@@ -2,6 +2,11 @@ services:
   db:
     image: mariadb
     restart: always
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$MYSQL_ROOT_PASSWORD']
+      interval: 5s
+      retries: 10
+      timeout: 3s
     env_file:
       - ../.env.development
     volumes:
@@ -33,18 +38,24 @@ services:
   backend:
     build:
       context: ../
-    command: ['npm', 'run', 'start:dev']
+    command: >
+      sh -c "npx prisma migrate deploy && npm run start:${START_MODE:-dev}"
     stdin_open: true
     tty: true
     env_file:
-      - ../.env.development
+      - ../.env.${NODE_ENV:-development}
+    environment:
+      - START_MODE=${START_MODE:-dev}
     volumes:
       - ../src:/app/src
       - ../logs:/app/logs
+    ports:
+      - '9229:9229' # inspector (solo usado en modo debug)
     expose:
       - '${PORT:-4000}'
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - acamae-network
 

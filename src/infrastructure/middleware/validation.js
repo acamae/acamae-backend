@@ -19,7 +19,6 @@ import {
   ERROR_MESSAGES,
   USER_ROLES,
 } from '../../shared/constants/validation.js';
-import { createError } from '../../shared/utils/error.js';
 import { sanitizeEmail, sanitizeNumber, sanitizeString } from '../../shared/utils/sanitize.js';
 
 import { throwError } from './errorHandler.js';
@@ -73,6 +72,10 @@ export const validationSchemas = {
       .regex(REGEX.NAME, ERROR_MESSAGES.INVALID_NAME)
       .transform(sanitizeString)
       .optional(),
+  }),
+
+  logout: z.object({
+    refreshToken: z.string().min(1, ERROR_MESSAGES.INVALID_TOKEN),
   }),
 
   // User routes
@@ -192,9 +195,19 @@ export const registerValidation = validateRequest('register');
 export const loginValidation = validateRequest('login');
 
 /**
+ * Validation rules for user logout
+ */
+export const logoutValidation = validateRequest('logout');
+
+/**
  * Validation rules for team creation
  */
 export const teamValidation = validateRequest('createTeam');
+
+/**
+ * Validation rules for user update
+ */
+export const updateUserValidation = validateRequest('updateUser');
 
 /**
  * Validation rules for pagination
@@ -255,11 +268,7 @@ export const sanitizeInput = (req, _res, next) => {
 
     next();
   } catch (error) {
-    next(
-      createError(
-        ERROR_MESSAGES[API_ERROR_CODES.VALIDATION_ERROR],
-        API_ERROR_CODES.VALIDATION_ERROR
-      )
-    );
+    console.error('Error sanitizing input:', error);
+    next(error);
   }
 };

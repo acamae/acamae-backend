@@ -1,6 +1,6 @@
 import cors from 'cors';
 
-import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
 import { config } from '../config/environment.js';
@@ -17,7 +17,11 @@ const corsOptions = {
       callback(null, true);
     } else {
       callback(
-        createError('Not allowed by CORS', API_ERROR_CODES.CORS_ERROR, HTTP_STATUS.FORBIDDEN)
+        createError(
+          ERROR_MESSAGES[API_ERROR_CODES.CORS_ERROR],
+          API_ERROR_CODES.CORS_ERROR,
+          HTTP_STATUS.FORBIDDEN
+        )
       );
     }
   },
