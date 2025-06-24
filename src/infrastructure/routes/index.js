@@ -15,12 +15,12 @@ import {
 } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import {
-  registerValidation,
   loginValidation,
+  logoutValidation,
+  registerValidation,
   teamValidation,
   updateUserValidation,
   validateRequest,
-  logoutValidation,
 } from '../middleware/validation.js';
 
 const router = Router();

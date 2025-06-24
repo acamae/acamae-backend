@@ -1,10 +1,10 @@
 import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
 import {
   ERROR_MESSAGES,
-  MAX_NAME_LENGTH,
-  MIN_USERNAME_LENGTH,
-  MAX_USERNAME_LENGTH,
   MAX_EMAIL_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_USERNAME_LENGTH,
+  MIN_USERNAME_LENGTH,
   REGEX,
 } from '../../shared/constants/validation.js';
 import { createError } from '../../shared/utils/error.js';
