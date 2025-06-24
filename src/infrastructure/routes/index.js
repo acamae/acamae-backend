@@ -137,15 +137,59 @@ if (config.env === 'development') {
 router.get(
   API_ROUTES.HEALTH,
   asyncHandler(async (_req, res) => {
-    res.json({
+    const healthCheck = {
       status: 'success',
       message: 'Servidor funcionando correctamente',
       data: {
         environment: config.env,
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
+        version: process.env.npm_package_version,
+        checks: {
+          server: {
+            status: 'healthy',
+            uptime: process.uptime(),
+            memory: {
+              used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+              total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+              external: Math.round(process.memoryUsage().external / 1024 / 1024),
+            },
+          },
+          database: {
+            status: 'unknown',
+          },
+        },
       },
-    });
+    };
+
+    // Verificar conexión a base de datos
+    try {
+      const { PrismaClient } = await import('@prisma/client');
+      const prisma = new PrismaClient();
+
+      // Test de conexión simple
+      await prisma.$queryRaw`SELECT 1`;
+      await prisma.$disconnect();
+
+      healthCheck.data.checks.database.status = 'healthy';
+    } catch (error) {
+      healthCheck.data.checks.database.status = 'unhealthy';
+      healthCheck.data.checks.database.error = error.message;
+      healthCheck.status = 'error';
+      healthCheck.message = 'Servidor con problemas de conectividad';
+    }
+
+    // Determinar status general
+    const allChecksHealthy = Object.values(healthCheck.data.checks).every(
+      (check) => check.status === 'healthy'
+    );
+
+    if (!allChecksHealthy) {
+      healthCheck.status = 'error';
+      healthCheck.message = 'Algunos servicios no están funcionando correctamente';
+    }
+
+    res.json(healthCheck);
   })
 );
 

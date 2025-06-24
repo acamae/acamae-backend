@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/coverage
+**/logs
+
+node_modules
+*.log
+Dockerfile
+.dockerignore
+.git/
+.gitignore

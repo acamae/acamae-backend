@@ -1,17 +1,32 @@
 services:
   db:
-    image: mariadb
+    image: mariadb:11
     restart: always
     healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$MYSQL_ROOT_PASSWORD']
-      interval: 5s
-      retries: 10
-      timeout: 3s
+      test:
+        [
+          'CMD',
+          'mariadb',
+          '-h',
+          'localhost',
+          '-u',
+          'root',
+          '-p${MYSQL_ROOT_PASSWORD}',
+          '-e',
+          'SELECT 1;',
+        ]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+      start_period: 60s
     env_file:
       - ../.env.development
+      - .env
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-gestion_esports}
     volumes:
       - ./volumes/mariadb_data:/var/lib/mysql
-      - ./db/init:/docker-entrypoint-initdb.d
     ports:
       - '3306:3306'
     networks:
@@ -39,20 +54,24 @@ services:
     build:
       context: ../
     command: >
-      sh -c "npx prisma migrate deploy && npm run start:${START_MODE:-dev}"
+      sh -c "npm run prisma:deploy && npm run start:dev"
     stdin_open: true
     tty: true
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4000/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     env_file:
-      - ../.env.${NODE_ENV:-development}
-    environment:
-      - START_MODE=${START_MODE:-dev}
+      - ../.env.development
     volumes:
       - ../src:/app/src
       - ../logs:/app/logs
     ports:
       - '9229:9229' # inspector (solo usado en modo debug)
     expose:
-      - '${PORT:-4000}'
+      - '4000'
     depends_on:
       db:
         condition: service_healthy
@@ -68,8 +87,13 @@ services:
       - PMA_HOST=db
     expose:
       - '80'
+    ports:
+      - '8080:80'
     volumes:
       - ./phpmyadmin/config.inc.php:/etc/phpmyadmin/config.user.inc.php
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - acamae-network
 
