@@ -6,21 +6,33 @@ A robust, scalable, and secure backend built with Node.js, Express, and Prisma, 
 
 - Clean Architecture with clear separation of concerns
 - Type safety with Zod validation
-- Database integration with PostgreSQL and Prisma
+- Database integration with MySQL and Prisma
 - JWT-based authentication
 - Comprehensive security features
 - Testing with Jest
 - Documentation with OpenAPI/Swagger
+- Docker support for development and production
+- Automated database migrations and backups
 
 ## Project Structure
 
 ```
 src/
 ├── application/    # Application business rules
-├── domain/        # Enterprise business rules
-├── infrastructure/# Frameworks, drivers, and tools
-├── shared/        # Shared utilities and constants
-└── index.js       # Application entry point
+│   ├── services/   # Business logic services
+│   └── dtos/       # Data Transfer Objects
+├── domain/         # Enterprise business rules
+│   ├── entities/   # Domain models
+│   └── repositories/ # Repository interfaces
+├── infrastructure/ # Frameworks, drivers, and tools
+│   ├── controllers/ # HTTP controllers
+│   ├── middleware/  # Express middleware
+│   ├── repositories/ # Repository implementations
+│   └── routes/      # API routes
+├── shared/         # Shared utilities and constants
+│   ├── constants/   # Application constants
+│   └── utils/       # Utility functions
+└── index.js        # Application entry point
 ```
 
 ## Security Features
@@ -51,54 +63,117 @@ src/
 
 ## Prerequisites
 
-- Node.js >= 18.0.0
-- PostgreSQL >= 14.0
+### For Windows:
 
-## Getting Started
+- **Docker Desktop**: With WSL 2 backend (default)
+- **Node.js >= 22.16.0**
+- **Git**
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Set up environment variables:
-   ```bash
-   cp .env.example .env
-   ```
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
+### For Linux/Mac:
+
+- **Node.js >= 22.16.0**
+- **Docker Desktop** or **Docker Engine**
+- **Git**
+
+### For all systems:
+
+- **MySQL >= 8.0** or **MariaDB >= 10.5** (optional, included in Docker)
+
+## Quick Start
+
+```bash
+# Clone and setup
+git clone <repository-url>
+cd backend
+npm run setup
+
+# Configure environment
+nano .env.development
+
+# Start development environment
+npm run docker:up
+
+# Access the application
+# API: https://localhost/api
+# phpMyAdmin: https://localhost/phpmyadmin
+```
+
+> **📖 For detailed development guidelines, see [DEVELOPMENT.md](./DEVELOPMENT.md)**
+
+## Docker Setup
+
+### Windows with Docker Desktop
+
+1. **Install Docker Desktop**: Download from [docker.com](https://www.docker.com/products/docker-desktop/)
+2. **WSL 2 Integration**: Docker Desktop uses WSL 2 backend by default
+3. **Restart Docker Desktop** if needed
+
+### Verify setup
+
+The `npm run setup` script automatically includes a complete Docker verification.
+
+## Common Issues
+
+> **📖 For detailed troubleshooting, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)**
+
+### Quick fixes:
+
+```bash
+# Docker setup
+npm run docker:reset
+
+# Environment issues
+npm run env:dev
+npm run test:env
+
+# Database issues
+npm run docker:reset
+```
 
 ## Available Scripts
 
-- `npm start`: Start the production server
-- `npm run dev`: Start the development server with hot reload
-- `npm test`: Run tests
-- `npm run test:watch`: Run tests in watch mode
-- `npm run test:coverage`: Run tests with coverage report
-- `npm run lint`: Run ESLint
-- `npm run format`: Format code with Prettier
+> **📖 For detailed script documentation, see [SCRIPTS.md](./SCRIPTS.md)**
 
-## Testing
+### Configuration
 
-Tests are organized by layer:
+```bash
+npm run setup              # Complete initial setup
+npm run setup:backend      # Configure backend
+npm run setup:env          # Copy environment variables
+npm run test:env           # Verify configuration
+npm run env:setup          # Complete environment setup
+```
 
-- Unit tests for domain and application layers
-- Integration tests for infrastructure layer
-- E2E tests for API endpoints
+### Database
+
+```bash
+npm run db:backup          # Create backup
+npm run db:rollback        # Perform rollback
+npm run db:status          # Check status
+```
+
+### Utilities
+
+```bash
+npm run generate-ssl       # Generate SSL certificates
+```
 
 ## API Documentation
 
-API documentation is available at `/api-docs` when running the server.
+- **Health Check**: `GET /api/health`
+- **API Root**: `GET /` (API metadata)
+- **Swagger/OpenAPI**: Available at `/api-docs` (when implemented)
 
 ## Contributing
 
+Please read `DEVELOPMENT.md` for detailed development guidelines.
+
 1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+2. Create your feature branch: `git checkout -b feature/amazing-feature`
+3. Follow the development workflow in `DEVELOPMENT.md`
+4. Commit your changes: `git commit -m 'feat: add amazing feature'`
+5. Push to the branch: `git push origin feature/amazing-feature`
+6. Create a Pull Request
 
 ## License
 
@@ -113,3 +188,4 @@ MIT
 - Clean Architecture principles
 - Express.js community
 - Prisma team
+- Docker community

@@ -2,6 +2,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+# Instalar curl para health checks
+RUN apk add --no-cache curl
+
 # Copiar archivos de configuración
 COPY package*.json ./
 COPY prisma ./prisma/
