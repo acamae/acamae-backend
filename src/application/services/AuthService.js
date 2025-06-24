@@ -406,9 +406,10 @@ export class AuthService {
 
     try {
       const nodemailer = await import('nodemailer');
-      const transporter = nodemailer.createTransport('SMTP', {
+      const transporter = nodemailer.createTransport({
         host: config.mail.host,
         port: config.mail.port,
+        secure: false, // true para 465, false para otros puertos
         auth: {
           user: config.mail.user,
           pass: config.mail.password,
