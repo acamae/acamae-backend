@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 1.1.4 (2025-06-24)
+
+**Note:** Version bump only for package @acamae/backend
+
+## 1.1.4 (2025-06-24)
+
+**Note:** Version bump only for package @acamae/backend
+
 ## [1.1.3](https://github.com/acamae/acamae-backend/compare/v1.1.2...v1.1.3) (2025-06-15)
 
 ### Bug Fixes
