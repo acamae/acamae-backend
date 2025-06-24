@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import winston from 'winston';
-import { format } from 'winston';
+import { format, winston } from 'winston';
 
 import { config } from '../config/environment.js';
 

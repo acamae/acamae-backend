@@ -1,4 +1,4 @@
-import { RESOURCES, ACTIONS } from './resources.js';
+import { ACTIONS, RESOURCES } from './resources.js';
 
 /**
  * User roles and their associated permissions
