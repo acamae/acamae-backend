@@ -64,14 +64,6 @@ export default [
       // Variables y declaraciones
       'no-unused-expressions': 'error',
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        {
-          argsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
-          ignoreRestSiblings: true,
-        },
-      ],
       'no-var': 'error',
       'prefer-const': 'error',
 
