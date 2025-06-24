@@ -9,7 +9,6 @@ A robust, scalable, and secure backend built with Node.js, Express, and Prisma, 
 - Database integration with MySQL and Prisma
 - JWT-based authentication
 - Comprehensive security features
-- Testing with Jest
 - Documentation with OpenAPI/Swagger
 - Docker support for development and production
 - Automated database migrations and backups
