@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 // Consolidated script for environment variable management
-import dotenv from 'dotenv';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import os from 'os';
+
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

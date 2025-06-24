@@ -120,3 +120,7 @@ desktop.ini
 !*.example
 !*.sample
 !.env.example
+
+# Do NOT ignore husky hooks
+!.husky/
+!.husky/*
