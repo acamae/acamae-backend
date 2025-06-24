@@ -101,7 +101,7 @@ npm run docker:reset
 npm run prisma:migrate -- --name descriptive_name
 
 # 3. Verify it works
-npm test
+# (Manual) Check the database or run the application to verify the migration was applied correctly.
 
 # 4. Commit and push
 git add .
@@ -113,7 +113,6 @@ git push origin feature/user-phone
 
 ```bash
 # 1. Ensure everything works
-npm test
 npm run lint
 
 # 2. Commit changes
@@ -159,7 +158,6 @@ npm run prisma:migrate reset
 ### Before committing:
 
 ```bash
-npm test
 npm run lint
 npm run format
 ```
@@ -208,7 +206,6 @@ docker compose -f docker/docker-compose.yml logs -f
 
 ## 🎯 Pre-merge Checklist
 
-- [ ] Tests passing
 - [ ] Linting without errors
 - [ ] Migrations applied correctly
 - [ ] Documentation updated

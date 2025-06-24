@@ -8,15 +8,7 @@ export default [
       ecmaVersion: 'latest',
       sourceType: 'module',
       globals: {
-        jest: true,
-        describe: true,
-        it: true,
-        expect: true,
-        beforeAll: true,
-        afterAll: true,
-        beforeEach: true,
-        afterEach: true,
-        test: true,
+        // Globals personalizados (si se requieren)
       },
     },
     plugins: {
