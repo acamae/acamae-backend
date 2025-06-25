@@ -2,9 +2,6 @@ name: 'Setup Environment'
 description: 'Sets up Node.js environment with npm registry configuration'
 
 inputs:
-  token:
-    description: 'GitHub token for checkout'
-    required: true
   npm-token:
     description: 'Token for npm registry authentication'
     required: true
@@ -31,108 +28,6 @@ runs:
         registry-url: 'https://npm.pkg.github.com'
         scope: '@acamae'
 
-    - name: Generate dependency cache key
-      id: dep-cache-key
-      shell: bash
-      run: |
-        echo "::group::Analysing dependencies of all package.json"
-
-        # Detect hash command
-        if command -v sha256sum >/dev/null 2>&1; then
-          HASH_CMD="sha256sum"
-        elif command -v gsha256sum >/dev/null 2>&1; then
-          HASH_CMD="gsha256sum"
-        else
-          echo "sha256sum not found"
-          exit 1
-        fi
-
-        extract_deps() {
-          local file=$1
-          echo "📦 Analising $file:"
-
-          echo "  Dependencies:"
-          jq -r '.dependencies // {} | to_entries[] | "    \(.key)@\(.value)"' "$file" | while read dep; do
-            if [[ $dep == *"workspace:*"* ]]; then
-              echo "    🔄 $dep (workspace - ignorada)"
-            else
-              echo "    ✓ $dep"
-            fi
-          done
-
-          echo "  DevDependencies:"
-          jq -r '.devDependencies // {} | to_entries[] | "    \(.key)@\(.value)"' "$file" | while read dep; do
-            if [[ $dep == *"workspace:*"* ]]; then
-              echo "    🔄 $dep (workspace - ignorada)"
-            else
-              echo "    ✓ $dep"
-            fi
-          done
-
-          jq -r '
-            def process_deps:
-              to_entries[] |
-              select(.value != "workspace:*") |
-              "\(.key)@\(.value)";
-            .dependencies // {} | process_deps,
-            .devDependencies // {} | process_deps
-          ' "$file" | sort
-        }
-
-        echo "Generating hash of dependencies..."
-        DEPS_HASH=$(find . -name 'package.json' -type f -exec bash -c 'extract_deps "$0"' {} \; | sort | tee /tmp/all_deps | $HASH_CMD | cut -d' ' -f1)
-
-        echo "Total dependencies found (excluding workspace:*):"
-        wc -l < /tmp/all_deps
-
-        echo "Workspaces configuration:"
-        WORKSPACE_CONFIG=$(jq -r '.workspaces' package.json)
-        echo "$WORKSPACE_CONFIG"
-
-        echo "Lerna configuration:"
-        LERNA_CONFIG=$(jq -r '.packages,.npmClient,.useWorkspaces' lerna.json 2>/dev/null || echo "{}")
-        echo "$LERNA_CONFIG"
-
-        FINAL_HASH=$(echo "${DEPS_HASH}${WORKSPACE_CONFIG}${LERNA_CONFIG}" | sha256sum | cut -d' ' -f1)
-        echo "Hash final: ${FINAL_HASH}"
-
-        echo "::endgroup::"
-        echo "hash=${FINAL_HASH}" >> $GITHUB_OUTPUT
-
-    - name: Cache node modules
-      uses: actions/cache@v4
-      id: cache-node-modules
-      with:
-        path: |
-          node_modules
-          */*/node_modules
-          ~/.npm
-        key: ${{ runner.os }}-node-deps-${{ steps.dep-cache-key.outputs.hash }}
-        restore-keys: |
-          ${{ runner.os }}-node-deps-
-          ${{ runner.os }}-node-
-
-    - name: Cache npm cache directory
-      uses: actions/cache@v4
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-npm-cache-${{ steps.dep-cache-key.outputs.hash }}
-        restore-keys: |
-          ${{ runner.os }}-npm-cache-
-          ${{ runner.os }}-npm-
-
-    - name: Cache build outputs
-      uses: actions/cache@v4
-      with:
-        path: |
-          dist
-          .next
-          .cache
-          public/build
-        key: ${{ runner.os }}-build-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-build-
-
     - name: Create .npmrc file
       shell: bash
       run: |
@@ -142,76 +37,34 @@ runs:
       env:
         NPM_TOKEN: ${{ inputs.npm-token }}
 
-    - name: Check dependencies state
-      id: check-deps
-      shell: bash
-      run: |
-        echo "::group::Checking dependencies state"
-        needs_install=false
-
-        if [ ! -d "node_modules" ]; then
-          echo "❌ node_modules does not exist"
-          needs_install=true
-        fi
-
-        if [ "$needs_install" = "false" ]; then
-          extract_deps() {
-            local file=$1
-            echo "📦 Processing $file"
-            jq -r '
-              def process_deps:
-                to_entries[] |
-                select(.value != "workspace:*") |
-                "\(.key)@\(.value)";
-              .dependencies // {} | process_deps,
-              .devDependencies // {} | process_deps
-            ' "$file" | sort
-          }
-
-          echo "Getting current dependencies..."
-          find . -name 'package.json' -type f -exec bash -c 'extract_deps "$0"' {} \; | sort > /tmp/current_deps
-
-          if [ -f "node_modules/.cached_deps" ]; then
-            echo "Comparing with cached dependencies..."
-            if ! cmp -s /tmp/current_deps "node_modules/.cached_deps"; then
-              echo "🔄 Detected changes in dependencies:"
-              echo "--- Previous dependencies"
-              echo "+++ Current dependencies"
-              diff --color -u "node_modules/.cached_deps" /tmp/current_deps || true
-              needs_install=true
-            else
-              echo "✅ Dependencies match cached version"
-            fi
-          else
-            echo "❌ No cached dependencies found"
-            needs_install=true
-          fi
-        fi
-
-        echo "needs_install=${needs_install}" >> $GITHUB_OUTPUT
-        echo "::endgroup::"
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          **/node_modules
+          ~/.npm
+        key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json', '**/lerna.json') }}
+        restore-keys: |
+          ${{ runner.os }}-modules-
 
     - name: Install dependencies
-      if: steps.check-deps.outputs.needs_install == 'true'
       shell: bash
       run: |
-        echo "::group::Installing dependencies"
-        npm ci
-        echo "::endgroup::"
-
-        echo "::group::Caching dependency state"
-        extract_deps() {
-          jq -r '
-            def process_deps:
-              to_entries[] |
-              select(.value != "workspace:*") |
-              "\(.key)@\(.value)";
-            .dependencies // {} | process_deps,
-            .devDependencies // {} | process_deps
-          ' "$1" | sort
+        echo "📦 Installing dependencies..."
+        npm ci --prefer-offline || {
+          echo "🔄 Retry without cache..."
+          rm -rf node_modules
+          npm ci
         }
-        find . -name 'package.json' -type f -exec bash -c 'extract_deps "$0"' {} \; | sort > node_modules/.cached_deps
-        echo "::endgroup::"
+
+    - name: Security audit
+      shell: bash
+      run: |
+        if ! npm audit; then
+          echo "⚠️ Security vulnerabilities found"
+          echo "Review the audit report above"
+          exit 1
+        fi
 
     - name: Setup git identity
       if: inputs.setup-git-identity == 'true'
