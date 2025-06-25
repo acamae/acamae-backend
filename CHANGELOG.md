@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.2.0](https://github.com/acamae/acamae-backend/compare/v1.1.3...v1.2.0) (2025-06-25)
+
+### Bug Fixes
+
+- **ci:** added build script ([a220f6a](https://github.com/acamae/acamae-backend/commit/a220f6a9c910b5d6e105ba2bf5a612e8f9c2b869))
+
+### Features
+
+- **auth:** add session tokens, email verification and unified error handling ([b770931](https://github.com/acamae/acamae-backend/commit/b7709316490d8492940cfdde5e0e99c797f777f4))
+- **core:** add proxy strategy architecture and update Docker instructions ([2f158ed](https://github.com/acamae/acamae-backend/commit/2f158eddda2bdc1cc8519e2151aa94951d7d4021))
+
+# [1.2.0](https://github.com/acamae/acamae-backend/compare/v1.1.3...v1.2.0) (2025-06-25)
+
+### Bug Fixes
+
+- **ci:** added build script ([a220f6a](https://github.com/acamae/acamae-backend/commit/a220f6a9c910b5d6e105ba2bf5a612e8f9c2b869))
+
+### Features
+
+- **auth:** add session tokens, email verification and unified error handling ([b770931](https://github.com/acamae/acamae-backend/commit/b7709316490d8492940cfdde5e0e99c797f777f4))
+- **core:** add proxy strategy architecture and update Docker instructions ([2f158ed](https://github.com/acamae/acamae-backend/commit/2f158eddda2bdc1cc8519e2151aa94951d7d4021))
+
 ## 1.1.4 (2025-06-24)
 
 **Note:** Version bump only for package @acamae/backend
