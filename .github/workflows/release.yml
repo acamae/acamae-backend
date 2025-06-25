@@ -36,12 +36,30 @@ jobs:
             exit 1
           fi
 
-      - name: Validate version format
+      - name: Validate commit format
         run: |
-          if ! [[ "${{ github.event.head_commit.message }}" =~ ^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\(.+\))?: ]]; then
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+
+          # Ignorar commits de merge
+          if [[ "$COMMIT_MSG" =~ ^Merge ]]; then
+            echo "✅ Merge commit detected, skipping validation"
+            exit 0
+          fi
+
+          # Ignorar commits de release de Lerna
+          if [[ "$COMMIT_MSG" =~ ^chore\(release\): ]]; then
+            echo "✅ Release commit detected, skipping validation"
+            exit 0
+          fi
+
+          # Validar formato convencional
+          if ! [[ "$COMMIT_MSG" =~ ^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\(.+\))?: ]]; then
             echo "❌ Commit message does not follow Conventional Commits"
+            echo "Message: $COMMIT_MSG"
             exit 1
           fi
+
+          echo "✅ Valid conventional commit format"
 
       - name: Install GNU coreutils (for sha256sum)
         if: runner.os == 'macOS'
