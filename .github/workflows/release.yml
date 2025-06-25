@@ -27,6 +27,8 @@ jobs:
       contents: write
       packages: write
       pull-requests: write
+      checks: write
+      statuses: write
     steps:
       - uses: actions/checkout@v4
       - name: Verify branch
@@ -73,8 +75,7 @@ jobs:
 
       - name: Version packages
         if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
-        run: >-
-          npx lerna version --conventional-commits --yes --no-push --message 'chore(release): %s [skip ci]'
+        run: npx lerna version --conventional-commits --yes --no-push
 
       - name: Push tags
         run: git push --follow-tags

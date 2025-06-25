@@ -1,5 +1,82 @@
 {
   "packages": ["."],
   "version": "1.2.1",
-  "npmClient": "npm"
+  "npmClient": "npm",
+  "command": {
+    "publish": {
+      "conventionalCommits": true,
+      "message": "chore(release): %s [skip ci]",
+      "createRelease": "github",
+      "changelog": {
+        "preset": "conventionalcommits",
+        "releaseCount": 1,
+        "infile": "CHANGELOG.md",
+        "header": "# Change Log\n\nAll notable changes to this project will be documented in this file.\nSee [Conventional Commits](https://conventionalcommits.org) for commit guidelines.\n\n",
+        "types": [
+          {
+            "type": "feat",
+            "section": "Features"
+          },
+          {
+            "type": "fix",
+            "section": "Bug Fixes"
+          },
+          {
+            "type": "docs",
+            "section": "Documentation"
+          },
+          {
+            "type": "style",
+            "section": "Styles"
+          },
+          {
+            "type": "refactor",
+            "section": "Code Refactoring"
+          },
+          {
+            "type": "perf",
+            "section": "Performance Improvements"
+          },
+          {
+            "type": "test",
+            "section": "Tests"
+          },
+          {
+            "type": "build",
+            "section": "Build System"
+          },
+          {
+            "type": "ci",
+            "section": "Continuous Integration"
+          },
+          {
+            "type": "chore",
+            "section": "Chores"
+          }
+        ]
+      },
+      "allowBranch": ["release"],
+      "ignoreChanges": [
+        "**/*.md",
+        "**/test/**",
+        "**/tests/**",
+        "**/__tests__/**",
+        "**/coverage/**"
+      ],
+      "exact": true,
+      "skipGit": false,
+      "skipNpm": false,
+      "yes": true,
+      "preid": "pr",
+      "prerelease": true
+    },
+    "version": {
+      "skipChangelog": false,
+      "conventionalCommits": true,
+      "createRelease": "github",
+      "message": "chore(release): %s",
+      "allowBranch": ["release"],
+      "ignoreChanges": ["**/*.md", "**/test/**", "**/tests/**", "**/__tests__/**", "**/coverage/**"]
+    }
+  }
 }
