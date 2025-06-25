@@ -73,7 +73,8 @@ jobs:
 
       - name: Version packages
         if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
-        run: npx lerna version --conventional-commits --yes --no-push
+        run: >-
+          npx lerna version --conventional-commits --yes --no-push --message 'chore(release): %s [skip ci]'
 
       - name: Push tags
         run: git push --follow-tags
