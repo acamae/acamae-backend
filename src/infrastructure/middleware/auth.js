@@ -1,26 +1,27 @@
 import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
 
-import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
-import { config } from '../config/environment.js';
+import { TokenService } from '../../shared/utils/token.js';
 
 const prisma = new PrismaClient();
+const tokenService = new TokenService();
 
 /**
  * Verify JWT token
  * @param {string} token - JWT token
  * @returns {Object} Decoded token
  */
-const verifyToken = (token) => {
+const verifyAccessToken = (token) => {
   try {
-    return jwt.verify(token, config.jwt.secret);
+    return tokenService.verifyAccessToken(token);
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      throw createError('Token expired', API_ERROR_CODES.TOKEN_EXPIRED, HTTP_STATUS.UNAUTHORIZED);
-    }
-    throw createError('Invalid token', API_ERROR_CODES.INVALID_TOKEN, HTTP_STATUS.UNAUTHORIZED);
+    throw createError(
+      ERROR_MESSAGES[API_ERROR_CODES.INVALID_TOKEN],
+      error.code || API_ERROR_CODES.INVALID_TOKEN,
+      HTTP_STATUS.UNAUTHORIZED
+    );
   }
 };
 
@@ -52,7 +53,7 @@ export const authenticate = async (req, _res, next) => {
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = verifyAccessToken(token);
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
@@ -61,7 +62,7 @@ export const authenticate = async (req, _res, next) => {
         email: true,
         username: true,
         role: true,
-        isVerified: true,
+        is_verified: true,
       },
     });
 
@@ -73,7 +74,7 @@ export const authenticate = async (req, _res, next) => {
       );
     }
 
-    if (!user.isVerified) {
+    if (!user.is_verified) {
       throw createError(
         ERROR_MESSAGES[API_ERROR_CODES.UNAUTHORIZED],
         API_ERROR_CODES.UNAUTHORIZED,

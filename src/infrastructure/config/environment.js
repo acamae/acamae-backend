@@ -75,7 +75,9 @@ const defaults = defaultValues[nodeEnv] || defaultValues.development;
  * @property {string} CORS_ORIGIN - Allowed CORS origin
  * @property {string} FRONTEND_URL - Frontend application URL
  * @property {string} JWT_SECRET - JWT secret key
+ * @property {string} JWT_REFRESH_SECRET - JWT refresh secret key
  * @property {string} JWT_EXPIRES_IN - JWT token expiration time
+ * @property {string} JWT_REFRESH_EXPIRES_IN - JWT refresh token expiration time
  * @property {string} DATABASE_URL - Database connection URL
  * @property {string} COOKIE_SECRET - Cookie encryption secret
  * @property {string} COOKIE_MAX_AGE - Cookie max age in milliseconds
@@ -95,7 +97,9 @@ const envSchema = z.object({
 
   // Security
   JWT_SECRET: z.string().min(32),
+  JWT_REFRESH_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().default('1d'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   COOKIE_SECRET: z.string().min(32).optional(),
   COOKIE_MAX_AGE: z.string().default('86400000'),
   SESSION_SECRET: z.string().min(32).optional(),
@@ -145,7 +149,9 @@ export const config = {
   // Security
   jwt: {
     secret: env.data.JWT_SECRET,
+    refreshSecret: env.data.JWT_REFRESH_SECRET,
     expiresIn: env.data.JWT_EXPIRES_IN,
+    refreshExpiresIn: env.data.JWT_REFRESH_EXPIRES_IN,
   },
   cookie: {
     secret: env.data.COOKIE_SECRET,
