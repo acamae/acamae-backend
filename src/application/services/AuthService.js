@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 
 import { config } from '../../infrastructure/config/environment.js';
@@ -8,6 +7,7 @@ import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes
 import { APP_ROUTES } from '../../shared/constants/appRoutes.js';
 import { USER_ROLES } from '../../shared/constants/validation.js';
 import { createError } from '../../shared/utils/error.js';
+import { TokenService } from '../../shared/utils/token.js';
 
 const prisma = new PrismaClient();
 
@@ -21,63 +21,29 @@ export class AuthService {
   constructor(userRepository) {
     this.userRepository = userRepository;
     this.SALT_ROUNDS = 10;
-    this.JWT_SECRET = config.JWT_SECRET;
-    this.JWT_REFRESH_SECRET = config.JWT_REFRESH_SECRET || config.JWT_SECRET;
-    this.JWT_EXPIRES_IN = config.JWT_EXPIRES_IN;
-    this.JWT_REFRESH_EXPIRES_IN = '7d';
+    this.tokenService = new TokenService();
+    this.VERIFICATION_EXPIRATION_MS = parseInt(
+      process.env.VERIFICATION_EXPIRATION ?? this.parseDuration('10m'),
+      10
+    );
+    this.REFRESH_EXPIRES_MS = this.parseDuration(config.jwt.refreshExpiresIn);
   }
 
   /**
-   * Generate JWT tokens for a user
-   * @param {User} user - User to generate tokens for
-   * @returns {{accessToken: string, refreshToken: string}} JWT tokens
+   * Convierte strings tipo '7d', '24h', '30m', '60s' o milisegundos a ms.
+   * @param {string|number} value
+   * @returns {number}
    */
-  generateTokens(user) {
-    const accessToken = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
-      this.JWT_SECRET,
-      {
-        expiresIn: this.JWT_EXPIRES_IN,
-        algorithm: 'HS256',
-      }
-    );
-
-    const refreshToken = jwt.sign(
-      {
-        id: user.id,
-        type: 'refresh',
-      },
-      this.JWT_REFRESH_SECRET,
-      {
-        expiresIn: this.JWT_REFRESH_EXPIRES_IN,
-        algorithm: 'HS256',
-      }
-    );
-
-    return { accessToken, refreshToken };
-  }
-
-  /**
-   * Verify and decode a JWT token
-   * @param {string} token - JWT token to verify
-   * @param {boolean} [isRefresh=false] - Whether this is a refresh token
-   * @returns {Object} Decoded token payload
-   * @throws {Error} If token is invalid or expired
-   */
-  verifyToken(token, isRefresh = false) {
-    try {
-      return jwt.verify(token, isRefresh ? this.JWT_REFRESH_SECRET : this.JWT_SECRET);
-    } catch (error) {
-      console.error('Error verifying token:', error);
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_TOKEN],
-        API_ERROR_CODES.INVALID_TOKEN
-      );
-    }
+  parseDuration(value) {
+    if (typeof value === 'number') return value;
+    if (/^\d+$/.test(value)) return parseInt(value, 10);
+    const regex = /^(\d+)([smhd])$/; // segundos, minutos, horas, días
+    const match = value.match(regex);
+    if (!match) return 0;
+    const num = parseInt(match[1], 10);
+    const unit = match[2];
+    const unitMs = { s: 1000, m: 60000, h: 3600000, d: 86400000 }[unit];
+    return num * unitMs;
   }
 
   /**
@@ -111,6 +77,7 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(password, this.SALT_ROUNDS);
     const verificationToken = uuidv4();
+    const verificationExpiresAt = new Date(Date.now() + this.VERIFICATION_EXPIRATION_MS);
 
     const user = await prisma.user.create({
       data: {
@@ -118,6 +85,7 @@ export class AuthService {
         password_hash: hashedPassword,
         username,
         verification_token: verificationToken,
+        verification_expires_at: verificationExpiresAt,
         role: USER_ROLES.USER,
       },
       select: {
@@ -142,7 +110,12 @@ export class AuthService {
    */
   async verifyEmail(token) {
     const user = await prisma.user.findFirst({
-      where: { verification_token: token },
+      where: {
+        verification_token: token,
+        verification_expires_at: {
+          gt: new Date(),
+        },
+      },
     });
 
     if (!user) {
@@ -205,7 +178,11 @@ export class AuthService {
     }
 
     const { ...userWithoutPassword } = user;
-    const tokens = this.generateTokens(userWithoutPassword);
+    const tokens = this.tokenService.generateTokens({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
 
     // Guardar refreshToken en session_tokens
     try {
@@ -214,7 +191,7 @@ export class AuthService {
           user_id: user.id,
           token: tokens.refreshToken,
           last_activity_at: new Date(),
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días
+          expires_at: new Date(Date.now() + this.REFRESH_EXPIRES_MS),
         },
       });
     } catch (err) {
@@ -287,13 +264,40 @@ export class AuthService {
         data: { last_activity_at: new Date() },
       });
 
+      // Verificar firma del refresh token y obtener payload
+      const payload = this.tokenService.verifyRefreshToken(refreshToken);
+
+      // Obtener usuario para incluir datos actualizados (por si el rol cambió)
+      const dbUser = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          role: true,
+        },
+      });
+
+      if (!dbUser) {
+        throw createError(
+          ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
+          API_ERROR_CODES.USER_NOT_FOUND
+        );
+      }
+
       // Generar nuevos tokens y reemplazar refresh en BD
-      const newTokens = this.generateTokens(user);
+      const newTokens = this.tokenService.generateTokens({
+        userId: dbUser.id,
+        email: dbUser.email,
+        role: dbUser.role,
+      });
+
+      // Sustituir token en la tabla session_tokens
       await prisma.sessionToken.update({
         where: { id: sessionToken.id },
         data: {
           token: newTokens.refreshToken,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          expires_at: new Date(Date.now() + this.REFRESH_EXPIRES_MS),
         },
       });
 
@@ -349,7 +353,7 @@ export class AuthService {
       where: { id: user.id },
       data: {
         resetToken,
-        resetTokenExpires: new Date(Date.now() + 3600000), // 1 hora
+        resetTokenExpires: new Date(Date.now() + this.parseDuration('1h')),
       },
     });
 
