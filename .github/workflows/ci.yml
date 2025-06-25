@@ -1,10 +1,12 @@
+# @description: Este workflow se encarga de la integración continua
+# @triggers: Pull requests a main
+# @permissions: read-only para contenido y paquetes
 name: CI
+run-name: 'CI: ${{ github.event.pull_request.title }}'
 
 on:
   pull_request:
-    branches:
-      - main
-      - release
+    branches: [main, release]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -12,6 +14,7 @@ concurrency:
 
 jobs:
   ci-all:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     environment: development
     steps:
@@ -19,21 +22,31 @@ jobs:
       - name: Install GNU coreutils (for sha256sum)
         if: runner.os == 'macOS'
         run: brew install coreutils
+
       - name: Setup environment
         uses: ./.github/actions/setup-env
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           npm-token: ${{ secrets.NODE_AUTH_TOKEN || secrets.GITHUB_TOKEN }}
+          setup-git-identity: true
 
       # LINT
       - run: npm run lint:fix
       - run: npm run lint
 
-      # SONARQUBE
+      # SONARQUBE CACHE
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      # SONARQUBE SCAN
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
     permissions:
       contents: read
       packages: read
