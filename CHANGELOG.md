@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 1.2.2 (2025-06-25)
+
+### Bug Fixes
+
+- **ci:** lerna publish job ([7c035f6](https://github.com/acamae/acamae-backend/commit/7c035f6a8710207bea6bf7dcf2428f6a43c61d44))
+
+## 1.2.2 (2025-06-25)
+
+### Bug Fixes
+
+- **ci:** lerna publish job ([7c035f6](https://github.com/acamae/acamae-backend/commit/7c035f6a8710207bea6bf7dcf2428f6a43c61d44))
+
 ## 1.2.1 (2025-06-25)
 
 **Note:** Version bump only for package @acamae/backend
