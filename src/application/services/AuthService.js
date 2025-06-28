@@ -1,15 +1,18 @@
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import FormData from 'form-data';
+import Mailgun from 'mailgun.js'; // eslint-disable-line import/no-unresolved
 import { v4 as uuidv4 } from 'uuid';
 
 import { config } from '../../infrastructure/config/environment.js';
 import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 import { APP_ROUTES } from '../../shared/constants/appRoutes.js';
-import { USER_ROLES } from '../../shared/constants/validation.js';
+import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
+import { REGEX, USER_ROLES } from '../../shared/constants/validation.js';
 import { createError } from '../../shared/utils/error.js';
+import { sanitizeString } from '../../shared/utils/sanitize.js';
 import { TokenService } from '../../shared/utils/token.js';
 
-const prisma = new PrismaClient();
+// Removed direct Prisma usage; interactions go through repositories
 
 /**
  * Authentication service
@@ -17,15 +20,16 @@ const prisma = new PrismaClient();
 export class AuthService {
   /**
    * @param {UserRepository} userRepository
+   * @param {SessionTokenRepository} sessionTokenRepository
    */
-  constructor(userRepository) {
+  constructor(userRepository, sessionTokenRepository) {
     this.userRepository = userRepository;
+    this.sessionTokenRepository = sessionTokenRepository;
     this.SALT_ROUNDS = 10;
     this.tokenService = new TokenService();
-    this.VERIFICATION_EXPIRATION_MS = parseInt(
-      process.env.VERIFICATION_EXPIRATION ?? this.parseDuration('10m'),
-      10
-    );
+    // Compute verification token TTL
+    const rawExpiration = process.env.VERIFICATION_EXPIRATION || '10m';
+    this.VERIFICATION_EXPIRATION_MS = this.parseDuration(rawExpiration);
     this.REFRESH_EXPIRES_MS = this.parseDuration(config.jwt.refreshExpiresIn);
   }
 
@@ -54,52 +58,36 @@ export class AuthService {
   async register(userData) {
     const { email, password, username } = userData;
 
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { username }],
-      },
-    });
+    // Check duplicates via repository
+    const [existingByEmail, existingByUsername] = await Promise.all([
+      this.userRepository.findByEmail(email),
+      this.userRepository.findByUsername(username),
+    ]);
 
-    if (existingUser) {
-      if (existingUser.email === email) {
-        throw createError(
-          ERROR_MESSAGES[API_ERROR_CODES.EMAIL_ALREADY_EXISTS],
-          API_ERROR_CODES.EMAIL_ALREADY_EXISTS
-        );
-      }
-      if (existingUser.username === username) {
-        throw createError(
-          ERROR_MESSAGES[API_ERROR_CODES.USERNAME_ALREADY_EXISTS],
-          API_ERROR_CODES.USERNAME_ALREADY_EXISTS
-        );
-      }
+    if (existingByEmail || existingByUsername) {
+      throw createError(
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS],
+        API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS
+      );
     }
 
-    const hashedPassword = await bcrypt.hash(password, this.SALT_ROUNDS);
     const verificationToken = uuidv4();
     const verificationExpiresAt = new Date(Date.now() + this.VERIFICATION_EXPIRATION_MS);
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password_hash: hashedPassword,
-        username,
-        verification_token: verificationToken,
-        verification_expires_at: verificationExpiresAt,
-        role: USER_ROLES.USER,
-      },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        role: true,
-        is_verified: true,
-      },
+    const createdUser = await this.userRepository.create({
+      email,
+      username,
+      password,
+      role: USER_ROLES.USER,
+      verificationToken,
+      verificationExpiresAt,
     });
 
-    // Enviar email de verificación
-    await this.sendVerificationEmail(user.email, verificationToken);
+    // Send verification email
+    await this.sendVerificationEmail(createdUser.email, verificationToken);
 
+    // Exclude passwordHash before return
+    const { passwordHash, ...user } = createdUser;
     return user;
   }
 
@@ -109,29 +97,42 @@ export class AuthService {
    * @returns {Promise<boolean>}
    */
   async verifyEmail(token) {
-    const user = await prisma.user.findFirst({
-      where: {
-        verification_token: token,
-        verification_expires_at: {
-          gt: new Date(),
-        },
-      },
-    });
+    const sanitizedToken = sanitizeString(token);
 
-    if (!user) {
+    if (!REGEX.UUID_V4.test(sanitizedToken)) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_VERIFICATION_TOKEN],
-        API_ERROR_CODES.INVALID_VERIFICATION_TOKEN
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        API_ERROR_CODES.AUTH_TOKEN_INVALID
       );
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        is_verified: true,
-        verification_token: null,
-      },
-    });
+    // Use sanitized token from now on
+    const user = await this.userRepository.findByVerificationToken(sanitizedToken);
+
+    if (!user) {
+      throw createError(
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        API_ERROR_CODES.AUTH_TOKEN_INVALID
+      );
+    }
+
+    if (user.isVerified) {
+      throw createError(
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED],
+        API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED
+      );
+    }
+
+    // Check token expiration
+    if (user.verificationExpiresAt && user.verificationExpiresAt < new Date()) {
+      throw createError(
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
+        API_ERROR_CODES.AUTH_TOKEN_EXPIRED
+      );
+    }
+
+    // Mark as verified
+    await this.userRepository.setVerified(user.id, true);
 
     return true;
   }
@@ -143,63 +144,60 @@ export class AuthService {
    * @returns {Promise<{user: User, accessToken: string, refreshToken: string}>}
    */
   async login(email, password) {
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        password_hash: true,
-        username: true,
-        role: true,
-        is_verified: true,
-      },
-    });
+    const dbUser = await this.userRepository.findByEmail(email);
 
-    if (!user) {
+    if (!dbUser) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_CREDENTIALS],
-        API_ERROR_CODES.INVALID_CREDENTIALS
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_INVALID_CREDENTIALS],
+        API_ERROR_CODES.AUTH_INVALID_CREDENTIALS
       );
     }
 
-    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    const isValidPassword = await bcrypt.compare(password, dbUser.passwordHash);
     if (!isValidPassword) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_CREDENTIALS],
-        API_ERROR_CODES.INVALID_CREDENTIALS
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_INVALID_CREDENTIALS],
+        API_ERROR_CODES.AUTH_INVALID_CREDENTIALS
       );
     }
 
-    if (!user.is_verified) {
+    if (!dbUser.isVerified) {
       throw createError(
         ERROR_MESSAGES[API_ERROR_CODES.EMAIL_NOT_VERIFIED],
         API_ERROR_CODES.EMAIL_NOT_VERIFIED
       );
     }
 
-    const { ...userWithoutPassword } = user;
+    const user = {
+      id: dbUser.id,
+      email: dbUser.email,
+      username: dbUser.username,
+      role: dbUser.role,
+      is_verified: dbUser.isVerified,
+      createdAt: dbUser.createdAt,
+      updatedAt: dbUser.updatedAt,
+    };
+
     const tokens = this.tokenService.generateTokens({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
+      userId: dbUser.id,
+      email: dbUser.email,
+      role: dbUser.role,
     });
 
-    // Guardar refreshToken en session_tokens
+    // Save refreshToken in session_tokens
     try {
-      await prisma.sessionToken.create({
-        data: {
-          user_id: user.id,
-          token: tokens.refreshToken,
-          last_activity_at: new Date(),
-          expires_at: new Date(Date.now() + this.REFRESH_EXPIRES_MS),
-        },
+      await this.sessionTokenRepository.create({
+        userId: dbUser.id,
+        token: tokens.refreshToken,
+        lastActivityAt: new Date(),
+        expiresAt: new Date(Date.now() + this.REFRESH_EXPIRES_MS),
       });
     } catch (err) {
-      console.error('Error guardando session token:', err);
+      console.error(ERROR_MESSAGES[API_ERROR_CODES.UNKNOWN_ERROR], err);
     }
 
     return {
-      user: userWithoutPassword,
+      user,
       ...tokens,
     };
   }
@@ -210,26 +208,16 @@ export class AuthService {
    * @returns {Promise<User>}
    */
   async getMe(userId) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        role: true,
-        is_verified: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    const dbUser = await this.userRepository.findById(userId);
 
-    if (!user) {
+    if (!dbUser) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
-        API_ERROR_CODES.USER_NOT_FOUND
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+        API_ERROR_CODES.AUTH_USER_NOT_FOUND
       );
     }
 
+    const { passwordHash, ...user } = dbUser;
     return user;
   }
 
@@ -240,8 +228,8 @@ export class AuthService {
    */
   async refreshToken(refreshToken) {
     try {
-      // Verificar que el refreshToken exista en session_tokens
-      const sessionToken = await prisma.sessionToken.findUnique({ where: { token: refreshToken } });
+      // Check if refreshToken exists in session_tokens
+      const sessionToken = await this.sessionTokenRepository.findByToken(refreshToken);
       if (!sessionToken) {
         throw createError(
           ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
@@ -249,43 +237,32 @@ export class AuthService {
         );
       }
 
-      if (sessionToken.expires_at < new Date()) {
-        // Token expirado -> eliminar registro y lanzar error
-        await prisma.sessionToken.delete({ where: { id: sessionToken.id } });
+      if (sessionToken.expiresAt < new Date()) {
+        // Token expired -> delete record and throw error
+        await this.sessionTokenRepository.deleteById(sessionToken.id);
         throw createError(
-          ERROR_MESSAGES[API_ERROR_CODES.TOKEN_EXPIRED],
-          API_ERROR_CODES.TOKEN_EXPIRED
+          ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
+          API_ERROR_CODES.AUTH_TOKEN_EXPIRED
         );
       }
 
-      // Actualizar última actividad
-      await prisma.sessionToken.update({
-        where: { id: sessionToken.id },
-        data: { last_activity_at: new Date() },
-      });
+      // Update last activity
+      await this.sessionTokenRepository.update(sessionToken.id, { lastActivityAt: new Date() });
 
-      // Verificar firma del refresh token y obtener payload
+      // Verify refresh token signature and get payload
       const payload = this.tokenService.verifyRefreshToken(refreshToken);
 
-      // Obtener usuario para incluir datos actualizados (por si el rol cambió)
-      const dbUser = await prisma.user.findUnique({
-        where: { id: payload.userId },
-        select: {
-          id: true,
-          email: true,
-          username: true,
-          role: true,
-        },
-      });
+      // Get user to include updated data (in case the role changed)
+      const dbUser = await this.userRepository.findById(payload.userId);
 
       if (!dbUser) {
         throw createError(
-          ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
-          API_ERROR_CODES.USER_NOT_FOUND
+          ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+          API_ERROR_CODES.AUTH_USER_NOT_FOUND
         );
       }
 
-      // Generar nuevos tokens y reemplazar refresh en BD
+      // Generate new tokens and replace refresh in DB
       const newTokens = this.tokenService.generateTokens({
         userId: dbUser.id,
         email: dbUser.email,
@@ -293,12 +270,9 @@ export class AuthService {
       });
 
       // Sustituir token en la tabla session_tokens
-      await prisma.sessionToken.update({
-        where: { id: sessionToken.id },
-        data: {
-          token: newTokens.refreshToken,
-          expires_at: new Date(Date.now() + this.REFRESH_EXPIRES_MS),
-        },
+      await this.sessionTokenRepository.update(sessionToken.id, {
+        token: newTokens.refreshToken,
+        expiresAt: new Date(Date.now() + this.REFRESH_EXPIRES_MS),
       });
 
       return newTokens;
@@ -318,17 +292,18 @@ export class AuthService {
    * @returns {Promise<void>}
    */
   async logout(refreshToken) {
-    try {
-      // Eliminar token de la base de datos para invalidarlo
-      await prisma.sessionToken.delete({ where: { token: refreshToken } });
-      return true;
-    } catch (err) {
-      console.error('Error during logout:', err);
+    // Attempt to delete the session token
+    const count = await this.sessionTokenRepository.deleteByToken(refreshToken);
+
+    if (count === 0) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.UNKNOWN_ERROR],
-        API_ERROR_CODES.UNKNOWN_ERROR
+        ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
+        API_ERROR_CODES.INVALID_REFRESH_TOKEN,
+        HTTP_STATUS.UNAUTHORIZED
       );
     }
+
+    return true;
   }
 
   /**
@@ -337,25 +312,21 @@ export class AuthService {
    * @returns {Promise<void>}
    */
   async forgotPassword(email) {
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    const user = await this.userRepository.findByEmail(email);
 
     if (!user) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
-        API_ERROR_CODES.USER_NOT_FOUND
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+        API_ERROR_CODES.AUTH_USER_NOT_FOUND
       );
     }
 
     const resetToken = uuidv4();
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        resetToken,
-        resetTokenExpires: new Date(Date.now() + this.parseDuration('1h')),
-      },
-    });
+    await this.userRepository.setResetToken(
+      user.id,
+      resetToken,
+      new Date(Date.now() + this.parseDuration('1h'))
+    );
 
     // @TODO: Send email with the reset token
     console.log('Reset token:', resetToken);
@@ -368,14 +339,7 @@ export class AuthService {
    * @returns {Promise<boolean>}
    */
   async resetPassword(token, newPassword) {
-    const user = await prisma.user.findFirst({
-      where: {
-        resetToken: token,
-        resetTokenExpires: {
-          gt: new Date(),
-        },
-      },
-    });
+    const user = await this.userRepository.findByResetToken(token);
 
     if (!user) {
       throw createError(
@@ -384,52 +348,50 @@ export class AuthService {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, this.SALT_ROUNDS);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password_hash: hashedPassword,
-        resetToken: null,
-        resetTokenExpires: null,
-      },
+    await this.userRepository.update(user.id, {
+      password: newPassword,
+      resetToken: null,
+      resetExpiresAt: null,
     });
 
     return true;
   }
 
   /**
-   * Send verification email
+   * Send verification email using Mailgun
    * @param {string} email
    * @param {string} token
    */
   async sendVerificationEmail(email, token) {
-    if (!config.mail) {
+    if (!config.mail?.mailgun) {
       console.log(`Verification email for ${email}: ${token}`);
       return;
     }
 
     try {
-      const nodemailer = await import('nodemailer');
-      const transporter = nodemailer.createTransport({
-        host: config.mail.host,
-        port: config.mail.port,
-        secure: false, // true para 465, false para otros puertos
-        auth: {
-          user: config.mail.user,
-          pass: config.mail.password,
-        },
+      const mailgun = new Mailgun(FormData);
+      const mg = mailgun.client({
+        username: 'api',
+        key: config.mail.mailgun.apiKey,
+        url: config.mail.mailgun.endpoint, // 'https://api.eu.mailgun.net' for EU domains
       });
 
       const verifyUrl = `${config.cors.frontendUrl}${APP_ROUTES.VERIFY_EMAIL}?token=${token}`;
 
-      await transporter.sendMail({
-        from: config.mail.from,
+      const response = await mg.messages.create(config.mail.mailgun.domain, {
+        from: config.mail.mailgun.from,
         to: email,
-        subject: 'Verifica tu correo',
-        html: `<p>Por favor verifica tu correo haciendo clic en el siguiente enlace:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`,
+        subject: 'Verify your email',
+        template: 'verify your email',
+        'h:X-Mailgun-Variables': JSON.stringify({
+          verify_url: verifyUrl,
+        }),
       });
+      return true;
     } catch (err) {
-      console.error('Error enviando email de verificación:', err);
+      console.error(ERROR_MESSAGES[API_ERROR_CODES.UNKNOWN_ERROR], err);
+      // Do not throw error to not interrupt the registration process
+      return false;
     }
   }
 }

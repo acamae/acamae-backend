@@ -66,6 +66,7 @@ export default [
       'import/resolver': {
         node: {
           extensions: ['.js', '.jsx', '.mjs'],
+          paths: ['node_modules'],
         },
       },
     },

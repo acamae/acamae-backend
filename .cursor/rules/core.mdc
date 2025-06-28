@@ -42,15 +42,12 @@ alwaysApply: true
   - Constants: UPPER_SNAKE_CASE
 
 * **Security First**:
-  - Sanitize ALL user inputs
-  - Use helmet for security headers
-  - Implement rate limiting by IP and route
-  - Validate data types with Zod
-  - Use prepared statements for SQL
-  - Implement restrictive CORS
-  - Sanitize logs to prevent data leaks
-  - Use environment variables for secrets
-  - Implement robust JWT validation
+  - Centralised security via `applySecurityMiddleware` (Helmet, CORS, rate limiting, HPP, XSS sanitization, size limits, correlation-ID).
+  - Sanitize ALL user inputs (Zod + sanitize utils).
+  - Use prepared statements for SQL.
+  - Sanitize logs to prevent data leaks.
+  - Use environment variables for secrets.
+  - Implement robust JWT validation.
   - Use bcrypt for password hashing
 
 * **Error Handling**:
@@ -116,6 +113,18 @@ alwaysApply: true
   - Use async/await over callbacks
   - Implement dependency injection
   - Maintain naming consistency
+
+* **Data-Layer Validation**:
+  - Before modifying any ORM/SQL query (`select`, `where`, `data`, raw SQL), open and review the authoritative schema file (e.g. `prisma/schema.prisma`).
+  - Never assume camelCase aliases exist; confirm field names and any `@map` / `@@map` directives that map snake_case to camelCase.
+  - Run `npx prisma validate` (or the equivalent ORM checker) after edits that touch the data layer and ensure tests pass.
+  - Perform camelCase ↔ snake_case conversion **only** in the service/DTO layer, keeping queries in the exact DB column names.
+  - Add or update integration tests that would fail if a non-existent field is requested.
+
+* **Validation & Regex Centralization**:
+  - Define ALL regex patterns and validation limits in `src/shared/constants/validation.js` (or equivalent).
+  - Services, controllers and middleware must **import** these constants; never declare ad-hoc regex/limits inside business logic.
+  - Benefit: single source of truth → easier updates, audit and testing.
 
 ---
 

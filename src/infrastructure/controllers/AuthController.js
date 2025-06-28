@@ -1,13 +1,12 @@
 import { AuthService } from '../../application/services/AuthService.js';
-import { UserRepository } from '../../domain/repositories/UserRepository.js';
-import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 import { APP_ROUTES } from '../../shared/constants/appRoutes.js';
 import { createError } from '../../shared/utils/error.js';
+import { PrismaUserRepository } from '../repositories/PrismaUserRepository.js';
 
 export class AuthController {
-  constructor() {
-    const userRepository = new UserRepository();
-    this.authService = new AuthService(userRepository);
+  constructor(authService) {
+    this.authService = authService;
   }
 
   /**
@@ -19,8 +18,8 @@ export class AuthController {
   async register(req, res, next) {
     try {
       const { email, password, username } = req.body;
-      const user = await this.authService.register({ email, password, username });
-      res.success({ user, redirect: APP_ROUTES.VERIFY_EMAIL_SENT }, 'User registered successfully');
+      await this.authService.register({ email, password, username });
+      res.status(201).json({ status: 'success', message: 'User registered successfully' });
     } catch (error) {
       next(error);
     }
@@ -34,9 +33,17 @@ export class AuthController {
    */
   async verifyEmail(req, res, next) {
     try {
-      const { token } = req.params;
+      const token = req.query.token || req.params.token;
+
+      // If no token -> redirect to re-send page
+      if (!token) {
+        return res.redirect(APP_ROUTES.VERIFY_EMAIL_RESEND);
+      }
+
       await this.authService.verifyEmail(token);
-      res.success(null, 'Email verified successfully');
+      res
+        .status(200)
+        .json({ status: 'success', message: 'Email verified successfully', data: null });
     } catch (error) {
       next(error);
     }
@@ -52,7 +59,7 @@ export class AuthController {
     try {
       const { email, password } = req.body;
       const result = await this.authService.login(email, password);
-      res.success(result, 'Login successfully');
+      res.status(200).json({ status: 'success', message: 'Login successfully', data: result });
     } catch (error) {
       next(error);
     }
@@ -67,7 +74,7 @@ export class AuthController {
   async getMe(req, res, next) {
     try {
       const user = await this.authService.getMe(req.user.id);
-      res.success(user);
+      res.status(200).json({ status: 'success', data: user });
     } catch (error) {
       next(error);
     }
@@ -89,7 +96,9 @@ export class AuthController {
         );
       }
       const tokens = await this.authService.refreshToken(refreshToken);
-      res.success(tokens, 'Token successfully refreshed');
+      res
+        .status(200)
+        .json({ status: 'success', message: 'Token successfully refreshed', data: tokens });
     } catch (error) {
       next(error);
     }
@@ -105,7 +114,7 @@ export class AuthController {
     try {
       const { refreshToken } = req.body;
       await this.authService.logout(refreshToken);
-      res.success(null, 'Logout successfully');
+      res.status(200).json({ status: 'success', message: 'Logout successfully', data: null });
     } catch (error) {
       next(error);
     }
@@ -121,10 +130,11 @@ export class AuthController {
     try {
       const { email } = req.body;
       await this.authService.forgotPassword(email);
-      res.success(
-        null,
-        'If the email exists, you will receive instructions to recover your password'
-      );
+      res.status(200).json({
+        status: 'success',
+        message: 'If the email exists, you will receive instructions to recover your password',
+        data: null,
+      });
     } catch (error) {
       next(error);
     }
@@ -141,7 +151,9 @@ export class AuthController {
       const { token } = req.params;
       const { newPassword } = req.body;
       await this.authService.resetPassword(token, newPassword);
-      res.success(null, 'Password updated successfully');
+      res
+        .status(200)
+        .json({ status: 'success', message: 'Password updated successfully', data: null });
     } catch (error) {
       next(error);
     }
@@ -151,9 +163,11 @@ export class AuthController {
     try {
       const { email } = req.body;
       await this.authService.resendVerification(email);
-      res.success(null, 'Verification email resent successfully');
+      res
+        .status(200)
+        .json({ status: 'success', message: 'Verification email resent successfully', data: null });
     } catch (error) {
-      res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
+      next(error);
     }
   };
 }

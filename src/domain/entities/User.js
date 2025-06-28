@@ -6,6 +6,7 @@ import {
   MAX_USERNAME_LENGTH,
   MIN_USERNAME_LENGTH,
   REGEX,
+  USER_ROLES,
 } from '../../shared/constants/validation.js';
 import { createError } from '../../shared/utils/error.js';
 

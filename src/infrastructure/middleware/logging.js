@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import { format, winston } from 'winston';
+import winston from 'winston';
+const { format, transports } = winston;
 
 import { config } from '../config/environment.js';
 
@@ -8,18 +9,25 @@ import { config } from '../config/environment.js';
  * @returns {winston.Logger} Logger instance
  */
 const createLogger = () => {
+  if (config.env === 'test') {
+    return winston.createLogger({
+      level: 'error',
+      transports: [new transports.Console({ silent: true })],
+    });
+  }
+
   const logger = winston.createLogger({
-    level: config.log.level,
+    level: config.logs?.level || 'info',
     format: format.combine(format.timestamp(), format.errors({ stack: true }), format.json()),
     defaultMeta: { service: 'api' },
     transports: [
-      new winston.transports.File({
+      new transports.File({
         filename: 'logs/error.log',
         level: 'error',
         maxsize: 5242880, // 5MB
         maxFiles: 5,
       }),
-      new winston.transports.File({
+      new transports.File({
         filename: 'logs/combined.log',
         maxsize: 5242880, // 5MB
         maxFiles: 5,
@@ -29,7 +37,7 @@ const createLogger = () => {
 
   if (config.env !== 'production') {
     logger.add(
-      new winston.transports.Console({
+      new transports.Console({
         format: format.combine(format.colorize(), format.simple()),
       })
     );
