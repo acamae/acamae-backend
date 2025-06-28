@@ -116,10 +116,10 @@ export class PrismaUserRepository {
     } catch (error) {
       if (error.code === 'P2002') {
         if (error.meta?.target?.includes('email')) {
-          throw createError('Email already exists', API_ERROR_CODES.EMAIL_ALREADY_EXISTS);
+          throw createError('Email already exists', API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS);
         }
         if (error.meta?.target?.includes('username')) {
-          throw createError('Username already exists', API_ERROR_CODES.USERNAME_ALREADY_EXISTS);
+          throw createError('Username already exists', API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS);
         }
       }
       throw error;

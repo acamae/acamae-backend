@@ -1,4 +1,5 @@
 import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
+import { createError } from '../../shared/utils/error.js';
 
 export class UserController {
   constructor(userService) {
@@ -11,12 +12,12 @@ export class UserController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  getAllUsers = async (req, res) => {
+  getAllUsers = async (req, res, next) => {
     try {
       const users = await this.userService.getAllUsers();
-      res.success(users);
+      res.status(200).json({ status: 'success', data: users });
     } catch (error) {
-      res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
+      next(error);
     }
   };
 
@@ -26,21 +27,23 @@ export class UserController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  getUserById = async (req, res) => {
+  getUserById = async (req, res, next) => {
     try {
       const { id } = req.params;
       const user = await this.userService.getUserById(id);
 
       if (!user) {
-        return res.notFound(
-          ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
-          API_ERROR_CODES.USER_NOT_FOUND
+        const notFoundError = createError(
+          ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+          API_ERROR_CODES.AUTH_USER_NOT_FOUND,
+          404
         );
+        return next(notFoundError);
       }
 
-      res.success(user);
+      res.status(200).json({ status: 'success', data: user });
     } catch (error) {
-      res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
+      next(error);
     }
   };
 
@@ -50,7 +53,7 @@ export class UserController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  updateUser = async (req, res) => {
+  updateUser = async (req, res, next) => {
     try {
       const { id } = req.params;
       const userData = req.body;
@@ -58,15 +61,19 @@ export class UserController {
       const updatedUser = await this.userService.updateUser(id, userData);
 
       if (!updatedUser) {
-        return res.notFound(
-          ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
-          API_ERROR_CODES.USER_NOT_FOUND
+        const notFoundError = createError(
+          ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+          API_ERROR_CODES.AUTH_USER_NOT_FOUND,
+          404
         );
+        return next(notFoundError);
       }
 
-      res.success(updatedUser, 'User updated successfully');
+      res
+        .status(200)
+        .json({ status: 'success', message: 'User updated successfully', data: updatedUser });
     } catch (error) {
-      res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
+      next(error);
     }
   };
 
@@ -76,21 +83,23 @@ export class UserController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  deleteUser = async (req, res) => {
+  deleteUser = async (req, res, next) => {
     try {
       const { id } = req.params;
       const deleted = await this.userService.deleteUser(id);
 
       if (!deleted) {
-        return res.notFound(
-          ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
-          API_ERROR_CODES.USER_NOT_FOUND
+        const notFoundError = createError(
+          ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+          API_ERROR_CODES.AUTH_USER_NOT_FOUND,
+          404
         );
+        return next(notFoundError);
       }
 
-      res.success(null, 'User deleted successfully');
+      res.status(200).json({ status: 'success', message: 'User deleted successfully', data: null });
     } catch (error) {
-      res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
+      next(error);
     }
   };
 }

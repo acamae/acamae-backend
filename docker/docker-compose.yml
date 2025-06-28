@@ -1,3 +1,5 @@
+name: acamae-backend
+
 services:
   db:
     image: mariadb:11

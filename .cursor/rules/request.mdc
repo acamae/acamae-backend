@@ -18,6 +18,7 @@ Design and implement the request described above using a systematic, validation-
   - Verify limits
   - Validate formats
   - Sanitize strings
+  - Reuse regex patterns and length limits from `src/shared/constants/validation.js`; DO NOT hard-code new patterns in feature code.
 
 * **Error Handling**:
   - Use error middleware
@@ -28,11 +29,10 @@ Design and implement the request described above using a systematic, validation-
   - Handle timeouts
 
 * **Security**:
-  - Validate JWT
-  - Verify CORS
-  - Implement rate limiting
-  - Sanitize headers
-  - Validate content-type
+  - Rely on `applySecurityMiddleware` for CORS, Helmet, rate-limiting and size-limits.
+  - Validate JWT.
+  - Sanitize headers.
+  - Validate content-type.
   - Verify payload size
 
 * **Performance**:
@@ -65,6 +65,8 @@ Design and implement the request described above using a systematic, validation-
    - Assess impacts on cross-cutting concerns.
    - Balance immediate needs with long-term code health.
    - Ensure API routes are defined in `shared/constants/apiRoutes.js`.
+   - **Schema Alignment**: before touching DB queries, confirm each field exists in `prisma/schema.prisma` (or equivalent) and respect any `@map` directives.
+   - **Post-Edit Validation**: execute `npx prisma validate` and the full test suite; fixes must pass lint, tests, and schema validation before considering the task done.
 
 * **Implement with Precision**:
    - Provide a step-by-step plan with specific code changes.

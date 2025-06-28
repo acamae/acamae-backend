@@ -1,9 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-
 import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
 import { createError } from '../../shared/utils/error.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Team service
@@ -23,19 +19,7 @@ export class TeamService {
    * @returns {Promise<Team[]>}
    */
   async getAllTeams() {
-    const teams = await prisma.team.findMany({
-      include: {
-        members: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-    });
-
+    const teams = await this.teamRepository.findAll();
     return teams;
   }
 
@@ -45,19 +29,7 @@ export class TeamService {
    * @returns {Promise<Team|null>}
    */
   async getTeamById(id) {
-    const team = await prisma.team.findUnique({
-      where: { id },
-      include: {
-        members: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-    });
+    const team = await this.teamRepository.findById(id);
 
     if (!team) {
       throw createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND);
@@ -74,12 +46,8 @@ export class TeamService {
   async createTeam(teamData) {
     const { name, tag, ownerId } = teamData;
 
-    // Verificar si el nombre o tag ya existen
-    const existingTeam = await prisma.team.findFirst({
-      where: {
-        OR: [{ name }, { tag }],
-      },
-    });
+    const allTeams = await this.teamRepository.findAll();
+    const existingTeam = allTeams.find((t) => t.name === name || t.tag === tag);
 
     if (existingTeam) {
       if (existingTeam.name === name) {
@@ -90,26 +58,7 @@ export class TeamService {
       }
     }
 
-    const team = await prisma.team.create({
-      data: {
-        name,
-        tag,
-        ownerId,
-        members: {
-          connect: [{ id: ownerId }],
-        },
-      },
-      include: {
-        members: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-    });
+    const team = await this.teamRepository.create(ownerId, { name, tag });
 
     return team;
   }
@@ -123,44 +72,19 @@ export class TeamService {
   async updateTeam(id, teamData) {
     const { name, tag } = teamData;
 
-    // Verificar si el nombre o tag ya existen
-    if (name || tag) {
-      const existingTeam = await prisma.team.findFirst({
-        where: {
-          OR: [{ name }, { tag }],
-          NOT: {
-            id,
-          },
-        },
-      });
+    const teams = await this.teamRepository.findAll();
+    const existingTeam = teams.find((t) => (t.name === name || t.tag === tag) && t.id !== id);
 
-      if (existingTeam) {
-        if (existingTeam.name === name) {
-          throw createError(
-            'The team name already exists',
-            API_ERROR_CODES.TEAM_NAME_ALREADY_EXISTS
-          );
-        }
-        if (existingTeam.tag === tag) {
-          throw createError('The team tag already exists', API_ERROR_CODES.TEAM_TAG_ALREADY_EXISTS);
-        }
+    if (existingTeam) {
+      if (existingTeam.name === name) {
+        throw createError('The team name already exists', API_ERROR_CODES.TEAM_NAME_ALREADY_EXISTS);
+      }
+      if (existingTeam.tag === tag) {
+        throw createError('The team tag already exists', API_ERROR_CODES.TEAM_TAG_ALREADY_EXISTS);
       }
     }
 
-    const team = await prisma.team.update({
-      where: { id },
-      data: teamData,
-      include: {
-        members: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-    });
+    const team = await this.teamRepository.update(id, teamData);
 
     return team;
   }
@@ -171,39 +95,28 @@ export class TeamService {
    * @returns {Promise<boolean>}
    */
   async deleteTeam(id) {
-    const team = await prisma.team.findUnique({
-      where: { id },
-    });
+    const team = await this.teamRepository.findById(id);
 
     if (!team) {
       throw createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND);
     }
 
-    await prisma.team.delete({
-      where: { id },
-    });
+    await this.teamRepository.delete(id);
 
     return true;
   }
 
   async addMember(teamId, userId) {
-    const team = await prisma.team.findUnique({
-      where: { id: teamId },
-      include: {
-        members: true,
-      },
-    });
+    const team = await this.teamRepository.findById(teamId);
 
     if (!team) {
       throw createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND);
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const user = await this.userRepository.findById(userId);
 
     if (!user) {
-      throw createError('User not found', API_ERROR_CODES.USER_NOT_FOUND);
+      throw createError('User not found', API_ERROR_CODES.AUTH_USER_NOT_FOUND);
     }
 
     // Verificar si el usuario ya es miembro
@@ -214,35 +127,13 @@ export class TeamService {
       );
     }
 
-    const updatedTeam = await prisma.team.update({
-      where: { id: teamId },
-      data: {
-        members: {
-          connect: [{ id: userId }],
-        },
-      },
-      include: {
-        members: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-    });
+    const updatedTeam = await this.teamRepository.addMember(teamId, userId);
 
     return updatedTeam;
   }
 
   async removeMember(teamId, userId) {
-    const team = await prisma.team.findUnique({
-      where: { id: teamId },
-      include: {
-        members: true,
-      },
-    });
+    const team = await this.teamRepository.findById(teamId);
 
     if (!team) {
       throw createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND);
@@ -258,24 +149,7 @@ export class TeamService {
       throw createError('Cannot remove the team owner', API_ERROR_CODES.CANNOT_REMOVE_OWNER);
     }
 
-    const updatedTeam = await prisma.team.update({
-      where: { id: teamId },
-      data: {
-        members: {
-          disconnect: [{ id: userId }],
-        },
-      },
-      include: {
-        members: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-    });
+    const updatedTeam = await this.teamRepository.removeMember(teamId, userId);
 
     return updatedTeam;
   }

@@ -54,6 +54,16 @@ export const sanitizeObject = (obj) => {
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === 'string') {
       sanitized[key] = sanitizeString(value);
+    } else if (Array.isArray(value)) {
+      sanitized[key] = value.map((item) => {
+        if (item instanceof Date) return item.toISOString();
+        if (typeof item === 'object' && item !== null) return sanitizeObject(item);
+        if (typeof item === 'string') return sanitizeString(item);
+        return item;
+      });
+    } else if (value instanceof Date) {
+      // Convert Date objects to ISO strings to ensure serializability
+      sanitized[key] = value.toISOString();
     } else if (typeof value === 'object' && value !== null) {
       sanitized[key] = sanitizeObject(value);
     } else {
@@ -99,11 +109,17 @@ export const sanitizeRequest = (req) => {
  */
 export const sanitizeResponse = (data) => {
   try {
+    if (data instanceof Date) {
+      return data.toISOString();
+    }
     if (typeof data === 'string') {
       return sanitizeString(data);
     }
     if (typeof data === 'object' && data !== null) {
       return sanitizeObject(data);
+    }
+    if (Array.isArray(data)) {
+      return data.map((item) => sanitizeResponse(item));
     }
     return data;
   } catch (error) {

@@ -129,4 +129,40 @@ export class PrismaTeamRepository {
       where: { id: parseInt(id) },
     });
   }
+
+  /**
+   * Add a member to a team (many-to-many through implicit relation)
+   * @param {string} teamId
+   * @param {string} userId
+   */
+  async addMember(teamId, userId) {
+    const team = await this.#prisma.team.update({
+      where: { id: parseInt(teamId) },
+      data: {
+        members: {
+          connect: { id: parseInt(userId) },
+        },
+      },
+      include: { user: true, members: true },
+    });
+    return this.#toDomainModel(team);
+  }
+
+  /**
+   * Remove a member from a team
+   * @param {string} teamId
+   * @param {string} userId
+   */
+  async removeMember(teamId, userId) {
+    const team = await this.#prisma.team.update({
+      where: { id: parseInt(teamId) },
+      data: {
+        members: {
+          disconnect: { id: parseInt(userId) },
+        },
+      },
+      include: { user: true, members: true },
+    });
+    return this.#toDomainModel(team);
+  }
 }

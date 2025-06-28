@@ -4,6 +4,8 @@ import { validationSchemas } from '../middleware/validation.js';
 
 /**
  * Validator for user-specific business rules
+ *
+ * Note: The expiry token is handled by the auth middleware (see src/infrastructure/middleware/auth.js).
  */
 export class UserValidator {
   /**
@@ -124,53 +126,85 @@ export class UserValidator {
   }
 
   // Private helper methods for business-specific validations
+  // @TODO: Verifica si el nombre completo está en una lista negra
+  static isBlacklistedName(fullName) {
+    // Implementar lógica de blacklist de nombres
+    throw new Error('Not implemented');
+  }
+
+  // @TODO: Verifica si el usuario tiene privilegios de admin
+  static hasAdminPrivileges() {
+    // Implementar verificación de privilegios admin
+    throw new Error('Not implemented');
+  }
+
+  // @TODO: Verifica si hay demasiados intentos fallidos de login
+  static hasTooManyFailedAttempts(email) {
+    // Implementar control de intentos fallidos
+    throw new Error('Not implemented');
+  }
+
+  // @TODO: Verifica si hay demasiados intentos de reseteo de contraseña
+  static hasTooManyResetAttempts(email) {
+    // Implementar control de reseteos de contraseña
+    throw new Error('Not implemented');
+  }
+
+  // @TODO: Verifica si la contraseña ya fue usada recientemente
+  static isPasswordInHistory(newPassword) {
+    // Implementar historial de contraseñas
+    throw new Error('Not implemented');
+  }
+
+  // @TODO: Verifica si el usuario puede filtrar por el rol dado
+  static canFilterByRole(role) {
+    // Implementar control de permisos de filtrado por rol
+    throw new Error('Not implemented');
+  }
+
+  // @TODO: Wrapper - valida combinación de nombres usando blacklist
   static _validateNameCombination(firstName, lastName) {
-    // Example: Check if the combination of first and last name is not in a blacklist
     const fullName = `${firstName} ${lastName}`.toLowerCase();
     if (this.isBlacklistedName(fullName)) {
       throw createError('This name combination is not allowed', API_ERROR_CODES.VALIDATION_ERROR);
     }
   }
 
+  // @TODO: Wrapper - valida asignación de rol admin
   static _validateRoleAssignment(role) {
-    // Example: Check if the role assignment follows business rules
     if (role === 'admin' && !this.hasAdminPrivileges()) {
-      throw createError('Insufficient privileges to assign admin role', API_ERROR_CODES.FORBIDDEN);
+      throw createError(
+        'Insufficient privileges to assign admin role',
+        API_ERROR_CODES.AUTH_FORBIDDEN
+      );
     }
   }
 
+  // @TODO: Wrapper - valida intentos fallidos de login
   static _validateLoginAttempts(email) {
-    // Example: Check if there have been too many failed login attempts
     if (this.hasTooManyFailedAttempts(email)) {
       throw createError('Too many failed login attempts', API_ERROR_CODES.TOO_MANY_REQUESTS);
     }
   }
 
-  static _validateTokenExpiration(token) {
-    // Example: Check if the token has expired
-    if (this.isTokenExpired(token)) {
-      throw createError('Token has expired', API_ERROR_CODES.TOKEN_EXPIRED);
-    }
-  }
-
+  // @TODO: Wrapper - valida intentos de reseteo de contraseña
   static _validatePasswordResetAttempts(email) {
-    // Example: Check if there have been too many password reset requests
     if (this.hasTooManyResetAttempts(email)) {
       throw createError('Too many password reset attempts', API_ERROR_CODES.TOO_MANY_REQUESTS);
     }
   }
 
+  // @TODO: Wrapper - valida historial de contraseñas
   static _validatePasswordHistory(newPassword) {
-    // Example: Check if the new password hasn't been used recently
     if (this.isPasswordInHistory(newPassword)) {
       throw createError('Password has been used recently', API_ERROR_CODES.VALIDATION_ERROR);
     }
   }
 
+  // @TODO: Wrapper - valida permisos de filtrado por rol
   static _validateRoleFilter(role) {
-    // Example: Check if the role filter is valid for the current user's permissions
     if (!this.canFilterByRole(role)) {
-      throw createError('Invalid role filter', API_ERROR_CODES.FORBIDDEN);
+      throw createError('Invalid role filter', API_ERROR_CODES.AUTH_FORBIDDEN);
     }
   }
 }

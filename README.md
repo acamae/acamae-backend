@@ -60,6 +60,29 @@ src/
 - Secure password hashing with bcryptjs
 - Token refresh mechanism
 
+## Middleware Architecture
+
+The Express application now centralizes core concerns in three composable helpers located in `src/infrastructure/middleware`:
+
+| Concern     | Helper                        | Responsibilities                                                                                                            |
+| ----------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Security    | `applySecurityMiddleware`     | Helmet, CORS, rate-limiting, HPP, XSS sanitisation, JSON & URL-encoded size limits, correlation-ID, extra security headers. |
+| Compression | `applyCompression`            | Gzip compression with custom threshold & filter.                                                                            |
+| Logging     | `requestLogger / errorLogger` | Structured request/response/error logging with Winston (console in dev/test, rotating files in prod).                       |
+
+These helpers are applied **once** in `src/infrastructure/app.js` and replace the previous individual middlewares (helmet.js, cors.js, morgan.js, bodyParser.js, rateLimit.js, etc.). This removes duplication and ensures a single source of truth for configuration.
+
+```js
+// app.js (excerpt)
+applySecurityMiddleware(app);
+applyCompression(app);
+app.use(requestLogger);
+...
+app.use(errorLogger);
+```
+
+In test environment the helpers are mocked in `jest.setup.js` to keep the suites fast and isolated.
+
 ## Prerequisites
 
 ### For Windows:

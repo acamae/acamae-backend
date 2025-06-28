@@ -116,8 +116,8 @@ export const handleUnauthorizedError = () => {
  * @returns {Object} Error response
  */
 export const handleForbiddenError = () => {
-  const status = HTTP_STATUS.FORBIDDEN;
-  const code = API_ERROR_CODES.FORBIDDEN;
+  const status = HTTP_STATUS.AUTH_FORBIDDEN;
+  const code = API_ERROR_CODES.AUTH_FORBIDDEN;
   const message = ERROR_MESSAGES[code];
 
   return {

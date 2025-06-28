@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import { rateLimit } from 'express-rate-limit';
 
-import { TeamRepository } from '../../domain/repositories/TeamRepository.js';
-import { UserRepository } from '../../domain/repositories/UserRepository.js';
+import { AuthService } from '../../application/services/AuthService.js';
+import { TeamService } from '../../application/services/TeamService.js';
+import { UserService } from '../../application/services/UserService.js';
 import { API_ROUTES } from '../../shared/constants/apiRoutes.js';
 import { config } from '../config/environment.js';
 import { AuthController } from '../controllers/AuthController.js';
@@ -22,17 +24,31 @@ import {
   updateUserValidation,
   validateRequest,
 } from '../middleware/validation.js';
+import { PrismaSessionTokenRepository } from '../repositories/PrismaSessionTokenRepository.js';
+import { PrismaTeamRepository } from '../repositories/PrismaTeamRepository.js';
+import { PrismaUserRepository } from '../repositories/PrismaUserRepository.js';
 
 const router = Router();
 
-// Inicialización de repositorios
-const userRepository = new UserRepository();
-const teamRepository = new TeamRepository();
+// --- INYECCIÓN DE DEPENDENCIAS (PATRÓN RECOMENDADO) ---
+// 1. Instanciar el repositorio de infraestructura (implementa la interfaz de dominio)
+const userRepository = new PrismaUserRepository();
+// 2. Instanciar el servicio de aplicación, inyectando el repositorio
+const userService = new UserService(userRepository);
+// 3. Instanciar el controlador, inyectando el servicio (y futuros validadores/DTOs si aplica)
+const userController = new UserController(userService);
+// --- FIN INYECCIÓN DE DEPENDENCIAS ---
 
 // Inicialización de controladores
-const authController = new AuthController();
-const userController = new UserController(userRepository);
-const teamController = new TeamController(teamRepository);
+const sessionTokenRepository = new PrismaSessionTokenRepository();
+const authService = new AuthService(userRepository, sessionTokenRepository);
+const authController = new AuthController(authService);
+const teamRepository = new PrismaTeamRepository();
+const teamService = new TeamService(teamRepository, userRepository);
+const teamController = new TeamController(teamService);
+
+// Rate limiter específico para verificación de email
+const verifyEmailLimiter = rateLimit({ windowMs: 60_000, max: 5 });
 
 // API root route
 router.get(
@@ -216,7 +232,7 @@ router.post(
 );
 router.get(
   API_ROUTES.AUTH.VERIFY_EMAIL,
-  validateRequest,
+  verifyEmailLimiter,
   asyncHandler(authController.verifyEmail.bind(authController))
 );
 router.post(

@@ -61,7 +61,7 @@ model EmailVerificationToken {
 model SessionToken {
   id              Int      @id @default(autoincrement()) @db.UnsignedInt
   user_id         Int      @db.UnsignedInt
-  token           String   @unique @db.Char(64)
+  token           String   @unique @db.VarChar(255)
   last_activity_at DateTime @map("last_activity_at")
   expires_at      DateTime @map("expires_at")
   created_at      DateTime @default(now()) @map("created_at")

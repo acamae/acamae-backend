@@ -1,3 +1,5 @@
+import { Prisma } from '@prisma/client';
+
 import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
@@ -30,6 +32,31 @@ export const errorHandler = (err, req, res, _next) => {
 
   // Log error details
   console.error('Error Details:', errorDetails);
+
+  // Handle Prisma errors
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    switch (err.code) {
+      case 'P2002':
+        return res.status(HTTP_STATUS.CONFLICT).json({
+          status: 'error',
+          code: API_ERROR_CODES.DUPLICATE_ENTRY,
+          message: sanitizeResponse(ERROR_MESSAGES[API_ERROR_CODES.DUPLICATE_ENTRY]),
+          details: err.meta?.target?.[0],
+        });
+      case 'P2025':
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          status: 'error',
+          code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          message: sanitizeResponse(ERROR_MESSAGES[API_ERROR_CODES.RESOURCE_NOT_FOUND]),
+        });
+      default:
+        return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+          status: 'error',
+          code: API_ERROR_CODES.DATABASE_ERROR,
+          message: sanitizeResponse(ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR]),
+        });
+    }
+  }
 
   // Handle different types of errors
   if (err instanceof Error) {
