@@ -18,8 +18,8 @@ const verifyAccessToken = (token) => {
     return tokenService.verifyAccessToken(token);
   } catch (error) {
     throw createError(
-      ERROR_MESSAGES[API_ERROR_CODES.INVALID_TOKEN],
-      error.code || API_ERROR_CODES.INVALID_TOKEN,
+      ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+      error.code || API_ERROR_CODES.AUTH_TOKEN_INVALID,
       HTTP_STATUS.UNAUTHORIZED
     );
   }
@@ -47,8 +47,8 @@ export const authenticate = async (req, _res, next) => {
 
     if (bearer !== 'Bearer' || !token) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_TOKEN],
-        API_ERROR_CODES.INVALID_TOKEN,
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        API_ERROR_CODES.AUTH_TOKEN_INVALID,
         HTTP_STATUS.UNAUTHORIZED
       );
     }
@@ -68,8 +68,8 @@ export const authenticate = async (req, _res, next) => {
 
     if (!user) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_FOUND],
-        API_ERROR_CODES.USER_NOT_FOUND,
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+        API_ERROR_CODES.AUTH_USER_NOT_FOUND,
         HTTP_STATUS.UNAUTHORIZED
       );
     }
@@ -107,9 +107,9 @@ export const authorize = (roles = []) => {
 
       if (roles.length && !roles.includes(req.user.role)) {
         throw createError(
-          ERROR_MESSAGES[API_ERROR_CODES.FORBIDDEN],
-          API_ERROR_CODES.FORBIDDEN,
-          HTTP_STATUS.FORBIDDEN
+          ERROR_MESSAGES[API_ERROR_CODES.AUTH_FORBIDDEN],
+          API_ERROR_CODES.AUTH_FORBIDDEN,
+          HTTP_STATUS.AUTH_FORBIDDEN
         );
       }
 
@@ -137,16 +137,16 @@ export const verifyEmail = async (req, _res, next) => {
 
     if (!verificationToken) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_TOKEN],
-        API_ERROR_CODES.INVALID_TOKEN,
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        API_ERROR_CODES.AUTH_TOKEN_INVALID,
         HTTP_STATUS.BAD_REQUEST
       );
     }
 
     if (verificationToken.expiresAt < new Date()) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.TOKEN_EXPIRED],
-        API_ERROR_CODES.TOKEN_EXPIRED,
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
+        API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
         HTTP_STATUS.BAD_REQUEST
       );
     }
@@ -175,16 +175,16 @@ export const verifyPasswordResetToken = async (req, _res, next) => {
 
     if (!resetToken) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_TOKEN],
-        API_ERROR_CODES.INVALID_TOKEN,
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        API_ERROR_CODES.AUTH_TOKEN_INVALID,
         HTTP_STATUS.BAD_REQUEST
       );
     }
 
     if (resetToken.expiresAt < new Date()) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.TOKEN_EXPIRED],
-        API_ERROR_CODES.TOKEN_EXPIRED,
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
+        API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
         HTTP_STATUS.BAD_REQUEST
       );
     }

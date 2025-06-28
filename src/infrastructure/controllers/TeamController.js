@@ -1,6 +1,7 @@
 /** @typedef {import('express').Response} Response */
 
 import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { createError } from '../../shared/utils/error.js';
 
 export class TeamController {
   constructor(teamService) {
@@ -13,12 +14,12 @@ export class TeamController {
    * @param {Response} res
    * @param {import('express').NextFunction} next
    */
-  getAllTeams = async (_req, res) => {
+  getAllTeams = async (_req, res, next) => {
     try {
       const teams = await this.teamService.getAllTeams();
-      res.success(teams);
+      res.status(200).json({ status: 'success', data: teams });
     } catch (error) {
-      res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
+      next(error);
     }
   };
 
@@ -28,18 +29,19 @@ export class TeamController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  getTeamById = async (req, res) => {
+  getTeamById = async (req, res, next) => {
     try {
       const { id } = req.params;
       const team = await this.teamService.getTeamById(id);
 
       if (!team) {
-        return res.notFound('Equipo no encontrado', API_ERROR_CODES.TEAM_NOT_FOUND);
+        const notFoundError = createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND, 404);
+        return next(notFoundError);
       }
 
-      res.success(team);
+      res.status(200).json({ status: 'success', data: team });
     } catch (error) {
-      res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
+      next(error);
     }
   };
 
@@ -49,13 +51,15 @@ export class TeamController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  createTeam = async (req, res) => {
+  createTeam = async (req, res, next) => {
     try {
       const teamData = req.body;
       const newTeam = await this.teamService.createTeam(teamData);
-      res.success(newTeam, 'Equipo creado correctamente');
+      res
+        .status(201)
+        .json({ status: 'success', message: 'Team created successfully', data: newTeam });
     } catch (error) {
-      res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
+      next(error);
     }
   };
 
@@ -65,7 +69,7 @@ export class TeamController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  updateTeam = async (req, res) => {
+  updateTeam = async (req, res, next) => {
     try {
       const { id } = req.params;
       const teamData = req.body;
@@ -73,12 +77,15 @@ export class TeamController {
       const updatedTeam = await this.teamService.updateTeam(id, teamData);
 
       if (!updatedTeam) {
-        return res.notFound('Equipo no encontrado', API_ERROR_CODES.TEAM_NOT_FOUND);
+        const notFoundError = createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND, 404);
+        return next(notFoundError);
       }
 
-      res.success(updatedTeam, 'Equipo actualizado correctamente');
+      res
+        .status(200)
+        .json({ status: 'success', message: 'Team updated successfully', data: updatedTeam });
     } catch (error) {
-      res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
+      next(error);
     }
   };
 
@@ -88,18 +95,19 @@ export class TeamController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  deleteTeam = async (req, res) => {
+  deleteTeam = async (req, res, next) => {
     try {
       const { id } = req.params;
       const deleted = await this.teamService.deleteTeam(id);
 
       if (!deleted) {
-        return res.notFound('Equipo no encontrado', API_ERROR_CODES.TEAM_NOT_FOUND);
+        const notFoundError = createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND, 404);
+        return next(notFoundError);
       }
 
-      res.success(null, 'Equipo eliminado correctamente');
+      res.status(200).json({ status: 'success', message: 'Team deleted successfully', data: null });
     } catch (error) {
-      res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
+      next(error);
     }
   };
 
@@ -109,7 +117,7 @@ export class TeamController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  addMember = async (req, res) => {
+  addMember = async (req, res, next) => {
     try {
       const { id } = req.params;
       const { userId } = req.body;
@@ -117,12 +125,15 @@ export class TeamController {
       const updatedTeam = await this.teamService.addMember(id, userId);
 
       if (!updatedTeam) {
-        return res.notFound('Equipo no encontrado', API_ERROR_CODES.TEAM_NOT_FOUND);
+        const notFoundError = createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND, 404);
+        return next(notFoundError);
       }
 
-      res.success(updatedTeam, 'Miembro agregado correctamente');
+      res
+        .status(200)
+        .json({ status: 'success', message: 'Member added successfully', data: updatedTeam });
     } catch (error) {
-      res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
+      next(error);
     }
   };
 
@@ -132,7 +143,7 @@ export class TeamController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  removeMember = async (req, res) => {
+  removeMember = async (req, res, next) => {
     try {
       const { id } = req.params;
       const { userId } = req.body;
@@ -140,12 +151,15 @@ export class TeamController {
       const updatedTeam = await this.teamService.removeMember(id, userId);
 
       if (!updatedTeam) {
-        return res.notFound('Equipo no encontrado', API_ERROR_CODES.TEAM_NOT_FOUND);
+        const notFoundError = createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND, 404);
+        return next(notFoundError);
       }
 
-      res.success(updatedTeam, 'Miembro removido correctamente');
+      res
+        .status(200)
+        .json({ status: 'success', message: 'Member removed successfully', data: updatedTeam });
     } catch (error) {
-      res.error(error.message, API_ERROR_CODES.UNKNOWN_ERROR);
+      next(error);
     }
   };
 }

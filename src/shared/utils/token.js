@@ -34,8 +34,8 @@ export class TokenService {
       });
     } catch (_err) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_TOKEN],
-        API_ERROR_CODES.INVALID_TOKEN
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        API_ERROR_CODES.AUTH_TOKEN_INVALID
       );
     }
   }
@@ -53,8 +53,8 @@ export class TokenService {
       });
     } catch (_err) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_TOKEN],
-        API_ERROR_CODES.INVALID_TOKEN
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        API_ERROR_CODES.AUTH_TOKEN_INVALID
       );
     }
   }
@@ -81,8 +81,8 @@ export class TokenService {
       return jwt.verify(token, this.secret);
     } catch (_err) {
       throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_TOKEN],
-        API_ERROR_CODES.INVALID_TOKEN
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        API_ERROR_CODES.AUTH_TOKEN_INVALID
       );
     }
   }

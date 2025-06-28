@@ -37,8 +37,8 @@ loadEnvFiles();
 const defaultValues = {
   development: {
     port: '4000',
-    corsOrigin: 'http://localhost:3000',
-    frontendUrl: 'http://localhost:3000',
+    corsOrigin: 'https://localhost',
+    frontendUrl: 'https://localhost',
     rateLimitWindowMs: '900000', // 15 minutos
     rateLimitMax: '100',
     rateLimitAuthWindowMs: '3600000', // 1 hora
@@ -55,8 +55,8 @@ const defaultValues = {
   },
   test: {
     port: '4001',
-    corsOrigin: 'http://localhost:3000',
-    frontendUrl: 'http://localhost:3000',
+    corsOrigin: 'https://localhost',
+    frontendUrl: 'https://localhost',
     rateLimitWindowMs: '1000',
     rateLimitMax: '1000',
     rateLimitAuthWindowMs: '1000',
@@ -117,12 +117,11 @@ const envSchema = z.object({
   RATE_LIMIT_AUTH_WINDOW_MS: z.string().default(defaults.rateLimitAuthWindowMs),
   RATE_LIMIT_AUTH_MAX: z.string().default(defaults.rateLimitAuthMax),
 
-  // Email (optional)
-  MAIL_HOST: z.string().optional(),
-  MAIL_PORT: z.string().optional(),
-  MAIL_USER: z.string().optional(),
-  MAIL_PASSWORD: z.string().optional(),
-  MAIL_FROM: z.string().optional(),
+  // Mailgun configuration
+  MAILGUN_API_KEY: z.string().optional(),
+  MAILGUN_DOMAIN: z.string().optional(),
+  MAILGUN_FROM: z.string().optional(),
+  MAILGUN_ENDPOINT: z.string().optional(),
 });
 
 // Parse and validate environment variables
@@ -182,14 +181,15 @@ export const config = {
     },
   },
 
-  // Email
-  mail: env.data.MAIL_HOST
-    ? {
-        host: env.data.MAIL_HOST,
-        port: parseInt(env.data.MAIL_PORT, 10),
-        user: env.data.MAIL_USER,
-        password: env.data.MAIL_PASSWORD,
-        from: env.data.MAIL_FROM,
-      }
-    : null,
+  // Email configuration
+  mail: {
+    mailgun: env.data.MAILGUN_API_KEY
+      ? {
+          apiKey: env.data.MAILGUN_API_KEY,
+          domain: env.data.MAILGUN_DOMAIN,
+          from: env.data.MAILGUN_FROM,
+          endpoint: env.data.MAILGUN_ENDPOINT,
+        }
+      : null,
+  },
 };

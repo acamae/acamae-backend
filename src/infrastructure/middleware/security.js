@@ -120,7 +120,7 @@ export const applySecurityMiddleware = (app) => {
     max: config.RATE_LIMIT_AUTH_MAX,
     message: {
       status: 'error',
-      code: 'RATE_LIMIT_EXCEEDED',
+      code: 'AUTH_RATE_LIMIT',
       message: 'Too many requests. Please try again later.',
     },
   });
@@ -131,7 +131,7 @@ export const applySecurityMiddleware = (app) => {
     max: config.RATE_LIMIT_MAX,
     message: {
       status: 'error',
-      code: 'RATE_LIMIT_EXCEEDED',
+      code: 'AUTH_RATE_LIMIT',
       message: 'Too many requests. Please try again later.',
     },
   });
@@ -196,26 +196,35 @@ export const applySecurityMiddleware = (app) => {
 
   // Block suspicious requests
   app.use((req, res, next) => {
-    // Block requests with suspicious headers
-    const suspiciousHeaders = [
+    // --- Cabeceras sospechosas ---
+    // Las cabeceras X-Forwarded-* son legítimas detrás de proxies (Nginx, Cloudflare, etc.).
+    // Sólo las bloquearemos cuando la app NO confíe en el proxy.
+    const forwardedHeaders = [
       'x-forwarded-for',
       'x-forwarded-host',
       'x-forwarded-proto',
       'x-forwarded-port',
     ];
 
-    for (const header of suspiciousHeaders) {
-      if (req.headers[header]) {
-        return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Suspicious request detected' });
+    // Si trust proxy está deshabilitado, consideramos sospechoso que lleguen estas cabeceras.
+    if (!req.app.get('trust proxy')) {
+      for (const header of forwardedHeaders) {
+        if (Object.prototype.hasOwnProperty.call(req.headers, header)) {
+          return res
+            .status(HTTP_STATUS.AUTH_FORBIDDEN)
+            .json({ message: 'Suspicious request detected' });
+        }
       }
     }
 
-    // Block requests with suspicious user agents
+    // --- Agentes de usuario maliciosos ---
     const suspiciousUserAgents = ['sqlmap', 'nikto', 'nmap', 'metasploit', 'burp', 'zap'];
+    const userAgent = (req.headers['user-agent'] || '').toLowerCase();
 
-    const userAgent = req.headers['user-agent']?.toLowerCase() || '';
     if (suspiciousUserAgents.some((agent) => userAgent.includes(agent))) {
-      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Suspicious request detected' });
+      return res
+        .status(HTTP_STATUS.AUTH_FORBIDDEN)
+        .json({ message: 'Suspicious request detected' });
     }
 
     next();

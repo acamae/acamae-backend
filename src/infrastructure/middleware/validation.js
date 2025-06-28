@@ -75,7 +75,7 @@ export const validationSchemas = {
   }),
 
   logout: z.object({
-    refreshToken: z.string().min(1, ERROR_MESSAGES.INVALID_TOKEN),
+    refreshToken: z.string().min(1, ERROR_MESSAGES.AUTH_TOKEN_INVALID),
   }),
 
   // User routes
