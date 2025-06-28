@@ -59,3 +59,71 @@ alwaysApply: false
   - Test edge cases
   - Validate integrations
   - Cover security
+
+## Integration Test Timeouts (Supertest) – Lessons Learned
+
+Scenario: integration tests using Supertest + Express stalled and hit Jest's 5 s/30 s default timeout.
+
+Root causes detected:
+1. **Middleware side-effects** – `express-rate-limit` & custom `validation.js` created timers/DB calls that kept event-loop handles open.
+2. **CORS config** – missing `config.cors.allowedOrigins` in test env triggered silent rejection, the request never reached the route.
+3. **TCP handles** – Supertest leaves one `TCPSERVERWRAP` alive when sockets stay in keep-alive.
+
+Solution blueprint (apply to all integration/E2E tests):
+
+```js
+// jest.setup.js (global)
+const passthru = (_req, _res, next) => next();
+
+// 1. Mock rate-limiter to NOP middleware
+jest.mock('express-rate-limit', () => {
+  const mockRateLimit = () => passthru;
+  return { __esModule: true, default: mockRateLimit, rateLimit: mockRateLimit };
+});
+
+// 2. Mock validation middleware to bypass heavy Zod schemas
+jest.mock(require.resolve('src/infrastructure/middleware/validation.js'), () =>
+  new Proxy({}, { get: () => () => passthru, apply: () => passthru })
+);
+```
+
+```js
+// In each integration test file
+import http from 'http';
+import request from 'supertest';
+import app from 'src/infrastructure/app.js';
+
+let server, agent;
+
+beforeAll(done => {
+  server = http.createServer(app);
+  server.keepAliveTimeout = 0;            // disable keep-alive
+
+  const sockets = new Set();              // track open sockets for teardown
+  server.on('connection', s => {
+    sockets.add(s);
+    s.on('close', () => sockets.delete(s));
+  });
+
+  server.listen(0, () => {
+    agent = request.agent(server);        // persistent agent (cookies etc.)
+    server.__sockets = sockets;
+    done();
+  });
+});
+
+afterAll(done => {
+  for (const s of server.__sockets) s.destroy(); // ensure no open handles
+  server.close(done);
+});
+
+const post = (url) => agent.post(url).set('Connection', 'close'); // force socket close
+```
+
+Key takeaways:
+• Always place mocks *before* importing the Express app so middleware uses the mocked versions.
+• Provide a full `environment.js` mock including `cors.allowedOrigins` to satisfy CORS checks.
+• Disable keep-alive and destroy sockets to eliminate lingering `TCPSERVERWRAP` handles.
+• Combine `supertest.agent` with `Connection: close` header for deterministic teardown.
+
+> Follow this template for future integration tests to avoid elusive timeouts.
