@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import FormData from 'form-data';
-import Mailgun from 'mailgun.js'; // eslint-disable-line import/no-unresolved
+import { EmailParams, MailerSend, Recipient, Sender } from 'mailersend';
 import { v4 as uuidv4 } from 'uuid';
 
 import { config } from '../../infrastructure/config/environment.js';
@@ -27,27 +27,6 @@ export class AuthService {
     this.sessionTokenRepository = sessionTokenRepository;
     this.SALT_ROUNDS = 10;
     this.tokenService = new TokenService();
-    // Compute verification token TTL
-    const rawExpiration = process.env.VERIFICATION_EXPIRATION || '10m';
-    this.VERIFICATION_EXPIRATION_MS = this.parseDuration(rawExpiration);
-    this.REFRESH_EXPIRES_MS = this.parseDuration(config.jwt.refreshExpiresIn);
-  }
-
-  /**
-   * Convierte strings tipo '7d', '24h', '30m', '60s' o milisegundos a ms.
-   * @param {string|number} value
-   * @returns {number}
-   */
-  parseDuration(value) {
-    if (typeof value === 'number') return value;
-    if (/^\d+$/.test(value)) return parseInt(value, 10);
-    const regex = /^(\d+)([smhd])$/; // segundos, minutos, horas, días
-    const match = value.match(regex);
-    if (!match) return 0;
-    const num = parseInt(match[1], 10);
-    const unit = match[2];
-    const unitMs = { s: 1000, m: 60000, h: 3600000, d: 86400000 }[unit];
-    return num * unitMs;
   }
 
   /**
@@ -72,7 +51,7 @@ export class AuthService {
     }
 
     const verificationToken = uuidv4();
-    const verificationExpiresAt = new Date(Date.now() + this.VERIFICATION_EXPIRATION_MS);
+    const verificationExpiresAt = new Date(Date.now() + config.tokens.verificationExpiration);
 
     const createdUser = await this.userRepository.create({
       email,
@@ -83,18 +62,32 @@ export class AuthService {
       verificationExpiresAt,
     });
 
-    // Send verification email
-    await this.sendVerificationEmail(createdUser.email, verificationToken);
+    // Enviar email de verificación
+    let emailSent = false;
+    let emailError = null;
+
+    try {
+      await this.sendVerificationEmail(createdUser.email, createdUser.username, verificationToken);
+      emailSent = true;
+    } catch (error) {
+      emailError = error.message;
+      console.error('Error enviando email de verificación:', error);
+    }
 
     // Exclude passwordHash before return
     const { passwordHash, ...user } = createdUser;
-    return user;
+
+    return {
+      user,
+      emailSent,
+      emailError,
+    };
   }
 
   /**
    * Verify the email of a user
    * @param {string} token
-   * @returns {Promise<boolean>}
+   * @returns {Promise<{status: string, message: string, resendRequired: boolean}>}
    */
   async verifyEmail(token) {
     const sanitizedToken = sanitizeString(token);
@@ -110,31 +103,64 @@ export class AuthService {
     const user = await this.userRepository.findByVerificationToken(sanitizedToken);
 
     if (!user) {
-      throw createError(
+      const error = createError(
         ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
         API_ERROR_CODES.AUTH_TOKEN_INVALID
       );
+      error.customResponse = {
+        status: 'invalid_token',
+        message: 'Invalid verification token',
+        resendRequired: true,
+      };
+      throw error;
     }
 
     if (user.isVerified) {
-      throw createError(
+      const error = createError(
         ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED],
         API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED
       );
+      error.customResponse = {
+        status: 'already_verified',
+        message: 'Email is already verified',
+        resendRequired: false,
+      };
+      throw error;
     }
 
     // Check token expiration
     if (user.verificationExpiresAt && user.verificationExpiresAt < new Date()) {
-      throw createError(
+      const error = createError(
         ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
         API_ERROR_CODES.AUTH_TOKEN_EXPIRED
       );
+      error.customResponse = {
+        status: 'expired_token',
+        message: 'Verification token has expired',
+        resendRequired: true,
+      };
+      throw error;
     }
-
     // Mark as verified
-    await this.userRepository.setVerified(user.id, true);
-
-    return true;
+    try {
+      await this.userRepository.setVerified(user.id, true);
+      return {
+        status: 'success',
+        message: 'Email verified successfully',
+        resendRequired: false,
+      };
+    } catch {
+      const error = createError(
+        'Token is valid but user update failed',
+        API_ERROR_CODES.DATABASE_ERROR
+      );
+      error.customResponse = {
+        status: 'update_failed',
+        message: 'Token is valid but user update failed',
+        resendRequired: true,
+      };
+      throw error;
+    }
   }
 
   /**
@@ -190,7 +216,7 @@ export class AuthService {
         userId: dbUser.id,
         token: tokens.refreshToken,
         lastActivityAt: new Date(),
-        expiresAt: new Date(Date.now() + this.REFRESH_EXPIRES_MS),
+        expiresAt: new Date(Date.now() + config.tokens.refreshExpiration),
       });
     } catch (err) {
       console.error(ERROR_MESSAGES[API_ERROR_CODES.UNKNOWN_ERROR], err);
@@ -272,7 +298,7 @@ export class AuthService {
       // Sustituir token en la tabla session_tokens
       await this.sessionTokenRepository.update(sessionToken.id, {
         token: newTokens.refreshToken,
-        expiresAt: new Date(Date.now() + this.REFRESH_EXPIRES_MS),
+        expiresAt: new Date(Date.now() + config.tokens.refreshExpiration),
       });
 
       return newTokens;
@@ -325,7 +351,7 @@ export class AuthService {
     await this.userRepository.setResetToken(
       user.id,
       resetToken,
-      new Date(Date.now() + this.parseDuration('1h'))
+      new Date(Date.now() + config.tokens.passwordResetExpiration)
     );
 
     // @TODO: Send email with the reset token
@@ -362,36 +388,83 @@ export class AuthService {
    * @param {string} email
    * @param {string} token
    */
-  async sendVerificationEmail(email, token) {
-    if (!config.mail?.mailgun) {
-      console.log(`Verification email for ${email}: ${token}`);
+  async sendVerificationEmail(email, username, token) {
+    if (!config.mail) {
+      console.log(`Verification email for ${username} ${email}: ${token}`);
       return;
     }
 
-    try {
-      const mailgun = new Mailgun(FormData);
-      const mg = mailgun.client({
-        username: 'api',
-        key: config.mail.mailgun.apiKey,
-        url: config.mail.mailgun.endpoint, // 'https://api.eu.mailgun.net' for EU domains
-      });
+    const mailerSend = new MailerSend({
+      apiKey: config.mail.apiKey,
+    });
+    const personalization = [
+      {
+        email,
+        data: {
+          username,
+          account: {
+            name: 'Gestion eSports',
+          },
+          verify_url: `${config.cors.frontendUrl}${APP_ROUTES.VERIFY_EMAIL}?token=${token}`,
+          support_email: config.mail.from,
+        },
+      },
+    ];
+    const sentFrom = new Sender(config.mail.from, personalization[0].data.account.name);
+    const recipients = [new Recipient(email)];
 
-      const verifyUrl = `${config.cors.frontendUrl}${APP_ROUTES.VERIFY_EMAIL}?token=${token}`;
+    const emailParams = new EmailParams()
+      .setFrom(sentFrom)
+      .setTo(recipients)
+      .setReplyTo(sentFrom)
+      .setPersonalization(personalization)
+      .setTemplateId('ynrw7gyqqmj42k8e')
+      .setSubject('Por favor, verifica tu correo');
 
-      const response = await mg.messages.create(config.mail.mailgun.domain, {
-        from: config.mail.mailgun.from,
-        to: email,
-        subject: 'Verify your email',
-        template: 'verify your email',
-        'h:X-Mailgun-Variables': JSON.stringify({
-          verify_url: verifyUrl,
-        }),
-      });
-      return true;
-    } catch (err) {
-      console.error(ERROR_MESSAGES[API_ERROR_CODES.UNKNOWN_ERROR], err);
-      // Do not throw error to not interrupt the registration process
-      return false;
+    await mailerSend.email.send(emailParams);
+  }
+
+  /**
+   * Resend verification email
+   * @param {string} email
+   * @returns {Promise<void>}
+   */
+  async resendVerification(email) {
+    const user = await this.userRepository.findByEmail(email);
+
+    if (!user) {
+      throw createError(
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+        API_ERROR_CODES.AUTH_USER_NOT_FOUND
+      );
     }
+
+    if (user.isVerified) {
+      throw createError(
+        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED],
+        API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED
+      );
+    }
+
+    // Generar nuevo token de verificación
+    const verificationToken = uuidv4();
+    const verificationExpiresAt = new Date(Date.now() + config.tokens.verificationExpiration);
+
+    await this.userRepository.setVerificationToken(
+      user.id,
+      verificationToken,
+      verificationExpiresAt
+    );
+
+    // Enviar email de verificación
+    await this.sendVerificationEmail(user.email, user.username, verificationToken);
+  }
+
+  /**
+   * Clean expired verification tokens (optional maintenance task)
+   * @returns {Promise<number>} Number of tokens cleaned
+   */
+  async cleanExpiredVerificationTokens() {
+    return await this.userRepository.cleanExpiredVerificationTokens();
   }
 }
