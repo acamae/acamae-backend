@@ -87,6 +87,7 @@ const defaults = defaultValues[nodeEnv] || defaultValues.development;
  * @property {string} [MAIL_USER] - SMTP username
  * @property {string} [MAIL_PASSWORD] - SMTP password
  * @property {string} [MAIL_FROM] - Default sender email
+ * @property {string} [MAIL_API_KEY] - MailerSend API key
  */
 
 // Validation schema for environment variables
@@ -117,11 +118,18 @@ const envSchema = z.object({
   RATE_LIMIT_AUTH_WINDOW_MS: z.string().default(defaults.rateLimitAuthWindowMs),
   RATE_LIMIT_AUTH_MAX: z.string().default(defaults.rateLimitAuthMax),
 
-  // Mailgun configuration
-  MAILGUN_API_KEY: z.string().optional(),
-  MAILGUN_DOMAIN: z.string().optional(),
-  MAILGUN_FROM: z.string().optional(),
-  MAILGUN_ENDPOINT: z.string().optional(),
+  // Email (optional)
+  MAIL_HOST: z.string().optional(),
+  MAIL_PORT: z.string().optional(),
+  MAIL_USER: z.string().optional(),
+  MAIL_PASSWORD: z.string().optional(),
+  MAIL_FROM: z.string().optional(),
+  MAIL_API_KEY: z.string().optional(),
+
+  // Token expiration times
+  VERIFICATION_EXPIRATION: z.string().default('10m'),
+  PASSWORD_RESET_EXPIRATION: z.string().default('10m'),
+  REFRESH_EXPIRATION: z.string().default('7d'),
 });
 
 // Parse and validate environment variables
@@ -132,6 +140,34 @@ if (!env.success) {
   console.error('Environment Variables Error:');
   console.error(env.error.format());
   throw new Error('Invalid environment variables');
+}
+
+/**
+ * Convert duration string to milliseconds
+ * @param {string} duration - Duration string like '10m', '1h', '30s'
+ * @returns {number} Duration in milliseconds
+ */
+function durationToMs(duration) {
+  const match = duration.match(/^(\d+)([smhd])$/);
+  if (!match) {
+    throw new Error(`Invalid duration format: ${duration}`);
+  }
+
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+
+  switch (unit) {
+    case 's':
+      return value * 1000;
+    case 'm':
+      return value * 60 * 1000;
+    case 'h':
+      return value * 60 * 60 * 1000;
+    case 'd':
+      return value * 24 * 60 * 60 * 1000;
+    default:
+      throw new Error(`Invalid duration unit: ${unit}`);
+  }
 }
 
 // Export validated configuration
@@ -181,15 +217,23 @@ export const config = {
     },
   },
 
-  // Email configuration
-  mail: {
-    mailgun: env.data.MAILGUN_API_KEY
+  // Token expiration
+  tokens: {
+    verificationExpiration: durationToMs(env.data.VERIFICATION_EXPIRATION),
+    passwordResetExpiration: durationToMs(env.data.PASSWORD_RESET_EXPIRATION),
+    refreshExpiration: durationToMs(env.data.REFRESH_EXPIRATION),
+  },
+
+  // Email
+  mail:
+    env.data.MAIL_API_KEY || env.data.MAIL_HOST
       ? {
-          apiKey: env.data.MAILGUN_API_KEY,
-          domain: env.data.MAILGUN_DOMAIN,
-          from: env.data.MAILGUN_FROM,
-          endpoint: env.data.MAILGUN_ENDPOINT,
+          host: env.data.MAIL_HOST,
+          port: parseInt(env.data.MAIL_PORT, 10),
+          user: env.data.MAIL_USER,
+          password: env.data.MAIL_PASSWORD,
+          from: env.data.MAIL_FROM,
+          apiKey: env.data.MAIL_API_KEY,
         }
       : null,
-  },
 };

@@ -23,6 +23,7 @@ import {
   teamValidation,
   updateUserValidation,
   validateRequest,
+  verifyEmailValidation,
 } from '../middleware/validation.js';
 import { PrismaSessionTokenRepository } from '../repositories/PrismaSessionTokenRepository.js';
 import { PrismaTeamRepository } from '../repositories/PrismaTeamRepository.js';
@@ -230,9 +231,9 @@ router.post(
   logoutValidation,
   asyncHandler(authController.logout.bind(authController))
 );
-router.get(
+router.post(
   API_ROUTES.AUTH.VERIFY_EMAIL,
-  verifyEmailLimiter,
+  verifyEmailValidation,
   asyncHandler(authController.verifyEmail.bind(authController))
 );
 router.post(

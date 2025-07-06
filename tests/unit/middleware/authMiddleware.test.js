@@ -1,3 +1,9 @@
+import {
+  authenticate,
+  authorize,
+  isAdmin,
+  isManagerOrAdmin,
+} from '../../../src/infrastructure/middleware/auth.js';
 import { API_ERROR_CODES } from '../../../src/shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../../src/shared/constants/httpStatus.js';
 
@@ -18,31 +24,21 @@ jest.mock('../../../src/shared/utils/token.js', () => {
   return { TokenService };
 });
 
-// Mock PrismaClient y exponer instancia accesible vía helper
-jest.mock('@prisma/client', () => {
-  const prismaMock = {
-    user: { findUnique: jest.fn() },
-    emailVerificationToken: { findUnique: jest.fn() },
-    passwordResetToken: { findUnique: jest.fn() },
+// Mock PrismaUserRepository
+jest.mock('../../../src/infrastructure/repositories/PrismaUserRepository.js', () => {
+  const mockRepository = {
+    findByIdWithFields: jest.fn(),
   };
 
-  const PrismaClient = jest.fn(() => prismaMock);
-
-  return { __esModule: true, PrismaClient, Prisma: {}, prisma: prismaMock };
+  return {
+    PrismaUserRepository: jest.fn(() => mockRepository),
+    __mockRepository: mockRepository,
+  };
 });
 
-// Helper para acceder al prisma mock
-const getPrisma = () => require('@prisma/client').prisma;
-
-// Después de configurar mocks importamos el middleware real
-import {
-  authenticate,
-  authorize,
-  isAdmin,
-  isManagerOrAdmin,
-  verifyEmail,
-  verifyPasswordResetToken,
-} from '../../../src/infrastructure/middleware/auth.js';
+// Helper para acceder al repository mock
+const getMockRepository = () =>
+  require('../../../src/infrastructure/repositories/PrismaUserRepository.js').__mockRepository;
 
 // Helpers para construir req/res/next
 const buildReq = (overrides = {}) => ({
@@ -87,7 +83,7 @@ describe('authenticate middleware', () => {
   });
 
   it('returns AUTH_USER_NOT_FOUND when user not exists', async () => {
-    getPrisma().user.findUnique.mockResolvedValue(null);
+    getMockRepository().findByIdWithFields.mockResolvedValue(null);
 
     const req = buildReq({ headers: { authorization: 'Bearer validAccess' } });
     const next = buildNext();
@@ -98,7 +94,10 @@ describe('authenticate middleware', () => {
   });
 
   it('returns UNAUTHORIZED when user not verified', async () => {
-    getPrisma().user.findUnique.mockResolvedValue({ is_verified: false });
+    getMockRepository().findByIdWithFields.mockResolvedValue({
+      id: 'user-1',
+      isVerified: false,
+    });
 
     const req = buildReq({ headers: { authorization: 'Bearer validAccess' } });
     const next = buildNext();
@@ -109,10 +108,10 @@ describe('authenticate middleware', () => {
   });
 
   it('attaches user and calls next() on success', async () => {
-    getPrisma().user.findUnique.mockResolvedValue({
+    getMockRepository().findByIdWithFields.mockResolvedValue({
       id: 'user-1',
       role: 'admin',
-      is_verified: true,
+      isVerified: true,
     });
 
     const req = buildReq({ headers: { authorization: 'Bearer validAccess' } });
@@ -164,42 +163,5 @@ describe('authorize helpers', () => {
     const passNext = buildNext();
     isManagerOrAdmin()(req, noopRes, passNext);
     expect(passNext).toHaveBeenCalled();
-  });
-});
-
-describe('verifyEmail & verifyPasswordResetToken', () => {
-  afterEach(() => jest.clearAllMocks());
-
-  it('verifyEmail returns error if token not found', async () => {
-    getPrisma().emailVerificationToken.findUnique.mockResolvedValue(null);
-
-    const req = buildReq({ params: { token: 'abc' } });
-    const next = buildNext();
-    await verifyEmail(req, noopRes, next);
-
-    const err = next.mock.calls[0][0];
-    expect(err.code).toBe(API_ERROR_CODES.AUTH_TOKEN_INVALID);
-  });
-
-  it('verifyEmail attaches token and calls next()', async () => {
-    const tokenObj = { token: 'abc', expiresAt: new Date(Date.now() + 10000) };
-    getPrisma().emailVerificationToken.findUnique.mockResolvedValue(tokenObj);
-
-    const req = buildReq({ params: { token: 'abc' } });
-    const next = buildNext();
-    await verifyEmail(req, noopRes, next);
-    expect(req.verificationToken).toBe(tokenObj);
-    expect(next).toHaveBeenCalledWith();
-  });
-
-  it('verifyPasswordResetToken returns error if expired', async () => {
-    const expired = { token: 'xyz', expiresAt: new Date(Date.now() - 1000) };
-    getPrisma().passwordResetToken.findUnique.mockResolvedValue(expired);
-
-    const req = buildReq({ params: { token: 'xyz' } });
-    const next = buildNext();
-    await verifyPasswordResetToken(req, noopRes, next);
-    const err = next.mock.calls[0][0];
-    expect(err.code).toBe(API_ERROR_CODES.AUTH_TOKEN_EXPIRED);
   });
 });

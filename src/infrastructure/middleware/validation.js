@@ -200,6 +200,39 @@ export const loginValidation = validateRequest('login');
 export const logoutValidation = validateRequest('logout');
 
 /**
+ * Validation middleware for email verification
+ * Validates the token parameter in the URL
+ */
+export const verifyEmailValidation = (req, _res, next) => {
+  try {
+    const { token } = req.params;
+
+    if (!token) {
+      throwError(
+        'Email verification token is required',
+        API_ERROR_CODES.VALIDATION_ERROR,
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    // Validate token format (UUID)
+    const tokenSchema = z.string().uuid('Invalid token format');
+    tokenSchema.parse(token);
+
+    next();
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throwError(
+        'Invalid email verification token format',
+        API_ERROR_CODES.VALIDATION_ERROR,
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+    next(error);
+  }
+};
+
+/**
  * Validation rules for team creation
  */
 export const teamValidation = validateRequest('createTeam');

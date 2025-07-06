@@ -1,8 +1,6 @@
-import { AuthService } from '../../application/services/AuthService.js';
 import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 import { APP_ROUTES } from '../../shared/constants/appRoutes.js';
 import { createError } from '../../shared/utils/error.js';
-import { PrismaUserRepository } from '../repositories/PrismaUserRepository.js';
 
 export class AuthController {
   constructor(authService) {
@@ -18,8 +16,31 @@ export class AuthController {
   async register(req, res, next) {
     try {
       const { email, password, username } = req.body;
-      await this.authService.register({ email, password, username });
-      res.status(201).json({ status: 'success', message: 'User registered successfully' });
+      const { user, emailSent, emailError } = await this.authService.register({
+        email,
+        password,
+        username,
+      });
+
+      const response = {
+        user,
+        emailSent,
+        redirect: APP_ROUTES.VERIFY_EMAIL_SENT,
+      };
+
+      if (!emailSent && emailError) {
+        response.emailError = emailError;
+      }
+
+      const message = emailSent
+        ? 'User registered successfully. Verification email sent.'
+        : 'User registered successfully. However, verification email could not be sent.';
+
+      res.status(201).json({
+        status: 'success',
+        message,
+        data: response,
+      });
     } catch (error) {
       next(error);
     }
@@ -40,11 +61,55 @@ export class AuthController {
         return res.redirect(APP_ROUTES.VERIFY_EMAIL_RESEND);
       }
 
-      await this.authService.verifyEmail(token);
-      res
-        .status(200)
-        .json({ status: 'success', message: 'Email verified successfully', data: null });
+      const result = await this.authService.verifyEmail(token);
+
+      // Respuesta exitosa
+      res.status(200).json({
+        success: true,
+        data: result,
+        status: 200,
+        code: 'SUCCESS',
+      });
     } catch (error) {
+      // Manejar errores específicos con respuestas personalizadas
+      if (error.customResponse) {
+        const { status, message, resendRequired } = error.customResponse;
+
+        let httpStatus;
+        let errorCode;
+
+        switch (status) {
+          case 'invalid_token':
+            httpStatus = 400;
+            errorCode = 'AUTH_TOKEN_INVALID';
+            break;
+          case 'expired_token':
+            httpStatus = 410;
+            errorCode = 'AUTH_TOKEN_EXPIRED';
+            break;
+          case 'already_verified':
+            httpStatus = 409;
+            errorCode = 'AUTH_USER_ALREADY_VERIFIED';
+            break;
+          case 'update_failed':
+            httpStatus = 500;
+            errorCode = 'ERR_NETWORK';
+            break;
+        }
+
+        return res.status(httpStatus).json({
+          success: false,
+          data: {
+            status,
+            message,
+            resendRequired,
+          },
+          status: httpStatus,
+          code: errorCode,
+        });
+      }
+
+      // Error genérico
       next(error);
     }
   }

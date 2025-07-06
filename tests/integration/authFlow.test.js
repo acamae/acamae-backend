@@ -1,11 +1,14 @@
 // Mock AuthService with stateful implementation
-const mockUser = { id: '1', email: 'test@example.com', username: 'test' };
-
 jest.mock('../../src/application/services/AuthService.js', () => {
   let mockCurrentRefresh = 'init-refresh';
+  const mockUser = { id: '1', email: 'test@example.com', username: 'test' };
   return {
     AuthService: jest.fn().mockImplementation(() => ({
-      register: jest.fn().mockResolvedValue(undefined),
+      register: jest.fn().mockResolvedValue({
+        user: mockUser,
+        emailSent: true,
+        emailError: null,
+      }),
       login: jest.fn().mockImplementation(() => {
         return Promise.resolve({
           accessToken: 'access-1',
@@ -54,6 +57,9 @@ import request from 'supertest';
 
 import app from '../../src/infrastructure/app.js';
 import { API_ROUTES } from '../../src/shared/constants/apiRoutes.js';
+
+// Mock user data for tests
+const mockUser = { id: '1', email: 'test@example.com', username: 'test' };
 
 describe('Auth flow integration', () => {
   let server;

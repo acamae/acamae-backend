@@ -180,7 +180,8 @@ export class PrismaUserRepository {
       where: { id: parseInt(id) },
       data: {
         is_verified: isVerified,
-        verification_token: null,
+        // Mantener el token para detectar intentos posteriores
+        // pero limpiar la fecha de expiración para indicar que ya no está activo
         verification_expires_at: null,
       },
     });
@@ -227,11 +228,26 @@ export class PrismaUserRepository {
   }
 
   /**
-   * Find a user by verification token
+   * Find a user by verification token (includes expired tokens)
    * @param {string} token - Verification token
    * @returns {Promise<import('../../domain/entities/User').User|null>}
    */
   async findByVerificationToken(token) {
+    const user = await this.#prisma.user.findFirst({
+      where: {
+        verification_token: token,
+      },
+    });
+
+    return user ? this.#toDomainModel(user) : null;
+  }
+
+  /**
+   * Find a user by verification token (only non-expired tokens)
+   * @param {string} token - Verification token
+   * @returns {Promise<import('../../domain/entities/User').User|null>}
+   */
+  async findByValidVerificationToken(token) {
     const user = await this.#prisma.user.findFirst({
       where: {
         verification_token: token,
@@ -260,5 +276,78 @@ export class PrismaUserRepository {
     });
 
     return user ? this.#toDomainModel(user) : null;
+  }
+
+  /**
+   * Find a user by ID with specific fields only (optimized for auth middleware)
+   * @param {string} id - User ID
+   * @param {string[]} fields - Fields to select (domain model field names)
+   * @returns {Promise<Partial<import('../../domain/entities/User').User>|null>}
+   */
+  async findByIdWithFields(id, fields = []) {
+    // Mapear nombres de campos del dominio a nombres de la base de datos
+    const fieldMap = {
+      id: 'id',
+      email: 'email',
+      username: 'username',
+      role: 'role',
+      isVerified: 'is_verified',
+      firstName: 'first_name',
+      lastName: 'last_name',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    };
+
+    // Crear objeto select basado en los campos solicitados
+    const select = {};
+    if (fields.length > 0) {
+      fields.forEach((field) => {
+        if (fieldMap[field]) {
+          select[fieldMap[field]] = true;
+        }
+      });
+    } else {
+      // Si no se especifican campos, seleccionar campos básicos para auth
+      select.id = true;
+      select.email = true;
+      select.username = true;
+      select.role = true;
+      select.is_verified = true;
+    }
+
+    const user = await this.#prisma.user.findUnique({
+      where: { id: parseInt(id) },
+      select,
+    });
+
+    return user ? this.#toDomainModel(user) : null;
+  }
+
+  /**
+   * Clean expired verification tokens (bulk operation)
+   * @returns {Promise<number>} Number of tokens cleaned
+   */
+  async cleanExpiredVerificationTokens() {
+    try {
+      const result = await this.#prisma.user.updateMany({
+        where: {
+          verification_expires_at: {
+            lt: new Date(), // Tokens expirados
+          },
+          verification_token: {
+            not: null, // Que tengan token
+          },
+        },
+        data: {
+          verification_token: null,
+          verification_expires_at: null,
+        },
+      });
+
+      return result.count;
+    } catch (error) {
+      console.error('Error cleaning expired verification tokens:', error);
+      return 0;
+    }
   }
 }

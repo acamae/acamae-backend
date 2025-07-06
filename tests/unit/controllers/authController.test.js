@@ -34,7 +34,11 @@ describe('AuthController (unit)', () => {
   });
 
   it('register -> 201', async () => {
-    service.register.mockResolvedValue();
+    service.register.mockResolvedValue({
+      user: { id: 1, email: 'e', username: 'u' },
+      emailSent: true,
+      emailError: null,
+    });
     const req = { body: { email: 'e', password: 'p', username: 'u' } };
     await controller.register(req, res, next);
     expect(service.register).toHaveBeenCalled();
