@@ -1,4 +1,5 @@
 import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
+import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
 
 export class UserController {
@@ -7,19 +8,38 @@ export class UserController {
   }
 
   /**
-   * Get all users
+   * Get all users with pagination
    * @param {import('express').Request} req
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  getAllUsers = async (req, res, next) => {
+  async getAllUsers(req, res, next) {
     try {
-      const users = await this.userService.getAllUsers();
-      res.status(200).json({ status: 'success', data: users });
+      // Extract pagination parameters according to Swagger
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+
+      const result = await this.userService.getAllUsers({ page, limit });
+
+      // Structure according to Swagger with pagination
+      const meta = {
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasNext: result.hasNext,
+          hasPrev: result.hasPrev,
+        },
+      };
+
+      return res
+        .status(HTTP_STATUS.OK)
+        .apiSuccess(result.users, 'Usuarios obtenidos exitosamente', meta);
     } catch (error) {
       next(error);
     }
-  };
+  }
 
   /**
    * Get a user by ID
@@ -27,25 +47,27 @@ export class UserController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  getUserById = async (req, res, next) => {
+  async getUserById(req, res, next) {
     try {
       const { id } = req.params;
       const user = await this.userService.getUserById(id);
 
       if (!user) {
+        // Use RESOURCE_NOT_FOUND according to Swagger
         const notFoundError = createError(
-          ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
-          API_ERROR_CODES.AUTH_USER_NOT_FOUND,
-          404
+          'El usuario solicitado no existe',
+          API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          HTTP_STATUS.NOT_FOUND
         );
         return next(notFoundError);
       }
 
-      res.status(200).json({ status: 'success', data: user });
+      // Structure according to Swagger: User object
+      return res.status(HTTP_STATUS.OK).apiSuccess(user, 'Usuario obtenido exitosamente');
     } catch (error) {
       next(error);
     }
-  };
+  }
 
   /**
    * Update a user
@@ -53,7 +75,7 @@ export class UserController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  updateUser = async (req, res, next) => {
+  async updateUser(req, res, next) {
     try {
       const { id } = req.params;
       const userData = req.body;
@@ -61,21 +83,21 @@ export class UserController {
       const updatedUser = await this.userService.updateUser(id, userData);
 
       if (!updatedUser) {
+        // Use RESOURCE_NOT_FOUND according to Swagger
         const notFoundError = createError(
-          ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
-          API_ERROR_CODES.AUTH_USER_NOT_FOUND,
-          404
+          'El usuario solicitado no existe',
+          API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          HTTP_STATUS.NOT_FOUND
         );
         return next(notFoundError);
       }
 
-      res
-        .status(200)
-        .json({ status: 'success', message: 'User updated successfully', data: updatedUser });
+      // Structure according to Swagger: updated User object
+      return res.status(HTTP_STATUS.OK).apiSuccess(updatedUser, 'Usuario actualizado exitosamente');
     } catch (error) {
       next(error);
     }
-  };
+  }
 
   /**
    * Delete a user
@@ -83,23 +105,25 @@ export class UserController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  deleteUser = async (req, res, next) => {
+  async deleteUser(req, res, next) {
     try {
       const { id } = req.params;
       const deleted = await this.userService.deleteUser(id);
 
       if (!deleted) {
+        // Use RESOURCE_NOT_FOUND according to Swagger
         const notFoundError = createError(
-          ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
-          API_ERROR_CODES.AUTH_USER_NOT_FOUND,
-          404
+          'El usuario solicitado no existe',
+          API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          HTTP_STATUS.NOT_FOUND
         );
         return next(notFoundError);
       }
 
-      res.status(200).json({ status: 'success', message: 'User deleted successfully', data: null });
+      // Structure according to Swagger: data null
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Usuario eliminado exitosamente');
     } catch (error) {
       next(error);
     }
-  };
+  }
 }

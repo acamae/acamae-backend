@@ -1,5 +1,6 @@
 import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 import { APP_ROUTES } from '../../shared/constants/appRoutes.js';
+import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
 
 export class AuthController {
@@ -22,25 +23,12 @@ export class AuthController {
         username,
       });
 
-      const response = {
-        user,
-        emailSent,
-        redirect: APP_ROUTES.VERIFY_EMAIL_SENT,
-      };
-
-      if (!emailSent && emailError) {
-        response.emailError = emailError;
-      }
-
+      // Follow Swagger specification: data null, message in Spanish
       const message = emailSent
-        ? 'User registered successfully. Verification email sent.'
-        : 'User registered successfully. However, verification email could not be sent.';
+        ? 'Usuario registrado exitosamente. Revisa tu correo para verificar tu cuenta.'
+        : 'Usuario registrado exitosamente. Sin embargo, no se pudo enviar el email de verificación.';
 
-      res.status(201).json({
-        status: 'success',
-        message,
-        data: response,
-      });
+      return res.status(HTTP_STATUS.CREATED).apiSuccess(null, message);
     } catch (error) {
       next(error);
     }
@@ -63,53 +51,81 @@ export class AuthController {
 
       const result = await this.authService.verifyEmail(token);
 
-      // Respuesta exitosa
-      res.status(200).json({
-        success: true,
-        data: result,
-        status: 200,
-        code: 'SUCCESS',
-      });
+      // Successful response according to Swagger
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Email verificado correctamente');
     } catch (error) {
-      // Manejar errores específicos con respuestas personalizadas
+      // Handle specific errors with custom responses
       if (error.customResponse) {
         const { status, message, resendRequired } = error.customResponse;
 
         let httpStatus;
         let errorCode;
+        let spanishMessage;
+        let errorDetails;
 
         switch (status) {
           case 'invalid_token':
-            httpStatus = 400;
-            errorCode = 'AUTH_TOKEN_INVALID';
+            httpStatus = HTTP_STATUS.BAD_REQUEST;
+            errorCode = API_ERROR_CODES.AUTH_TOKEN_INVALID;
+            spanishMessage = 'El enlace de verificación no es válido';
+            errorDetails = {
+              type: 'authentication',
+              details: [{ field: 'token', code: 'INVALID', message: 'El token no es válido' }],
+            };
             break;
           case 'expired_token':
-            httpStatus = 410;
-            errorCode = 'AUTH_TOKEN_EXPIRED';
+            httpStatus = HTTP_STATUS.BAD_REQUEST;
+            errorCode = API_ERROR_CODES.AUTH_TOKEN_EXPIRED;
+            spanishMessage = 'El enlace de verificación ha expirado';
+            errorDetails = {
+              type: 'authentication',
+              details: [{ field: 'token', code: 'EXPIRED', message: 'El token ha expirado' }],
+            };
             break;
           case 'already_verified':
-            httpStatus = 409;
-            errorCode = 'AUTH_USER_ALREADY_VERIFIED';
+            httpStatus = HTTP_STATUS.CONFLICT;
+            errorCode = API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED;
+            spanishMessage = 'Esta cuenta ya ha sido verificada';
+            errorDetails = {
+              type: 'business',
+              details: [
+                {
+                  field: 'user',
+                  code: 'ALREADY_VERIFIED',
+                  message: 'El usuario ya está verificado',
+                },
+              ],
+            };
             break;
           case 'update_failed':
-            httpStatus = 500;
-            errorCode = 'ERR_NETWORK';
+            httpStatus = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+            errorCode = API_ERROR_CODES.AUTH_UPDATE_FAILED;
+            spanishMessage = 'Error al actualizar el estado de verificación';
+            errorDetails = {
+              type: 'server',
+              details: [
+                {
+                  field: 'database',
+                  code: 'UPDATE_FAILED',
+                  message: 'No se pudo actualizar la base de datos',
+                },
+              ],
+            };
             break;
+          default:
+            httpStatus = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+            errorCode = API_ERROR_CODES.UNKNOWN_ERROR;
+            spanishMessage = 'Error interno del servidor';
+            errorDetails = {
+              type: 'server',
+              details: [{ field: 'server', code: 'UNKNOWN', message: 'Error desconocido' }],
+            };
         }
 
-        return res.status(httpStatus).json({
-          success: false,
-          data: {
-            status,
-            message,
-            resendRequired,
-          },
-          status: httpStatus,
-          code: errorCode,
-        });
+        return res.apiError(httpStatus, errorCode, spanishMessage, errorDetails);
       }
 
-      // Error genérico
+      // Generic error
       next(error);
     }
   }
@@ -124,7 +140,9 @@ export class AuthController {
     try {
       const { email, password } = req.body;
       const result = await this.authService.login(email, password);
-      res.status(200).json({ status: 'success', message: 'Login successfully', data: result });
+
+      // Structure according to Swagger: UserWithTokens
+      return res.status(HTTP_STATUS.OK).apiSuccess(result, 'Login exitoso');
     } catch (error) {
       next(error);
     }
@@ -139,7 +157,9 @@ export class AuthController {
   async getMe(req, res, next) {
     try {
       const user = await this.authService.getMe(req.user.id);
-      res.status(200).json({ status: 'success', data: user });
+
+      // Structure according to Swagger: User object
+      return res.status(HTTP_STATUS.OK).apiSuccess(user, 'Usuario obtenido exitosamente');
     } catch (error) {
       next(error);
     }
@@ -157,13 +177,14 @@ export class AuthController {
       if (!refreshToken) {
         throw createError(
           ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
-          API_ERROR_CODES.INVALID_REFRESH_TOKEN
+          API_ERROR_CODES.INVALID_REFRESH_TOKEN,
+          HTTP_STATUS.BAD_REQUEST
         );
       }
       const tokens = await this.authService.refreshToken(refreshToken);
-      res
-        .status(200)
-        .json({ status: 'success', message: 'Token successfully refreshed', data: tokens });
+
+      // Structure according to Swagger: object with accessToken and refreshToken
+      return res.status(HTTP_STATUS.OK).apiSuccess(tokens, 'Token renovado exitosamente');
     } catch (error) {
       next(error);
     }
@@ -179,7 +200,9 @@ export class AuthController {
     try {
       const { refreshToken } = req.body;
       await this.authService.logout(refreshToken);
-      res.status(200).json({ status: 'success', message: 'Logout successfully', data: null });
+
+      // Structure according to Swagger: data null
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Sesión cerrada exitosamente');
     } catch (error) {
       next(error);
     }
@@ -195,11 +218,11 @@ export class AuthController {
     try {
       const { email } = req.body;
       await this.authService.forgotPassword(email);
-      res.status(200).json({
-        status: 'success',
-        message: 'If the email exists, you will receive instructions to recover your password',
-        data: null,
-      });
+
+      // Structure according to Swagger: data null, message in Spanish
+      return res
+        .status(HTTP_STATUS.OK)
+        .apiSuccess(null, 'Te hemos enviado un enlace para restablecer tu contraseña');
     } catch (error) {
       next(error);
     }
@@ -214,25 +237,33 @@ export class AuthController {
   async resetPassword(req, res, next) {
     try {
       const { token } = req.params;
-      const { newPassword } = req.body;
-      await this.authService.resetPassword(token, newPassword);
-      res
-        .status(200)
-        .json({ status: 'success', message: 'Password updated successfully', data: null });
+      const { password } = req.body; // Changed from newPassword to password according to Swagger
+      await this.authService.resetPassword(token, password);
+
+      // Structure according to Swagger: data null, message in Spanish
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Contraseña restablecida exitosamente');
     } catch (error) {
       next(error);
     }
   }
 
-  resendVerification = async (req, res) => {
+  /**
+   * Resend verification email
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
+  async resendVerification(req, res, next) {
     try {
-      const { email } = req.body;
-      await this.authService.resendVerification(email);
-      res
-        .status(200)
-        .json({ status: 'success', message: 'Verification email resent successfully', data: null });
+      const { identifier } = req.body; // Changed from email to identifier according to Swagger
+      await this.authService.resendVerification(identifier);
+
+      // Structure according to Swagger: data null, message in Spanish
+      return res
+        .status(HTTP_STATUS.OK)
+        .apiSuccess(null, 'Nuevo enlace enviado. Revisa tu bandeja de entrada.');
     } catch (error) {
       next(error);
     }
-  };
+  }
 }

@@ -1,0 +1,984 @@
+openapi: 3.0.0
+info:
+  title: Acamae API
+  version: 2.0.0
+  description: |
+    API para la aplicación Acamae con estructura de respuestas consistente.
+
+    **Estructura de Respuestas:**
+    - Todas las respuestas siguen el mismo patrón
+    - Incluyen timestamp y requestId para trazabilidad
+    - Mensajes en español
+    - Códigos semánticos específicos
+
+components:
+  schemas:
+    # ===== ESQUEMAS DE RESPUESTA =====
+    ApiSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - status
+        - code
+        - message
+        - timestamp
+        - requestId
+      properties:
+        success:
+          type: boolean
+          example: true
+          description: Indica si la operación fue exitosa
+        data:
+          description: Los datos de respuesta (puede ser null, object, array)
+        status:
+          type: integer
+          example: 200
+          description: Código de estado HTTP
+        code:
+          type: string
+          example: "SUCCESS"
+          description: Código semántico de la aplicación
+        message:
+          type: string
+          example: "Operación exitosa"
+          description: Mensaje descriptivo en español
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00.000Z"
+          description: Timestamp ISO 8601 de la respuesta
+        requestId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+          description: ID único de la request para trazabilidad
+        meta:
+          type: object
+          description: Metadatos adicionales (paginación, totales, etc.)
+
+    ApiErrorResponse:
+      type: object
+      required:
+        - success
+        - data
+        - status
+        - code
+        - message
+        - timestamp
+        - requestId
+      properties:
+        success:
+          type: boolean
+          example: false
+          description: Indica si la operación fue exitosa
+        data:
+          type: null
+          example: null
+          description: Siempre null en errores
+        status:
+          type: integer
+          example: 400
+          description: Código de estado HTTP
+        code:
+          type: string
+          example: "AUTH_INVALID_CREDENTIALS"
+          description: Código semántico del error
+        message:
+          type: string
+          example: "Las credenciales proporcionadas son incorrectas"
+          description: Mensaje de error en español
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00.000Z"
+          description: Timestamp ISO 8601 de la respuesta
+        requestId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+          description: ID único de la request para trazabilidad
+        meta:
+          type: object
+          description: Metadatos adicionales
+        error:
+          type: object
+          description: Detalles específicos del error
+          properties:
+            type:
+              type: string
+              enum: [validation, network, server, authentication, authorization, business]
+              example: "authentication"
+              description: Tipo de error
+            details:
+              type: array
+              description: Errores específicos por campo
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    example: "password"
+                    description: Campo que causó el error
+                  code:
+                    type: string
+                    example: "INVALID"
+                    description: Código específico del campo
+                  message:
+                    type: string
+                    example: "La contraseña no es válida"
+                    description: Mensaje específico en español
+            stack:
+              type: string
+              description: Stack trace (solo en desarrollo)
+
+    # ===== ENTIDADES =====
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "user_123456"
+        email:
+          type: string
+          format: email
+          example: "usuario@example.com"
+        username:
+          type: string
+          example: "usuario123"
+        role:
+          type: string
+          enum: [user, admin]
+          example: "user"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00.000Z"
+
+    UserWithTokens:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        accessToken:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    # ===== PAYLOADS =====
+    LoginPayload:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "usuario@example.com"
+        password:
+          type: string
+          format: password
+          example: "Password123!"
+
+    RegisterPayload:
+      type: object
+      required:
+        - email
+        - password
+        - username
+      properties:
+        email:
+          type: string
+          format: email
+          example: "usuario@example.com"
+        password:
+          type: string
+          format: password
+          example: "Password123!"
+        username:
+          type: string
+          example: "usuario123"
+
+    ForgotPasswordPayload:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: "usuario@example.com"
+
+    ResetPasswordPayload:
+      type: object
+      required:
+        - password
+      properties:
+        password:
+          type: string
+          format: password
+          example: "NuevaPassword123!"
+
+    ResendVerificationPayload:
+      type: object
+      required:
+        - identifier
+      properties:
+        identifier:
+          type: string
+          example: "usuario@example.com"
+          description: Email del usuario
+
+paths:
+  # ===== AUTENTICACIÓN =====
+  /auth/login:
+    post:
+      tags:
+        - Autenticación
+      summary: Iniciar sesión
+      description: Autenticar usuario con email y contraseña
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginPayload'
+            examples:
+              valid_login:
+                summary: Login válido
+                value:
+                  email: "usuario@example.com"
+                  password: "Password123!"
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserWithTokens'
+              examples:
+                login_success:
+                  summary: Login exitoso
+                  value:
+                    success: true
+                    data:
+                      user:
+                        id: "user_123456"
+                        email: "usuario@example.com"
+                        username: "usuario123"
+                        role: "user"
+                        createdAt: "2024-01-15T10:30:00.000Z"
+                        updatedAt: "2024-01-15T10:30:00.000Z"
+                      accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    status: 200
+                    code: "SUCCESS"
+                    message: "Login exitoso"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+        '401':
+          description: Credenciales incorrectas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                invalid_credentials:
+                  summary: Credenciales incorrectas
+                  value:
+                    success: false
+                    data: null
+                    status: 401
+                    code: "AUTH_INVALID_CREDENTIALS"
+                    message: "Las credenciales proporcionadas son incorrectas"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+                    error:
+                      type: "authentication"
+                      details:
+                        - field: "credentials"
+                          code: "INVALID"
+                          message: "Email o contraseña incorrectos"
+        '422':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                validation_failed:
+                  summary: Validación fallida
+                  value:
+                    success: false
+                    data: null
+                    status: 422
+                    code: "VALIDATION_FAILED"
+                    message: "Los datos enviados no son válidos"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+                    error:
+                      type: "validation"
+                      details:
+                        - field: "email"
+                          code: "INVALID_FORMAT"
+                          message: "El formato del email no es válido"
+                        - field: "password"
+                          code: "REQUIRED"
+                          message: "La contraseña es requerida"
+        '429':
+          description: Demasiados intentos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                rate_limit:
+                  summary: Rate limit excedido
+                  value:
+                    success: false
+                    data: null
+                    status: 429
+                    code: "AUTH_RATE_LIMIT"
+                    message: "Demasiados intentos de login. Intenta de nuevo en 15 minutos"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+  /auth/register:
+    post:
+      tags:
+        - Autenticación
+      summary: Registrar nuevo usuario
+      description: Crear una nueva cuenta de usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterPayload'
+            examples:
+              valid_registration:
+                summary: Registro válido
+                value:
+                  email: "nuevo@example.com"
+                  username: "nuevousuario"
+                  password: "Password123!"
+      responses:
+        '201':
+          description: Registro exitoso
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: null
+              examples:
+                register_success:
+                  summary: Registro exitoso
+                  value:
+                    success: true
+                    data: null
+                    status: 201
+                    code: "SUCCESS"
+                    message: "Usuario registrado exitosamente. Revisa tu correo para verificar tu cuenta."
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+        '409':
+          description: Usuario ya existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                user_exists:
+                  summary: Usuario ya existe
+                  value:
+                    success: false
+                    data: null
+                    status: 409
+                    code: "AUTH_USER_ALREADY_EXISTS"
+                    message: "El email ya está registrado"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+                    error:
+                      type: "business"
+                      details:
+                        - field: "email"
+                          code: "DUPLICATE"
+                          message: "Este email ya está en uso"
+
+  /auth/verify-email/{token}:
+    post:
+      tags:
+        - Autenticación
+      summary: Verificar email
+      description: Verificar la cuenta de usuario usando un token
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Email verificado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: null
+              examples:
+                verify_success:
+                  summary: Verificación exitosa
+                  value:
+                    success: true
+                    data: null
+                    status: 200
+                    code: "SUCCESS"
+                    message: "Email verificado correctamente"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+        '400':
+          description: Token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                token_expired:
+                  summary: Token expirado
+                  value:
+                    success: false
+                    data: null
+                    status: 400
+                    code: "AUTH_TOKEN_EXPIRED"
+                    message: "El enlace de verificación ha expirado"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+                    error:
+                      type: "authentication"
+                      details:
+                        - field: "token"
+                          code: "EXPIRED"
+                          message: "El token ha expirado"
+                token_invalid:
+                  summary: Token inválido
+                  value:
+                    success: false
+                    data: null
+                    status: 400
+                    code: "AUTH_TOKEN_INVALID"
+                    message: "El enlace de verificación no es válido"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+                token_already_used:
+                  summary: Token ya usado
+                  value:
+                    success: false
+                    data: null
+                    status: 400
+                    code: "AUTH_TOKEN_ALREADY_USED"
+                    message: "Este enlace ya ha sido utilizado"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+  /auth/resend-verification:
+    post:
+      tags:
+        - Autenticación
+      summary: Reenviar email de verificación
+      description: Enviar nuevo email de verificación
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationPayload'
+      responses:
+        '200':
+          description: Email de verificación reenviado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: null
+              examples:
+                resend_success:
+                  summary: Reenvío exitoso
+                  value:
+                    success: true
+                    data: null
+                    status: 200
+                    code: "SUCCESS"
+                    message: "Nuevo enlace enviado. Revisa tu bandeja de entrada."
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                user_not_found:
+                  summary: Usuario no encontrado
+                  value:
+                    success: false
+                    data: null
+                    status: 404
+                    code: "AUTH_USER_NOT_FOUND"
+                    message: "No se encontró un usuario con ese email"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Autenticación
+      summary: Solicitar restablecimiento de contraseña
+      description: Enviar email para restablecer contraseña
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordPayload'
+      responses:
+        '200':
+          description: Email de restablecimiento enviado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: null
+              examples:
+                forgot_success:
+                  summary: Email enviado
+                  value:
+                    success: true
+                    data: null
+                    status: 200
+                    code: "SUCCESS"
+                    message: "Te hemos enviado un enlace para restablecer tu contraseña"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+  /auth/reset-password/{token}:
+    post:
+      tags:
+        - Autenticación
+      summary: Restablecer contraseña
+      description: Cambiar contraseña usando token de restablecimiento
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordPayload'
+      responses:
+        '200':
+          description: Contraseña restablecida exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: null
+              examples:
+                reset_success:
+                  summary: Contraseña restablecida
+                  value:
+                    success: true
+                    data: null
+                    status: 200
+                    code: "SUCCESS"
+                    message: "Contraseña restablecida exitosamente"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+  /auth/refresh-token:
+    post:
+      tags:
+        - Autenticación
+      summary: Renovar token de acceso
+      description: Obtener nuevo access token usando refresh token
+      responses:
+        '200':
+          description: Token renovado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          accessToken:
+                            type: string
+                          refreshToken:
+                            type: string
+              examples:
+                refresh_success:
+                  summary: Token renovado
+                  value:
+                    success: true
+                    data:
+                      accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    status: 200
+                    code: "SUCCESS"
+                    message: "Token renovado exitosamente"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+  /auth/logout:
+    post:
+      tags:
+        - Autenticación
+      summary: Cerrar sesión
+      description: Invalidar tokens de sesión
+      responses:
+        '200':
+          description: Logout exitoso
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: null
+              examples:
+                logout_success:
+                  summary: Logout exitoso
+                  value:
+                    success: true
+                    data: null
+                    status: 200
+                    code: "SUCCESS"
+                    message: "Sesión cerrada exitosamente"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+  /auth/me:
+    get:
+      tags:
+        - Autenticación
+      summary: Obtener información del usuario actual
+      description: Obtener datos del usuario autenticado
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Información del usuario
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+              examples:
+                me_success:
+                  summary: Usuario obtenido
+                  value:
+                    success: true
+                    data:
+                      id: "user_123456"
+                      email: "usuario@example.com"
+                      username: "usuario123"
+                      role: "user"
+                      createdAt: "2024-01-15T10:30:00.000Z"
+                      updatedAt: "2024-01-15T10:30:00.000Z"
+                    status: 200
+                    code: "SUCCESS"
+                    message: "Usuario obtenido exitosamente"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+        '401':
+          description: Token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                unauthorized:
+                  summary: No autorizado
+                  value:
+                    success: false
+                    data: null
+                    status: 401
+                    code: "AUTH_TOKEN_INVALID"
+                    message: "Token de acceso inválido"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+  # ===== GESTIÓN DE USUARIOS =====
+  /users:
+    get:
+      tags:
+        - Usuarios
+      summary: Obtener lista de usuarios
+      description: Obtener usuarios con paginación
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          example: 10
+      responses:
+        '200':
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+                      meta:
+                        type: object
+                        properties:
+                          pagination:
+                            type: object
+                            properties:
+                              page:
+                                type: integer
+                              limit:
+                                type: integer
+                              total:
+                                type: integer
+                              totalPages:
+                                type: integer
+                              hasNext:
+                                type: boolean
+                              hasPrev:
+                                type: boolean
+              examples:
+                users_list:
+                  summary: Lista de usuarios
+                  value:
+                    success: true
+                    data:
+                      - id: "user_123456"
+                        email: "usuario1@example.com"
+                        username: "usuario1"
+                        role: "user"
+                        createdAt: "2024-01-15T10:30:00.000Z"
+                        updatedAt: "2024-01-15T10:30:00.000Z"
+                      - id: "user_789012"
+                        email: "usuario2@example.com"
+                        username: "usuario2"
+                        role: "admin"
+                        createdAt: "2024-01-14T10:30:00.000Z"
+                        updatedAt: "2024-01-14T10:30:00.000Z"
+                    status: 200
+                    code: "SUCCESS"
+                    message: "Usuarios obtenidos exitosamente"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+                    meta:
+                      pagination:
+                        page: 1
+                        limit: 10
+                        total: 25
+                        totalPages: 3
+                        hasNext: true
+                        hasPrev: false
+
+  /users/{id}:
+    get:
+      tags:
+        - Usuarios
+      summary: Obtener usuario por ID
+      description: Obtener información de un usuario específico
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "user_123456"
+      responses:
+        '200':
+          description: Información del usuario
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                user_not_found:
+                  summary: Usuario no encontrado
+                  value:
+                    success: false
+                    data: null
+                    status: 404
+                    code: "RESOURCE_NOT_FOUND"
+                    message: "El usuario solicitado no existe"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+    put:
+      tags:
+        - Usuarios
+      summary: Actualizar usuario
+      description: Actualizar información de un usuario
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+                role:
+                  type: string
+                  enum: [user, admin]
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+
+    delete:
+      tags:
+        - Usuarios
+      summary: Eliminar usuario
+      description: Eliminar un usuario del sistema
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Usuario eliminado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: null
+              examples:
+                delete_success:
+                  summary: Usuario eliminado
+                  value:
+                    success: true
+                    data: null
+                    status: 200
+                    code: "SUCCESS"
+                    message: "Usuario eliminado exitosamente"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+                    requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+# ===== SEGURIDAD =====
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtenido del endpoint de login
+
+# ===== CÓDIGOS DE ERROR =====
+# Códigos de error disponibles:
+# AUTH_INVALID_CREDENTIALS, AUTH_USER_ALREADY_EXISTS, AUTH_USER_ALREADY_VERIFIED
+# AUTH_NO_ACTIVE_SESSION, AUTH_TOKEN_EXPIRED, AUTH_TOKEN_INVALID
+# AUTH_TOKEN_ALREADY_USED, AUTH_TOKEN_REVOKED, AUTH_TOKEN_MALICIOUS
+# AUTH_TOKEN_OTHER_FLOW, AUTH_FORBIDDEN, AUTH_UPDATE_FAILED
+# VALIDATION_FAILED, RESOURCE_NOT_FOUND
+# ERR_NETWORK, ERR_CANCELED, ECONNABORTED, ETIMEDOUT, UNKNOWN_ERROR
+# AUTH_RATE_LIMIT, SERVICE_UNAVAILABLE
+# AUTH_USER_NOT_FOUND, AUTH_USER_BLOCKED

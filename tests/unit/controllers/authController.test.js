@@ -7,6 +7,8 @@ const makeRes = () => {
   res.status = jest.fn().mockReturnValue(res);
   res.json = jest.fn().mockReturnValue(res);
   res.redirect = jest.fn().mockReturnValue(res);
+  res.apiSuccess = jest.fn().mockReturnValue(res);
+  res.apiError = jest.fn().mockReturnValue(res);
   return res;
 };
 
@@ -43,6 +45,7 @@ describe('AuthController (unit)', () => {
     await controller.register(req, res, next);
     expect(service.register).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.apiSuccess).toHaveBeenCalledWith(null, expect.stringContaining('exitosamente'));
   });
 
   describe('verifyEmail', () => {
@@ -68,11 +71,7 @@ describe('AuthController (unit)', () => {
     await controller.login(req, res, next);
     expect(service.login).toHaveBeenCalledWith('e', 'p');
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({
-      status: 'success',
-      message: 'Login successfully',
-      data,
-    });
+    expect(res.apiSuccess).toHaveBeenCalledWith(data, 'Login exitoso');
   });
 
   it('getMe -> 200', async () => {
@@ -82,6 +81,7 @@ describe('AuthController (unit)', () => {
     await controller.getMe(req, res, next);
     expect(service.getMe).toHaveBeenCalledWith('1');
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.apiSuccess).toHaveBeenCalledWith(user, 'Usuario obtenido exitosamente');
   });
 
   describe('refreshToken', () => {
@@ -93,18 +93,14 @@ describe('AuthController (unit)', () => {
       );
     });
 
-    it('success', async () => {
+    it('SUCCESS', async () => {
       const tokens = { accessToken: 'new', refreshToken: 'r' };
       service.refreshToken.mockResolvedValue(tokens);
       const req = { body: { refreshToken: 'old' } };
       await controller.refreshToken(req, res, next);
       expect(service.refreshToken).toHaveBeenCalledWith('old');
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({
-        status: 'success',
-        message: 'Token successfully refreshed',
-        data: tokens,
-      });
+      expect(res.apiSuccess).toHaveBeenCalledWith(tokens, 'Token renovado exitosamente');
     });
   });
 
@@ -114,6 +110,7 @@ describe('AuthController (unit)', () => {
     await controller.logout(req, res, next);
     expect(service.logout).toHaveBeenCalledWith('r');
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.apiSuccess).toHaveBeenCalledWith(null, 'Sesión cerrada exitosamente');
   });
 
   it('forgotPassword -> 200', async () => {
@@ -122,21 +119,30 @@ describe('AuthController (unit)', () => {
     await controller.forgotPassword(req, res, next);
     expect(service.forgotPassword).toHaveBeenCalledWith('e');
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.apiSuccess).toHaveBeenCalledWith(
+      null,
+      'Te hemos enviado un enlace para restablecer tu contraseña'
+    );
   });
 
   it('resetPassword -> 200', async () => {
     service.resetPassword.mockResolvedValue();
-    const req = { params: { token: 't' }, body: { newPassword: 'P' } };
+    const req = { params: { token: 't' }, body: { password: 'P' } };
     await controller.resetPassword(req, res, next);
     expect(service.resetPassword).toHaveBeenCalledWith('t', 'P');
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.apiSuccess).toHaveBeenCalledWith(null, 'Contraseña restablecida exitosamente');
   });
 
   it('resendVerification -> 200', async () => {
     service.resendVerification.mockResolvedValue();
-    const req = { body: { email: 'e' } };
+    const req = { body: { identifier: 'e' } };
     await controller.resendVerification(req, res, next);
     expect(service.resendVerification).toHaveBeenCalledWith('e');
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.apiSuccess).toHaveBeenCalledWith(
+      null,
+      'Nuevo enlace enviado. Revisa tu bandeja de entrada.'
+    );
   });
 });

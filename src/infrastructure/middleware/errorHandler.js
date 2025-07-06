@@ -5,10 +5,12 @@ import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
 import { sanitizeResponse } from '../../shared/utils/sanitize.js';
 
+import { apiError } from './responseHelpers.js';
+
 /**
  * Centralized error handling middleware
- * This middleware handles all errors in a consistent way across the application
- * It provides clear error messages and proper HTTP status codes
+ * Updated to use the new consistent API response structure
+ * Handles all errors with the exact format expected by frontend
  *
  * @param {Error} err - Error object
  * @param {import('express').Request} req - Express request
@@ -16,7 +18,12 @@ import { sanitizeResponse } from '../../shared/utils/sanitize.js';
  * @param {import('express').NextFunction} _next - Express next function
  */
 export const errorHandler = (err, req, res, _next) => {
-  // Enhanced error logging
+  // If headers already sent, delegate to default Express error handler
+  if (res.headersSent) {
+    return _next(err);
+  }
+
+  // Enhanced error logging with requestId
   const errorDetails = {
     message: err.message,
     code: err.code,
@@ -27,64 +34,143 @@ export const errorHandler = (err, req, res, _next) => {
     body: req.body,
     query: req.query,
     params: req.params,
+    requestId: req.requestId,
     timestamp: new Date().toISOString(),
+  };
+
+  // Log for Morgan
+  req.log = {
+    error: err.message,
+    stack: err.stack,
+    requestId: req.requestId,
   };
 
   // Log error details
   console.error('Error Details:', errorDetails);
 
+  // Handle JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    return apiError(
+      res,
+      HTTP_STATUS.UNAUTHORIZED,
+      API_ERROR_CODES.AUTH_TOKEN_INVALID,
+      'Token de acceso inválido'
+    );
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    return apiError(
+      res,
+      HTTP_STATUS.UNAUTHORIZED,
+      API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+      'Token de acceso expirado'
+    );
+  }
+
+  // Handle validation errors
+  if (err.type === 'validation') {
+    return apiError(
+      res,
+      HTTP_STATUS.UNPROCESSABLE_ENTITY,
+      API_ERROR_CODES.VALIDATION_FAILED,
+      'Los datos enviados no son válidos',
+      {
+        type: 'validation',
+        details: err.details,
+        ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+      }
+    );
+  }
+
   // Handle Prisma errors
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     switch (err.code) {
       case 'P2002':
-        return res.status(HTTP_STATUS.CONFLICT).json({
-          status: 'error',
-          code: API_ERROR_CODES.DUPLICATE_ENTRY,
-          message: sanitizeResponse(ERROR_MESSAGES[API_ERROR_CODES.DUPLICATE_ENTRY]),
-          details: err.meta?.target?.[0],
-        });
+        return apiError(
+          res,
+          HTTP_STATUS.CONFLICT,
+          API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS,
+          'El recurso ya existe',
+          {
+            type: 'database',
+            details: [
+              {
+                field: err.meta?.target?.[0] || 'unknown',
+                code: 'DUPLICATE_ENTRY',
+                message: 'Valor duplicado',
+              },
+            ],
+          }
+        );
       case 'P2025':
-        return res.status(HTTP_STATUS.NOT_FOUND).json({
-          status: 'error',
-          code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
-          message: sanitizeResponse(ERROR_MESSAGES[API_ERROR_CODES.RESOURCE_NOT_FOUND]),
-        });
+        return apiError(
+          res,
+          HTTP_STATUS.NOT_FOUND,
+          API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          'Recurso no encontrado',
+          {
+            type: 'database',
+            details: [
+              { field: 'resource', code: 'NOT_FOUND', message: 'El recurso solicitado no existe' },
+            ],
+          }
+        );
       default:
-        return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          status: 'error',
-          code: API_ERROR_CODES.DATABASE_ERROR,
-          message: sanitizeResponse(ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR]),
-        });
+        return apiError(
+          res,
+          HTTP_STATUS.INTERNAL_SERVER_ERROR,
+          API_ERROR_CODES.UNKNOWN_ERROR,
+          'Error de base de datos',
+          {
+            type: 'database',
+            ...(process.env.NODE_ENV !== 'production' && {
+              details: [{ field: 'database', code: 'DATABASE_ERROR', message: err.message }],
+              stack: err.stack,
+            }),
+          }
+        );
     }
   }
 
-  // Handle different types of errors
+  // Handle standard Error objects
   if (err instanceof Error) {
-    // Standard Error object
     const status = err.status || HTTP_STATUS.INTERNAL_SERVER_ERROR;
-    const code = err.code || API_ERROR_CODES.INTERNAL_SERVER_ERROR;
-    const message =
-      err.message || ERROR_MESSAGES[code] || ERROR_MESSAGES[API_ERROR_CODES.UNEXPECTED_ERROR];
+    const code = err.code || API_ERROR_CODES.UNKNOWN_ERROR;
+    const message = sanitizeResponse(
+      err.message || ERROR_MESSAGES[code] || ERROR_MESSAGES[API_ERROR_CODES.UNKNOWN_ERROR]
+    );
 
-    // Sanitize error message and details to prevent XSS
-    const sanitizedMessage = sanitizeResponse(message);
-    const sanitizedDetails = err.details ? sanitizeResponse(err.details) : undefined;
+    const errorResponse = {
+      type: 'server',
+      ...(process.env.NODE_ENV !== 'production' && {
+        details: [{ field: 'server', code: 'INTERNAL_ERROR', message: err.message }],
+        stack: err.stack,
+      }),
+    };
 
-    return res.status(status).json({
-      status: 'error',
-      code,
-      message: sanitizedMessage,
-      ...(sanitizedDetails && { details: sanitizedDetails }),
-    });
+    if (err.details) {
+      errorResponse.details = sanitizeResponse(err.details);
+    }
+
+    return apiError(res, status, code, message, errorResponse);
   }
 
   // Handle non-Error objects
   console.error('Non-Error object received:', err);
-  return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-    status: 'error',
-    code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
-    message: ERROR_MESSAGES[API_ERROR_CODES.UNEXPECTED_ERROR],
-  });
+  return apiError(
+    res,
+    HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    API_ERROR_CODES.UNKNOWN_ERROR,
+    'Error interno del servidor',
+    {
+      type: 'server',
+      ...(process.env.NODE_ENV !== 'production' && {
+        details: [
+          { field: 'server', code: 'UNEXPECTED_ERROR', message: 'Se recibió un objeto no-Error' },
+        ],
+      }),
+    }
+  );
 };
 
 /**
@@ -115,7 +201,33 @@ export const asyncHandler = (fn) => (req, res, next) => {
       stack: error.stack,
       path: req.path,
       method: req.method,
+      requestId: req.requestId,
     });
     next(error);
   });
+};
+
+/**
+ * 404 handler middleware
+ * Handles routes that don't exist with the new API structure
+ * @param {import('express').Request} req - Express request
+ * @param {import('express').Response} res - Express response
+ */
+export const notFoundHandler = (req, res) => {
+  return apiError(
+    res,
+    HTTP_STATUS.NOT_FOUND,
+    API_ERROR_CODES.RESOURCE_NOT_FOUND,
+    `La ruta ${req.originalUrl} no existe`,
+    {
+      type: 'routing',
+      details: [
+        {
+          field: 'route',
+          code: 'ROUTE_NOT_FOUND',
+          message: `El endpoint ${req.method} ${req.originalUrl} no está disponible`,
+        },
+      ],
+    }
+  );
 };

@@ -108,7 +108,7 @@ export class AuthService {
         API_ERROR_CODES.AUTH_TOKEN_INVALID
       );
       error.customResponse = {
-        status: 'invalid_token',
+        status: 'AUTH_TOKEN_INVALID',
         message: 'Invalid verification token',
         resendRequired: true,
       };
@@ -121,7 +121,7 @@ export class AuthService {
         API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED
       );
       error.customResponse = {
-        status: 'already_verified',
+        status: 'AUTH_USER_ALREADY_VERIFIED',
         message: 'Email is already verified',
         resendRequired: false,
       };
@@ -135,7 +135,7 @@ export class AuthService {
         API_ERROR_CODES.AUTH_TOKEN_EXPIRED
       );
       error.customResponse = {
-        status: 'expired_token',
+        status: 'AUTH_TOKEN_EXPIRED',
         message: 'Verification token has expired',
         resendRequired: true,
       };
@@ -145,7 +145,7 @@ export class AuthService {
     try {
       await this.userRepository.setVerified(user.id, true);
       return {
-        status: 'success',
+        status: 'SUCCESS',
         message: 'Email verified successfully',
         resendRequired: false,
       };

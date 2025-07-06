@@ -16,7 +16,15 @@ jest.mock('../../src/infrastructure/middleware/auth.js', () => {
 jest.mock('../../src/application/services/UserService.js', () => {
   return {
     UserService: jest.fn().mockImplementation(() => ({
-      getAllUsers: jest.fn().mockResolvedValue([{ id: '1', username: 'u1' }]),
+      getAllUsers: jest.fn().mockResolvedValue({
+        users: [{ id: '1', username: 'u1' }],
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      }),
     })),
   };
 });

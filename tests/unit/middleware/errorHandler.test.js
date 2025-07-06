@@ -49,8 +49,23 @@ describe('errorHandler middleware', () => {
     expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.CONFLICT);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: 'error',
-        code: API_ERROR_CODES.DUPLICATE_ENTRY,
+        success: false,
+        data: null,
+        status: HTTP_STATUS.CONFLICT,
+        code: API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS,
+        message: 'El recurso ya existe',
+        error: expect.objectContaining({
+          type: 'database',
+          details: expect.arrayContaining([
+            expect.objectContaining({
+              field: 'email',
+              code: 'DUPLICATE_ENTRY',
+              message: 'Valor duplicado',
+            }),
+          ]),
+        }),
+        timestamp: expect.any(String),
+        requestId: 'unknown',
       })
     );
   });
@@ -66,8 +81,23 @@ describe('errorHandler middleware', () => {
     expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: 'error',
+        success: false,
+        data: null,
+        status: HTTP_STATUS.NOT_FOUND,
         code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+        message: 'Recurso no encontrado',
+        error: expect.objectContaining({
+          type: 'database',
+          details: expect.arrayContaining([
+            expect.objectContaining({
+              field: 'resource',
+              code: 'NOT_FOUND',
+              message: 'El recurso solicitado no existe',
+            }),
+          ]),
+        }),
+        timestamp: expect.any(String),
+        requestId: 'unknown',
       })
     );
   });
@@ -83,7 +113,13 @@ describe('errorHandler middleware', () => {
     expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
+        success: false,
+        data: null,
+        status: HTTP_STATUS.BAD_REQUEST,
         code: API_ERROR_CODES.INVALID_INPUT,
+        message: 'Bad input',
+        timestamp: expect.any(String),
+        requestId: 'unknown',
       })
     );
   });
@@ -99,7 +135,13 @@ describe('errorHandler middleware', () => {
     expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
+        success: false,
+        data: null,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        code: API_ERROR_CODES.UNKNOWN_ERROR,
+        message: 'Error interno del servidor',
+        timestamp: expect.any(String),
+        requestId: 'unknown',
       })
     );
   });
