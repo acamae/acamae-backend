@@ -10,6 +10,8 @@
  * @property {function(string, string, Date): Promise<void>} setVerificationToken - Set the verification token
  * @property {function(string, boolean): Promise<void>} setVerified - Set the verification status
  * @property {function(string, string, Date): Promise<void>} setResetToken - Set the reset token
+ * @property {function(string, string[]): Promise<User|null>} findByIdWithFields - Find user by ID with specific fields
+ * @property {function(): Promise<number>} cleanExpiredVerificationTokens - Clean expired verification tokens
  */
 
 /**
@@ -156,6 +158,28 @@ export class UserRepository {
    */
   // eslint-disable-next-line
   async setResetToken(id, token, expiresAt) {
+    throw new Error('Method not implemented');
+  }
+
+  /**
+   * @TODO: Implement this method
+   * Find a user by ID with specific fields only (optimized for auth middleware)
+   * @param {string} id - User ID
+   * @param {string[]} fields - Fields to select
+   * @returns {Promise<Partial<import('../entities/User').User>|null>}
+   */
+  // eslint-disable-next-line
+  async findByIdWithFields(id, fields = []) {
+    throw new Error('Method not implemented');
+  }
+
+  /**
+   * @TODO: Implement this method
+   * Clean expired verification tokens (bulk operation)
+   * @returns {Promise<number>} Number of tokens cleaned
+   */
+  // eslint-disable-next-line
+  async cleanExpiredVerificationTokens() {
     throw new Error('Method not implemented');
   }
 }

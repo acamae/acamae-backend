@@ -9,6 +9,7 @@ RUN apk add --no-cache curl
 COPY package*.json ./
 COPY prisma ./prisma/
 COPY ./src /app/src
+COPY .env.${NODE_ENV:-development} /app/.env.${NODE_ENV:-development}
 
 # Crear directorio para logs
 RUN mkdir -p logs \

@@ -5,6 +5,21 @@ import { API_ERROR_CODES } from '../../src/shared/constants/apiCodes.js';
 import { TokenService } from '../../src/shared/utils/token.js';
 import { makeRegisterDto, makeUser } from '../factories/userFactory.js';
 
+// Mock configuration
+jest.mock('../../src/infrastructure/config/environment.js', () => ({
+  config: {
+    tokens: {
+      verificationExpiration: 10 * 60 * 1000, // 10 minutos
+      passwordResetExpiration: 10 * 60 * 1000, // 10 minutos
+      refreshExpiration: 7 * 24 * 60 * 60 * 1000, // 7 días
+    },
+    cors: {
+      frontendUrl: 'http://localhost:3000',
+    },
+    mail: null, // Deshabilitamos el email para tests
+  },
+}));
+
 // Mock TokenService generate/verify to deterministic values
 jest.mock('../../src/shared/utils/token.js', () => {
   return {
@@ -66,8 +81,8 @@ describe('AuthService.register', () => {
     const result = await service.register(dto);
 
     expect(repo.create).toHaveBeenCalled();
-    expect(result.email).toBe(newUser.email);
-    expect(result).not.toHaveProperty('passwordHash');
+    expect(result.user.email).toBe(newUser.email);
+    expect(result.user).not.toHaveProperty('passwordHash');
   });
 
   it('should throw if email already exists', async () => {

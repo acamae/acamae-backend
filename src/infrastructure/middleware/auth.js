@@ -1,12 +1,11 @@
-import { PrismaClient } from '@prisma/client';
-
 import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
 import { TokenService } from '../../shared/utils/token.js';
+import { PrismaUserRepository } from '../repositories/PrismaUserRepository.js';
 
-const prisma = new PrismaClient();
 const tokenService = new TokenService();
+const userRepository = new PrismaUserRepository();
 
 /**
  * Verify JWT token
@@ -55,16 +54,13 @@ export const authenticate = async (req, _res, next) => {
 
     const decoded = verifyAccessToken(token);
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        role: true,
-        is_verified: true,
-      },
-    });
+    const user = await userRepository.findByIdWithFields(decoded.userId, [
+      'id',
+      'email',
+      'username',
+      'role',
+      'isVerified',
+    ]);
 
     if (!user) {
       throw createError(
@@ -74,7 +70,7 @@ export const authenticate = async (req, _res, next) => {
       );
     }
 
-    if (!user.is_verified) {
+    if (!user.isVerified) {
       throw createError(
         ERROR_MESSAGES[API_ERROR_CODES.UNAUTHORIZED],
         API_ERROR_CODES.UNAUTHORIZED,
@@ -118,82 +114,6 @@ export const authorize = (roles = []) => {
       next(error);
     }
   };
-};
-
-/**
- * Verify email middleware
- * @param {import('express').Request} req - Express request
- * @param {import('express').Response} _res - Express response
- * @param {import('express').NextFunction} next - Express next function
- */
-export const verifyEmail = async (req, _res, next) => {
-  try {
-    const { token } = req.params;
-
-    const verificationToken = await prisma.emailVerificationToken.findUnique({
-      where: { token },
-      include: { user: true },
-    });
-
-    if (!verificationToken) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
-        API_ERROR_CODES.AUTH_TOKEN_INVALID,
-        HTTP_STATUS.BAD_REQUEST
-      );
-    }
-
-    if (verificationToken.expiresAt < new Date()) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
-        API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-        HTTP_STATUS.BAD_REQUEST
-      );
-    }
-
-    req.verificationToken = verificationToken;
-    next();
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Verify password reset token middleware
- * @param {import('express').Request} req - Express request
- * @param {import('express').Response} _res - Express response
- * @param {import('express').NextFunction} next - Express next function
- */
-export const verifyPasswordResetToken = async (req, _res, next) => {
-  try {
-    const { token } = req.params;
-
-    const resetToken = await prisma.passwordResetToken.findUnique({
-      where: { token },
-      include: { user: true },
-    });
-
-    if (!resetToken) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
-        API_ERROR_CODES.AUTH_TOKEN_INVALID,
-        HTTP_STATUS.BAD_REQUEST
-      );
-    }
-
-    if (resetToken.expiresAt < new Date()) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
-        API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-        HTTP_STATUS.BAD_REQUEST
-      );
-    }
-
-    req.resetToken = resetToken;
-    next();
-  } catch (error) {
-    next(error);
-  }
 };
 
 /**
