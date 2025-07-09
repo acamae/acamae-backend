@@ -33,6 +33,9 @@ export class PrismaUserRepository {
       lastName: prismaUser.last_name || undefined,
       role: prismaUser.role,
       isVerified: prismaUser.is_verified,
+      isActive: prismaUser.is_active, // NEW: Active status
+      lastLoginAt: prismaUser.last_login_at || undefined, // NEW: Last login timestamp
+      lastLoginIp: prismaUser.last_login_ip || undefined, // NEW: Last login IP
       verificationToken: prismaUser.verification_token || undefined,
       verificationExpiresAt: prismaUser.verification_expires_at || undefined,
       resetToken: prismaUser.reset_token || undefined,
@@ -105,6 +108,9 @@ export class PrismaUserRepository {
           last_name: userData.lastName,
           role: userData.role || 'user',
           is_verified: false,
+          is_active: userData.isActive !== undefined ? userData.isActive : true, // NEW: Default to active
+          last_login_at: userData.lastLoginAt, // NEW: Last login timestamp
+          last_login_ip: userData.lastLoginIp, // NEW: Last login IP
           verification_token: userData.verificationToken,
           verification_expires_at: userData.verificationExpiresAt,
           reset_token: userData.resetToken,
@@ -140,6 +146,9 @@ export class PrismaUserRepository {
       last_name: userData.lastName,
       role: userData.role,
       is_verified: userData.isVerified,
+      is_active: userData.isActive, // NEW: Active status
+      last_login_at: userData.lastLoginAt, // NEW: Last login timestamp
+      last_login_ip: userData.lastLoginIp, // NEW: Last login IP
       verification_token: userData.verificationToken,
       verification_expires_at: userData.verificationExpiresAt,
       reset_token: userData.resetToken,
@@ -292,6 +301,9 @@ export class PrismaUserRepository {
       username: 'username',
       role: 'role',
       isVerified: 'is_verified',
+      isActive: 'is_active', // NEW: Active status mapping
+      lastLoginAt: 'last_login_at', // NEW: Last login timestamp mapping
+      lastLoginIp: 'last_login_ip', // NEW: Last login IP mapping
       firstName: 'first_name',
       lastName: 'last_name',
       createdAt: 'created_at',
@@ -313,6 +325,7 @@ export class PrismaUserRepository {
       select.username = true;
       select.role = true;
       select.is_verified = true;
+      select.is_active = true; // NEW: Include active status by default
     }
 
     const user = await this.#prisma.user.findUnique({
@@ -321,6 +334,23 @@ export class PrismaUserRepository {
     });
 
     return user ? this.#toDomainModel(user) : null;
+  }
+
+  /**
+   * Update user login tracking information
+   * @param {string} id - User ID
+   * @param {Date} loginAt - Login timestamp
+   * @param {string} [ipAddress] - Login IP address
+   * @returns {Promise<void>}
+   */
+  async updateLoginTracking(id, loginAt, ipAddress = null) {
+    await this.#prisma.user.update({
+      where: { id: parseInt(id) },
+      data: {
+        last_login_at: loginAt,
+        last_login_ip: ipAddress,
+      },
+    });
   }
 
   /**

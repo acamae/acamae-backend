@@ -167,9 +167,10 @@ export class AuthService {
    * Start user login
    * @param {string} email
    * @param {string} password
+   * @param {string} [ipAddress] - User's IP address for tracking
    * @returns {Promise<{user: User, accessToken: string, refreshToken: string}>}
    */
-  async login(email, password) {
+  async login(email, password, ipAddress = null) {
     const dbUser = await this.userRepository.findByEmail(email);
 
     if (!dbUser) {
@@ -194,12 +195,21 @@ export class AuthService {
       );
     }
 
+    // NEW: Update last login tracking
+    try {
+      await this.userRepository.updateLoginTracking(dbUser.id, new Date(), ipAddress);
+    } catch (error) {
+      console.warn('Failed to update login tracking:', error.message);
+      // Don't fail the login if tracking update fails
+    }
+
     const user = {
       id: dbUser.id,
       email: dbUser.email,
       username: dbUser.username,
       role: dbUser.role,
       is_verified: dbUser.isVerified,
+      is_active: dbUser.isActive, // NEW: Include active status
       createdAt: dbUser.createdAt,
       updatedAt: dbUser.updatedAt,
     };
@@ -390,8 +400,10 @@ export class AuthService {
    */
   async sendVerificationEmail(email, username, token) {
     if (!config.mail) {
-      console.log(`Verification email for ${username} ${email}: ${token}`);
-      return;
+      console.log(`Email not configured - Token for ${username} (${email}): ${token}`);
+      throw new Error(
+        'Email service not configured. Please configure MAIL_API_KEY or MAIL_HOST environment variables.'
+      );
     }
 
     const mailerSend = new MailerSend({

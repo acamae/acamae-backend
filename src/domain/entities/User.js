@@ -18,6 +18,9 @@ import { createError } from '../../shared/utils/error.js';
  * @property {string} passwordHash - User password hash
  * @property {string} role - User role
  * @property {boolean} isVerified - Verification status
+ * @property {boolean} isActive - Profile is active and renewed
+ * @property {Date} [lastLoginAt] - Last login timestamp
+ * @property {string} [lastLoginIp] - Last login IP address
  * @property {string} [verificationToken] - Verification token
  * @property {Date} [verificationExpiresAt] - Verification token expiration date
  * @property {string} [resetToken] - Reset token
@@ -32,6 +35,9 @@ import { createError } from '../../shared/utils/error.js';
  * @property {string} username - User username
  * @property {string} password - User password
  * @property {string} [role] - User role
+ * @property {boolean} [isActive] - Profile is active (default: true)
+ * @property {Date} [lastLoginAt] - Last login timestamp
+ * @property {string} [lastLoginIp] - Last login IP address
  */
 
 /**
@@ -39,7 +45,11 @@ import { createError } from '../../shared/utils/error.js';
  * @property {string} [email] - User email
  * @property {string} [username] - User username
  * @property {string} [password] - User password
- * @property {string} [role
+ * @property {string} [role] - User role
+ * @property {boolean} [isVerified] - Verification status
+ * @property {boolean} [isActive] - Profile is active and renewed
+ * @property {Date} [lastLoginAt] - Last login timestamp
+ * @property {string} [lastLoginIp] - Last login IP address
  */
 
 /**
@@ -58,6 +68,9 @@ export class User {
    * @param {string} [data.lastName] - Last name
    * @param {string} [data.role='user'] - User role
    * @param {boolean} [data.isVerified=false] - Whether the user is verified
+   * @param {boolean} [data.isActive=true] - Whether the profile is active
+   * @param {Date} [data.lastLoginAt] - Last login timestamp
+   * @param {string} [data.lastLoginIp] - Last login IP address
    * @param {string} [data.verificationToken] - Verification token
    * @param {Date} [data.verificationExpiresAt] - Verification token expiration
    * @param {string} [data.resetToken] - Password reset token
@@ -74,6 +87,9 @@ export class User {
     this.lastName = data.lastName;
     this.role = data.role || USER_ROLES.USER;
     this.isVerified = data.isVerified || false;
+    this.isActive = data.isActive || true;
+    this.lastLoginAt = data.lastLoginAt;
+    this.lastLoginIp = data.lastLoginIp;
     this.verificationToken = data.verificationToken;
     this.verificationExpiresAt = data.verificationExpiresAt;
     this.resetToken = data.resetToken;
@@ -209,6 +225,9 @@ export class User {
       lastName: this.lastName,
       role: this.role,
       isVerified: this.isVerified,
+      isActive: this.isActive,
+      lastLoginAt: this.lastLoginAt,
+      lastLoginIp: this.lastLoginIp,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

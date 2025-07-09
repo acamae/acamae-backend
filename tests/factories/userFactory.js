@@ -9,6 +9,9 @@ export const makeUser = (overrides = {}) => {
     password: overrides.password ?? 'Password123!',
     role: overrides.role ?? 'user',
     isVerified: overrides.isVerified ?? true,
+    isActive: overrides.isActive ?? true, // NEW: Default to active
+    lastLoginAt: overrides.lastLoginAt ?? null, // NEW: Last login timestamp
+    lastLoginIp: overrides.lastLoginIp ?? null, // NEW: Last login IP
     createdAt: new Date(),
     updatedAt: new Date(),
     passwordHash: overrides.passwordHash, // optional
@@ -21,6 +24,7 @@ export const makeRegisterDto = (overrides = {}) => ({
   email: overrides.email ?? `user${Date.now()}@example.com`,
   username: overrides.username ?? `user${Date.now()}`,
   password: overrides.password ?? 'Password123!',
+  isActive: overrides.isActive ?? true, // NEW: Default to active
 });
 
 // Generates a UUID token representing an email verification token
