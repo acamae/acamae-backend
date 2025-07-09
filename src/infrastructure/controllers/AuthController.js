@@ -23,12 +23,39 @@ export class AuthController {
         username,
       });
 
-      // Follow Swagger specification: data null, message in Spanish
-      const message = emailSent
-        ? 'Usuario registrado exitosamente. Revisa tu correo para verificar tu cuenta.'
-        : 'Usuario registrado exitosamente. Sin embargo, no se pudo enviar el email de verificación.';
-
-      return res.status(HTTP_STATUS.CREATED).apiSuccess(null, message);
+      // Different response according to the email result
+      if (emailSent) {
+        // Email sent successfully - HTTP 201
+        return res.status(HTTP_STATUS.CREATED).apiSuccess(
+          {
+            user: {
+              id: user.id,
+              email: user.email,
+              username: user.username,
+              role: user.role,
+              isVerified: user.isVerified,
+            },
+            emailSent: true,
+          },
+          'User registered successfully. Check your email to verify your account.'
+        );
+      } else {
+        // Email failed - HTTP 207 (Multi-Status)
+        return res.status(207).apiSuccess(
+          {
+            user: {
+              id: user.id,
+              email: user.email,
+              username: user.username,
+              role: user.role,
+              isVerified: user.isVerified,
+            },
+            emailSent: false,
+            emailError: emailError,
+          },
+          'User registered successfully, but the verification email could not be sent. Contact the technical support.'
+        );
+      }
     } catch (error) {
       next(error);
     }
@@ -139,7 +166,15 @@ export class AuthController {
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
-      const result = await this.authService.login(email, password);
+
+      // Extract user's IP address for tracking
+      const ipAddress =
+        req.ip ||
+        req.connection.remoteAddress ||
+        req.socket.remoteAddress ||
+        (req.connection.socket ? req.connection.socket.remoteAddress : null);
+
+      const result = await this.authService.login(email, password, ipAddress);
 
       // Structure according to Swagger: UserWithTokens
       return res.status(HTTP_STATUS.OK).apiSuccess(result, 'Login exitoso');
