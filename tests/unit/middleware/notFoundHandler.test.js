@@ -1,7 +1,6 @@
+import { notFoundHandler } from '../../../src/infrastructure/middleware/notFoundHandler.js';
 import { API_ERROR_CODES } from '../../../src/shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../../src/shared/constants/httpStatus.js';
-
-const { notFoundHandler } = require('../../../src/infrastructure/middleware/notFoundHandler.js');
 
 describe('notFoundHandler middleware', () => {
   it('calls next with a 404 error', () => {

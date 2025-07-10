@@ -3,6 +3,9 @@
  * Tests the exported DTO objects and validates the file structure
  */
 
+import fs from 'fs';
+import path from 'path';
+
 import {
   CreateUserDto,
   UpdateUserDto,
@@ -88,9 +91,6 @@ describe('UserDto', () => {
 
   describe('JSDoc Typedef Documentation', () => {
     it('should contain CreateUserDto typedef with all required properties', () => {
-      const fs = require('fs');
-      const path = require('path');
-
       const dtoPath = path.resolve(__dirname, '../../../src/application/dtos/UserDto.js');
       const content = fs.readFileSync(dtoPath, 'utf8');
 
@@ -103,9 +103,6 @@ describe('UserDto', () => {
     });
 
     it('should contain UserResponseDto typedef with all properties', () => {
-      const fs = require('fs');
-      const path = require('path');
-
       const dtoPath = path.resolve(__dirname, '../../../src/application/dtos/UserDto.js');
       const content = fs.readFileSync(dtoPath, 'utf8');
 
@@ -118,9 +115,6 @@ describe('UserDto', () => {
     });
 
     it('should contain authentication-related DTOs', () => {
-      const fs = require('fs');
-      const path = require('path');
-
       const dtoPath = path.resolve(__dirname, '../../../src/application/dtos/UserDto.js');
       const content = fs.readFileSync(dtoPath, 'utf8');
 
@@ -131,9 +125,6 @@ describe('UserDto', () => {
     });
 
     it('should contain pagination and filtering DTOs', () => {
-      const fs = require('fs');
-      const path = require('path');
-
       const dtoPath = path.resolve(__dirname, '../../../src/application/dtos/UserDto.js');
       const content = fs.readFileSync(dtoPath, 'utf8');
 
@@ -146,14 +137,11 @@ describe('UserDto', () => {
   describe('File Structure and Quality', () => {
     it('should be importable without errors', () => {
       expect(() => {
-        require('../../../src/application/dtos/UserDto.js');
+        import('../../../src/application/dtos/UserDto.js');
       }).not.toThrow();
     });
 
     it('should have proper JSDoc formatting', () => {
-      const fs = require('fs');
-      const path = require('path');
-
       const dtoPath = path.resolve(__dirname, '../../../src/application/dtos/UserDto.js');
       const content = fs.readFileSync(dtoPath, 'utf8');
 
@@ -199,9 +187,6 @@ describe('UserDto', () => {
     });
 
     it('should use consistent property type definitions', () => {
-      const fs = require('fs');
-      const path = require('path');
-
       const dtoPath = path.resolve(__dirname, '../../../src/application/dtos/UserDto.js');
       const content = fs.readFileSync(dtoPath, 'utf8');
 

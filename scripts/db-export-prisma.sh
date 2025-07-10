@@ -24,7 +24,7 @@ fi
 # Crear script temporal para exportar con Prisma
 TEMP_SCRIPT="temp_export.js"
 cat > "$TEMP_SCRIPT" << 'EOF'
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 

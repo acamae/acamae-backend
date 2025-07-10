@@ -1,9 +1,3 @@
-import { jest } from '@jest/globals';
-
-import { API_ERROR_CODES } from '../../../src/shared/constants/apiCodes.js';
-import { HTTP_STATUS } from '../../../src/shared/constants/httpStatus.js';
-import { createError } from '../../../src/shared/utils/error.js';
-
 // Mock @prisma/client to expose PrismaClientKnownRequestError
 jest.mock('@prisma/client', () => {
   class PrismaClientKnownRequestError extends Error {
@@ -16,14 +10,18 @@ jest.mock('@prisma/client', () => {
   return { Prisma: { PrismaClientKnownRequestError } };
 });
 
-const { Prisma } = require('@prisma/client');
+import { jest } from '@jest/globals';
+import { Prisma } from '@prisma/client';
 
-const {
-  errorHandler,
-  throwError,
+import {
   asyncHandler,
+  errorHandler,
   notFoundHandler,
-} = require('../../../src/infrastructure/middleware/errorHandler.js');
+  throwError,
+} from '../../../src/infrastructure/middleware/errorHandler.js';
+import { API_ERROR_CODES } from '../../../src/shared/constants/apiCodes.js';
+import { HTTP_STATUS } from '../../../src/shared/constants/httpStatus.js';
+import { createError } from '../../../src/shared/utils/error.js';
 
 const buildMockRes = () => {
   const res = {};

@@ -41,8 +41,8 @@ fi
 # Crear script temporal para importar con Prisma
 TEMP_SCRIPT="temp_import.js"
 cat > "$TEMP_SCRIPT" << EOF
-const { PrismaClient } = require('@prisma/client');
-const fs = require('fs');
+import { PrismaClient } from '@prisma/client';
+import fs from 'fs';
 
 const prisma = new PrismaClient();
 

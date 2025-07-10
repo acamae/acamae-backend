@@ -17,7 +17,7 @@ jest.mock('sanitize-html', () => {
   return mockFn;
 });
 
-const sanitizeHtml = require('sanitize-html');
+import sanitizeHtml from 'sanitize-html';
 
 const buildReq = () => ({ body: {}, query: {}, params: {} });
 

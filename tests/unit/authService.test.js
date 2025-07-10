@@ -10,10 +10,12 @@ import { makeRegisterDto, makeUser } from '../factories/userFactory.js';
 // Mock configuration
 jest.mock('../../src/infrastructure/config/environment.js', () => ({
   config: {
+    jwt: {
+      refreshExpiresIn: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+    },
     tokens: {
       verificationExpiration: 10 * 60 * 1000, // 10 minutes
       passwordResetExpiration: 10 * 60 * 1000, // 10 minutes
-      refreshExpiration: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
     cors: {
       frontendUrl: 'http://localhost:3000',
@@ -396,12 +398,20 @@ describe('AuthService', () => {
 
   describe('refreshToken', () => {
     it('should refresh token successfully', async () => {
+      const user = makeUser();
       const sessionToken = {
         id: '1',
         token: 'refresh.token',
         expiresAt: new Date(Date.now() + 60000),
       };
-      const user = makeUser();
+
+      // Update TokenService mock to return the correct userId that matches the user
+      const tokenServiceInstance = authService.tokenService;
+      tokenServiceInstance.verifyRefreshToken.mockReturnValue({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      });
 
       sessionRepo.findByToken.mockResolvedValue(sessionToken);
       sessionRepo.update.mockResolvedValue();

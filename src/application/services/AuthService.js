@@ -226,7 +226,7 @@ export class AuthService {
         userId: dbUser.id,
         token: tokens.refreshToken,
         lastActivityAt: new Date(),
-        expiresAt: new Date(Date.now() + config.tokens.refreshExpiration),
+        expiresAt: new Date(Date.now() + config.jwt.refreshExpiresIn),
       });
     } catch (err) {
       console.error(ERROR_MESSAGES[API_ERROR_CODES.UNKNOWN_ERROR], err);
@@ -308,7 +308,7 @@ export class AuthService {
       // Sustituir token en la tabla session_tokens
       await this.sessionTokenRepository.update(sessionToken.id, {
         token: newTokens.refreshToken,
-        expiresAt: new Date(Date.now() + config.tokens.refreshExpiration),
+        expiresAt: new Date(Date.now() + config.jwt.refreshExpiresIn),
       });
 
       return newTokens;

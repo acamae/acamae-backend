@@ -29,7 +29,7 @@ jest.mock('winston', () => {
   };
 });
 
-const { requestLogger, errorLogger } = require('../../../src/infrastructure/middleware/logging.js');
+import { errorLogger, requestLogger } from '../../../src/infrastructure/middleware/logging.js';
 
 const buildApp = () => {
   const app = express();

@@ -8,7 +8,6 @@ const middleware = () => passthru;
 // No se puede cerrar sobre variables externas dentro del factory de jest.mock.
 jest.mock('./src/infrastructure/config/environment.js', () => {
   // Importación dinámica dentro del factory para cumplir la restricción
-  // eslint-disable-next-line global-require
   const { createEnvMock } = require('./tests/__mocks__/environment.mock.js');
   return createEnvMock();
 });

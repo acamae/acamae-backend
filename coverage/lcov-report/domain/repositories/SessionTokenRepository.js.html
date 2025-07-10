@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/5</span>
+                <span class='fraction'>5/5</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/5</span>
+                <span class='fraction'>5/5</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/5</span>
+                <span class='fraction'>5/5</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -137,7 +137,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -145,7 +145,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -153,7 +153,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -161,7 +161,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -170,7 +170,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
@@ -191,32 +191,32 @@ export class SessionTokenRepository {
    * @param {{userId: string, token: string, lastActivityAt: Date, expiresAt: Date}} data
    * @returns {Promise&lt;SessionToken&gt;}
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync create(_data) {
-<span class="cstat-no" title="statement not covered" >    throw new Error('Method not implemented');</span>
+  async create(_data) {
+    throw new Error('Method not implemented');
   }
 &nbsp;
   /**
    * @param {string} token
    * @returns {Promise&lt;SessionToken|null&gt;}
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync findByToken(_token) {
-<span class="cstat-no" title="statement not covered" >    throw new Error('Method not implemented');</span>
+  async findByToken(_token) {
+    throw new Error('Method not implemented');
   }
 &nbsp;
   /**
    * @param {string} id
    * @returns {Promise&lt;void&gt;}
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync deleteById(_id) {
-<span class="cstat-no" title="statement not covered" >    throw new Error('Method not implemented');</span>
+  async deleteById(_id) {
+    throw new Error('Method not implemented');
   }
 &nbsp;
   /**
    * @param {string} token
    * @returns {Promise&lt;number&gt;} number of deleted rows
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync deleteByToken(_token) {
-<span class="cstat-no" title="statement not covered" >    throw new Error('Method not implemented');</span>
+  async deleteByToken(_token) {
+    throw new Error('Method not implemented');
   }
 &nbsp;
   /**
@@ -224,8 +224,8 @@ export class SessionTokenRepository {
    * @param {Partial&lt;{token:string; lastActivityAt:Date; expiresAt:Date}&gt;} data
    * @returns {Promise&lt;SessionToken&gt;}
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync update(_id, _data) {
-<span class="cstat-no" title="statement not covered" >    throw new Error('Method not implemented');</span>
+  async update(_id, _data) {
+    throw new Error('Method not implemented');
   }
 }
 &nbsp;</pre></td></tr></table></pre>
@@ -235,7 +235,7 @@ export class SessionTokenRepository {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-10T14:26:34.874Z
+                at 2025-07-10T17:44:13.173Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

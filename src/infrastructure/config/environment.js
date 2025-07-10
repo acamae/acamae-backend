@@ -129,7 +129,6 @@ const envSchema = z.object({
   // Token expiration times
   VERIFICATION_EXPIRATION: z.string().default('10m'),
   PASSWORD_RESET_EXPIRATION: z.string().default('10m'),
-  REFRESH_EXPIRATION: z.string().default('7d'),
 });
 
 // Parse and validate environment variables
@@ -185,8 +184,8 @@ export const config = {
   jwt: {
     secret: env.data.JWT_SECRET,
     refreshSecret: env.data.JWT_REFRESH_SECRET,
-    expiresIn: env.data.JWT_EXPIRES_IN,
-    refreshExpiresIn: env.data.JWT_REFRESH_EXPIRES_IN,
+    expiresIn: durationToMs(env.data.JWT_EXPIRES_IN),
+    refreshExpiresIn: durationToMs(env.data.JWT_REFRESH_EXPIRES_IN),
   },
   cookie: {
     secret: env.data.COOKIE_SECRET,
@@ -221,7 +220,6 @@ export const config = {
   tokens: {
     verificationExpiration: durationToMs(env.data.VERIFICATION_EXPIRATION),
     passwordResetExpiration: durationToMs(env.data.PASSWORD_RESET_EXPIRATION),
-    refreshExpiration: durationToMs(env.data.REFRESH_EXPIRATION),
   },
 
   // Email

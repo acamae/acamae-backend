@@ -3,6 +3,9 @@
  * Tests the exported DTO objects and validates the file structure
  */
 
+import fs from 'fs';
+import path from 'path';
+
 import { CreateTeamDto, UpdateTeamDto } from '../../../src/application/dtos/TeamDto.js';
 
 describe('TeamDto', () => {
@@ -22,9 +25,6 @@ describe('TeamDto', () => {
 
   describe('JSDoc Typedef Documentation', () => {
     it('should contain CreateTeamDto typedef documentation', () => {
-      const fs = require('fs');
-      const path = require('path');
-
       const dtoPath = path.resolve(__dirname, '../../../src/application/dtos/TeamDto.js');
       const content = fs.readFileSync(dtoPath, 'utf8');
 
@@ -37,9 +37,6 @@ describe('TeamDto', () => {
     });
 
     it('should contain UpdateTeamDto typedef documentation', () => {
-      const fs = require('fs');
-      const path = require('path');
-
       const dtoPath = path.resolve(__dirname, '../../../src/application/dtos/TeamDto.js');
       const content = fs.readFileSync(dtoPath, 'utf8');
 
@@ -62,17 +59,12 @@ describe('TeamDto', () => {
 
     it('should have the expected file structure', () => {
       // Verify the file exists and is accessible
-      const fs = require('fs');
-      const path = require('path');
 
       const dtoPath = path.resolve(__dirname, '../../../src/application/dtos/TeamDto.js');
       expect(fs.existsSync(dtoPath)).toBe(true);
     });
 
     it('should follow consistent JSDoc formatting', () => {
-      const fs = require('fs');
-      const path = require('path');
-
       const dtoPath = path.resolve(__dirname, '../../../src/application/dtos/TeamDto.js');
       const content = fs.readFileSync(dtoPath, 'utf8');
 
@@ -83,9 +75,6 @@ describe('TeamDto', () => {
     });
 
     it('should define both required and optional properties correctly', () => {
-      const fs = require('fs');
-      const path = require('path');
-
       const dtoPath = path.resolve(__dirname, '../../../src/application/dtos/TeamDto.js');
       const content = fs.readFileSync(dtoPath, 'utf8');
 
