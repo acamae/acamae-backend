@@ -11,7 +11,7 @@ export const API_ROUTES = {
     VERIFY_EMAIL: '/api/auth/verify-email/:token',
     RESEND_VERIFICATION: '/api/auth/resend-verification',
     FORGOT_PASSWORD: '/api/auth/forgot-password',
-    RESET_PASSWORD: '/api/auth/reset-password',
+    RESET_PASSWORD: '/api/auth/reset-password/:token',
     ME: '/api/auth/me',
   },
   USERS: {

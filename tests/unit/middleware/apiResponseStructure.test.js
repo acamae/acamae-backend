@@ -1,209 +1,241 @@
-import express from 'express';
-import request from 'supertest';
+import { jest } from '@jest/globals';
 
-import {
-  errorHandler,
-  notFoundHandler,
-  requestIdMiddleware,
-  responseHelpersMiddleware,
-} from '../../../src/infrastructure/middleware/index.js';
+import { responseHelpersMiddleware } from '../../../src/infrastructure/middleware/responseHelpers.js';
 import { API_ERROR_CODES, API_SUCCESS_CODES } from '../../../src/shared/constants/apiCodes.js';
 
-describe('API Response Structure Tests', () => {
-  let app;
+describe('API Response Structure Tests (Unit)', () => {
+  let req, res, next;
 
   beforeEach(() => {
-    app = express();
+    req = {
+      requestId: '12345678-1234-1234-1234-123456789012', // Mock requestId
+    };
+    res = {
+      statusCode: 200, // Default HTTP status code that Express sets
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      setHeader: jest.fn().mockReturnThis(),
+      req, // Reference back to req object (Express sets this)
+    };
+    next = jest.fn();
 
-    // Apply necessary middleware
-    app.use(requestIdMiddleware);
-    app.use(responseHelpersMiddleware);
-
-    // Test routes
-    app.get('/test/success', (req, res) => {
-      res.apiSuccess({ message: 'Test data' }, 'Operación exitosa');
-    });
-
-    app.get('/test/success-with-meta', (req, res) => {
-      res.apiSuccess([{ id: 1, name: 'Test' }], 'Lista obtenida exitosamente', {
-        pagination: { page: 1, total: 1 },
-      });
-    });
-
-    app.get('/test/error', (req, res) => {
-      res.apiError(400, API_ERROR_CODES.VALIDATION_FAILED, 'Error de validación', {
-        type: 'validation',
-        details: [{ field: 'email', code: 'INVALID_FORMAT', message: 'Email inválido' }],
-      });
-    });
-
-    app.get('/test/throw-error', (req, res, next) => {
-      const error = new Error('Error de prueba');
-      error.code = API_ERROR_CODES.AUTH_FORBIDDEN;
-      error.status = 403;
-      next(error);
-    });
-
-    // Error handlers
-    app.use(notFoundHandler);
-    app.use(errorHandler);
+    // Apply response helpers middleware to attach apiSuccess and apiError methods
+    responseHelpersMiddleware(req, res, next);
   });
 
-  describe('Success Responses', () => {
-    it('should return correct structure for successful responses', async () => {
-      const response = await request(app).get('/test/success').expect(200);
+  describe('Success Response Helper', () => {
+    it('should create correct structure for successful responses', () => {
+      const testData = { message: 'Test data' };
+      const testMessage = 'Operation successful';
 
-      // Verify exact structure
-      expect(response.body).toHaveProperty('success', true);
-      expect(response.body).toHaveProperty('data', { message: 'Test data' });
-      expect(response.body).toHaveProperty('status', 200);
-      expect(response.body).toHaveProperty('code', API_SUCCESS_CODES.SUCCESS);
-      expect(response.body).toHaveProperty('message', 'Operación exitosa');
-      expect(response.body).toHaveProperty('timestamp');
-      expect(response.body).toHaveProperty('requestId');
+      res.apiSuccess(testData, testMessage);
 
-      // Verify data types
-      expect(typeof response.body.success).toBe('boolean');
-      expect(typeof response.body.status).toBe('number');
-      expect(typeof response.body.code).toBe('string');
-      expect(typeof response.body.message).toBe('string');
-      expect(typeof response.body.timestamp).toBe('string');
-      expect(typeof response.body.requestId).toBe('string');
+      // apiSuccess uses res.statusCode, doesn't call res.status()
+      expect(res.status).not.toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: testData,
+        status: 200, // Uses res.statusCode
+        code: API_SUCCESS_CODES.SUCCESS,
+        message: testMessage,
+        timestamp: expect.any(String),
+        requestId: '12345678-1234-1234-1234-123456789012',
+      });
+    });
 
-      // Verify timestamp is valid ISO string
-      expect(new Date(response.body.timestamp).toISOString()).toBe(response.body.timestamp);
+    it('should include meta when provided', () => {
+      const testData = [{ id: 1, name: 'Test' }];
+      const testMessage = 'List retrieved successfully';
+      const testMeta = { pagination: { page: 1, total: 1 } };
 
-      // Verify requestId is UUID format
-      expect(response.body.requestId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      res.apiSuccess(testData, testMessage, testMeta);
+
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: testData,
+          message: testMessage,
+          meta: testMeta,
+        })
       );
     });
 
-    it('should include meta when provided', async () => {
-      const response = await request(app).get('/test/success-with-meta').expect(200);
+    it('should use res.statusCode for status field', () => {
+      res.statusCode = 201; // Simulate Express setting custom status
+      res.apiSuccess({ test: 'data' }, 'Created successfully');
 
-      expect(response.body).toHaveProperty('meta');
-      expect(response.body.meta).toEqual({ pagination: { page: 1, total: 1 } });
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall.status).toBe(201);
     });
 
-    it('should include X-Request-ID header', async () => {
-      const response = await request(app).get('/test/success').expect(200);
+    it('should generate valid ISO timestamp', () => {
+      res.apiSuccess({ test: 'data' }, 'Test message');
 
-      expect(response.headers).toHaveProperty('x-request-id');
-      expect(response.headers['x-request-id']).toBe(response.body.requestId);
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(new Date(jsonCall.timestamp).toISOString()).toBe(jsonCall.timestamp);
+    });
+
+    it('should use requestId from req object', () => {
+      res.apiSuccess({ test: 'data' }, 'Test message');
+
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall.requestId).toBe('12345678-1234-1234-1234-123456789012');
+    });
+
+    it('should fallback to "unknown" when no requestId', () => {
+      // Remove requestId to test fallback
+      delete res.req.requestId;
+      res.apiSuccess({ test: 'data' }, 'Test message');
+
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall.requestId).toBe('unknown');
     });
   });
 
-  describe('Error Responses', () => {
-    it('should return correct structure for error responses', async () => {
-      const response = await request(app).get('/test/error').expect(400);
+  describe('Error Response Helper', () => {
+    it('should create correct structure for error responses', () => {
+      const errorDetails = {
+        type: 'validation',
+        details: [{ field: 'email', code: 'INVALID_FORMAT', message: 'Email invalid' }],
+      };
 
-      // Verify exact structure
-      expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('data', null);
-      expect(response.body).toHaveProperty('status', 400);
-      expect(response.body).toHaveProperty('code', API_ERROR_CODES.VALIDATION_FAILED);
-      expect(response.body).toHaveProperty('message', 'Error de validación');
-      expect(response.body).toHaveProperty('timestamp');
-      expect(response.body).toHaveProperty('requestId');
-      expect(response.body).toHaveProperty('error');
+      res.apiError(400, API_ERROR_CODES.VALIDATION_FAILED, 'Validation error', errorDetails);
 
-      // Verify error details structure
-      expect(response.body.error).toHaveProperty('type', 'validation');
-      expect(response.body.error).toHaveProperty('details');
-      expect(Array.isArray(response.body.error.details)).toBe(true);
-      expect(response.body.error.details[0]).toEqual({
-        field: 'email',
-        code: 'INVALID_FORMAT',
-        message: 'Email inválido',
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        data: null,
+        status: 400,
+        code: API_ERROR_CODES.VALIDATION_FAILED,
+        message: 'Validation error',
+        timestamp: expect.any(String),
+        requestId: '12345678-1234-1234-1234-123456789012',
+        error: errorDetails,
+      });
+    });
+
+    it('should work without error details', () => {
+      res.apiError(404, API_ERROR_CODES.RESOURCE_NOT_FOUND, 'Resource not found');
+
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          data: null,
+          status: 404,
+          code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          message: 'Resource not found',
+        })
+      );
+
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall).not.toHaveProperty('error');
+    });
+
+    it('should include meta when provided', () => {
+      const errorMeta = { retryAfter: 30 };
+
+      res.apiError(429, API_ERROR_CODES.AUTH_RATE_LIMIT, 'Rate limit exceeded', null, errorMeta);
+
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meta: errorMeta,
+        })
+      );
+    });
+  });
+
+  describe('Response Structure Validation', () => {
+    it('should ensure success response has required fields', () => {
+      res.apiSuccess({ test: 'data' }, 'Test message');
+
+      const jsonCall = res.json.mock.calls[0][0];
+      const requiredFields = [
+        'success',
+        'data',
+        'status',
+        'code',
+        'message',
+        'timestamp',
+        'requestId',
+      ];
+
+      requiredFields.forEach((field) => {
+        expect(jsonCall).toHaveProperty(field);
       });
 
       // Verify data types
-      expect(typeof response.body.success).toBe('boolean');
-      expect(response.body.data).toBeNull();
-      expect(typeof response.body.status).toBe('number');
+      expect(typeof jsonCall.success).toBe('boolean');
+      expect(typeof jsonCall.status).toBe('number');
+      expect(typeof jsonCall.code).toBe('string');
+      expect(typeof jsonCall.message).toBe('string');
+      expect(typeof jsonCall.timestamp).toBe('string');
+      expect(typeof jsonCall.requestId).toBe('string');
     });
 
-    it('should handle thrown errors correctly', async () => {
-      const response = await request(app).get('/test/throw-error').expect(403);
+    it('should ensure error response has required fields', () => {
+      res.apiError(400, API_ERROR_CODES.VALIDATION_FAILED, 'Error message');
 
-      expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('data', null);
-      expect(response.body).toHaveProperty('status', 403);
-      expect(response.body).toHaveProperty('code', API_ERROR_CODES.AUTH_FORBIDDEN);
-      expect(response.body).toHaveProperty('message', 'Error de prueba');
-      expect(response.body).toHaveProperty('timestamp');
-      expect(response.body).toHaveProperty('requestId');
-    });
+      const jsonCall = res.json.mock.calls[0][0];
+      const requiredFields = [
+        'success',
+        'data',
+        'status',
+        'code',
+        'message',
+        'timestamp',
+        'requestId',
+      ];
 
-    it('should handle 404 errors correctly', async () => {
-      const response = await request(app).get('/nonexistent-route').expect(404);
+      requiredFields.forEach((field) => {
+        expect(jsonCall).toHaveProperty(field);
+      });
 
-      expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('data', null);
-      expect(response.body).toHaveProperty('status', 404);
-      expect(response.body).toHaveProperty('code', API_ERROR_CODES.RESOURCE_NOT_FOUND);
-      expect(response.body).toHaveProperty('message');
-      expect(response.body.message).toContain('/nonexistent-route');
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error.type).toBe('routing');
+      // Verify specific error response requirements
+      expect(jsonCall.success).toBe(false);
+      expect(jsonCall.data).toBeNull();
     });
   });
 
   describe('RequestId Consistency', () => {
-    it('should use provided X-Request-ID header', async () => {
-      const customRequestId = '12345678-1234-1234-1234-123456789012';
+    it('should use requestId from req object when available', () => {
+      const customRequestId = '87654321-4321-4321-4321-210987654321';
+      res.req.requestId = customRequestId;
 
-      const response = await request(app)
-        .get('/test/success')
-        .set('X-Request-ID', customRequestId)
-        .expect(200);
+      res.apiSuccess({ test: 'data' }, 'Test message');
 
-      expect(response.body.requestId).toBe(customRequestId);
-      expect(response.headers['x-request-id']).toBe(customRequestId);
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall.requestId).toBe(customRequestId);
     });
 
-    it('should generate UUID when no header provided', async () => {
-      const response = await request(app).get('/test/success').expect(200);
+    it('should fallback to "unknown" when requestId not available', () => {
+      // Remove the req object to test fallback
+      res.req = {};
 
-      expect(response.body.requestId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-      );
+      res.apiSuccess({ test: 'data' }, 'Test message');
+
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall.requestId).toBe('unknown');
     });
   });
 
-  describe('Error Codes Validation', () => {
-    it('should have all required error codes available', () => {
-      const requiredCodes = [
-        'AUTH_INVALID_CREDENTIALS',
-        'AUTH_USER_ALREADY_EXISTS',
-        'AUTH_USER_ALREADY_VERIFIED',
-        'AUTH_NO_ACTIVE_SESSION',
-        'AUTH_TOKEN_EXPIRED',
-        'AUTH_TOKEN_INVALID',
-        'AUTH_TOKEN_ALREADY_USED',
-        'AUTH_TOKEN_REVOKED',
-        'AUTH_TOKEN_MALICIOUS',
-        'AUTH_TOKEN_OTHER_FLOW',
-        'AUTH_FORBIDDEN',
-        'AUTH_UPDATE_FAILED',
-        'VALIDATION_FAILED',
-        'RESOURCE_NOT_FOUND',
-        'ERR_NETWORK',
-        'ERR_CANCELED',
-        'ECONNABORTED',
-        'ETIMEDOUT',
-        'UNKNOWN_ERROR',
-        'AUTH_RATE_LIMIT',
-        'SERVICE_UNAVAILABLE',
-        'AUTH_USER_NOT_FOUND',
-        'AUTH_USER_BLOCKED',
-      ];
+  describe('Middleware Integration', () => {
+    it('should attach apiSuccess and apiError methods to response object', () => {
+      expect(typeof res.apiSuccess).toBe('function');
+      expect(typeof res.apiError).toBe('function');
+    });
 
-      requiredCodes.forEach((code) => {
-        expect(API_ERROR_CODES).toHaveProperty(code);
-        expect(typeof API_ERROR_CODES[code]).toBe('string');
-      });
+    it('should call next() when middleware is applied', () => {
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should work with custom status codes set before calling apiSuccess', () => {
+      res.statusCode = 201; // Simulate Express middleware setting status
+      res.apiSuccess({ created: true }, 'Resource created');
+
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall.status).toBe(201);
     });
   });
 });

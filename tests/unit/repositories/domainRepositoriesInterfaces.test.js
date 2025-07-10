@@ -3,10 +3,10 @@ import { TeamRepository } from '../../../src/domain/repositories/TeamRepository.
 import { UserRepository } from '../../../src/domain/repositories/UserRepository.js';
 
 /**
- * Dado que las interfaces del dominio aún no están implementadas, nos aseguramos
- * de que todos los métodos estándar lancen el error esperado. Esto evita que
- * se utilicen accidentalmente en producción sin implementar y mantiene la
- * cobertura de código adecuada.
+ * Since the domain interfaces are not yet implemented, we ensure that
+ * all standard methods throw the expected error. This prevents them from
+ * being accidentally used in production without implementation and maintains
+ * proper code coverage.
  */
 
 describe('Domain repository interfaces', () => {
@@ -33,7 +33,7 @@ describe('Domain repository interfaces', () => {
       () => repo.setResetToken('1', 'tok', new Date()),
     ];
 
-    it.each(calls.map((fn, idx) => [idx]))('método %i lanza error', async (idx) => {
+    it.each(calls.map((fn, idx) => [idx]))('method %i throws error', async (idx) => {
       await expect(calls[idx]()).rejects.toThrow(errorMsg);
     });
   });
@@ -53,7 +53,7 @@ describe('Domain repository interfaces', () => {
       () => repo.delete('1'),
     ];
 
-    it.each(calls.map((fn, idx) => [idx]))('método %i lanza error', async (idx) => {
+    it.each(calls.map((fn, idx) => [idx]))('method %i throws error', async (idx) => {
       await expect(calls[idx]()).rejects.toThrow(errorMsg);
     });
   });
@@ -72,7 +72,7 @@ describe('Domain repository interfaces', () => {
       () => repo.update('1', {}),
     ];
 
-    it.each(calls.map((fn, idx) => [idx]))('método %i lanza error', async (idx) => {
+    it.each(calls.map((fn, idx) => [idx]))('method %i throws error', async (idx) => {
       await expect(calls[idx]()).rejects.toThrow(errorMsg);
     });
   });

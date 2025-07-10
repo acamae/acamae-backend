@@ -4,16 +4,20 @@ const mockPrisma = {
   sessionToken: {
     create: jest.fn(),
     findUnique: jest.fn(),
-    delete: jest.fn(),
     deleteMany: jest.fn(),
+    delete: jest.fn(),
     update: jest.fn(),
   },
 };
 
-jest.mock('@prisma/client', () => ({ PrismaClient: jest.fn(() => mockPrisma) }));
+// Mock @prisma/client to prevent real database connections
+jest.mock('@prisma/client', () => {
+  return { PrismaClient: jest.fn(() => mockPrisma) };
+});
 
 describe('PrismaSessionTokenRepository', () => {
   let repo;
+
   beforeEach(() => {
     jest.clearAllMocks();
     repo = new PrismaSessionTokenRepository();
@@ -28,7 +32,7 @@ describe('PrismaSessionTokenRepository', () => {
     created_at: new Date('2020-01-01T00:00:00Z'),
   };
 
-  it('create devuelve dominio', async () => {
+  it('create returns domain object', async () => {
     mockPrisma.sessionToken.create.mockResolvedValue(dbToken);
     const domain = await repo.create({
       userId: '2',
@@ -39,7 +43,7 @@ describe('PrismaSessionTokenRepository', () => {
     expect(domain).toMatchObject({ id: '1', userId: '2', token: 'refresh' });
   });
 
-  it('findByToken devuelve dominio o null', async () => {
+  it('findByToken returns domain object or null', async () => {
     mockPrisma.sessionToken.findUnique.mockResolvedValueOnce(dbToken);
     const res = await repo.findByToken('refresh');
     expect(res.id).toBe('1');
@@ -48,13 +52,13 @@ describe('PrismaSessionTokenRepository', () => {
     expect(none).toBeNull();
   });
 
-  it('deleteByToken devuelve numero eliminado', async () => {
+  it('deleteByToken returns number of deleted records', async () => {
     mockPrisma.sessionToken.deleteMany.mockResolvedValue({ count: 1 });
     const count = await repo.deleteByToken('refresh');
     expect(count).toBe(1);
   });
 
-  it('update delega en prisma y mapea', async () => {
+  it('update delegates to prisma and maps result', async () => {
     const updated = { ...dbToken, token: 'new' };
     mockPrisma.sessionToken.update.mockResolvedValue(updated);
     const res = await repo.update('1', {
