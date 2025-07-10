@@ -190,6 +190,31 @@ describe('AuthController (unit)', () => {
       );
     });
 
+    it('should handle AUTH_USER_ALREADY_VERIFIED custom response', async () => {
+      const error = new Error('Already verified');
+      error.customResponse = { status: 'AUTH_USER_ALREADY_VERIFIED' };
+      service.verifyEmail.mockRejectedValue(error);
+      const req = { query: { token: 'valid-token' }, params: {} };
+
+      await controller.verifyEmail(req, res, next);
+
+      expect(res.apiError).toHaveBeenCalledWith(
+        HTTP_STATUS.CONFLICT,
+        API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED,
+        'Esta cuenta ya ha sido verificada',
+        {
+          type: 'business',
+          details: [
+            {
+              field: 'user',
+              code: 'ALREADY_VERIFIED',
+              message: 'El usuario ya está verificado',
+            },
+          ],
+        }
+      );
+    });
+
     it('should handle update_failed custom response', async () => {
       const error = new Error('Update failed');
       error.customResponse = { status: 'update_failed' };

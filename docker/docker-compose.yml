@@ -28,7 +28,7 @@ services:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
       - MYSQL_DATABASE=${MYSQL_DATABASE:-gestion_esports}
     volumes:
-      - ./volumes/mariadb_data:/var/lib/mysql
+      - mariadb_data:/var/lib/mysql
     ports:
       - '3306:3306'
     networks:
@@ -106,3 +106,4 @@ networks:
 
 volumes:
   mariadb_data:
+    driver: local

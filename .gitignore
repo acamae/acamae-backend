@@ -36,6 +36,7 @@ yarn-error.log*
 *.bak
 *.dump
 backups/
+database-exports/
 
 # ========================================
 # Docker & SSL

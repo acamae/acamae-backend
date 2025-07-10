@@ -65,6 +65,7 @@ export class AuthController {
 
         switch (status) {
           case 'invalid_token':
+          case 'AUTH_TOKEN_INVALID':
             httpStatus = HTTP_STATUS.BAD_REQUEST;
             errorCode = API_ERROR_CODES.AUTH_TOKEN_INVALID;
             spanishMessage = 'El enlace de verificación no es válido';
@@ -74,6 +75,7 @@ export class AuthController {
             };
             break;
           case 'expired_token':
+          case 'AUTH_TOKEN_EXPIRED':
             httpStatus = HTTP_STATUS.BAD_REQUEST;
             errorCode = API_ERROR_CODES.AUTH_TOKEN_EXPIRED;
             spanishMessage = 'El enlace de verificación ha expirado';
@@ -83,6 +85,7 @@ export class AuthController {
             };
             break;
           case 'already_verified':
+          case 'AUTH_USER_ALREADY_VERIFIED':
             httpStatus = HTTP_STATUS.CONFLICT;
             errorCode = API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED;
             spanishMessage = 'Esta cuenta ya ha sido verificada';
@@ -98,6 +101,7 @@ export class AuthController {
             };
             break;
           case 'update_failed':
+          case 'AUTH_UPDATE_FAILED':
             httpStatus = HTTP_STATUS.INTERNAL_SERVER_ERROR;
             errorCode = API_ERROR_CODES.AUTH_UPDATE_FAILED;
             spanishMessage = 'Error al actualizar el estado de verificación';

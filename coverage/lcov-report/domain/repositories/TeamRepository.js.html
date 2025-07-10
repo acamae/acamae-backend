@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>6/6</span>
+                <span class='fraction'>0/6</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>6/6</span>
+                <span class='fraction'>0/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>6/6</span>
+                <span class='fraction'>0/6</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -157,7 +157,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -168,7 +168,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -179,19 +179,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -203,7 +191,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -214,7 +202,19 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
@@ -233,8 +233,8 @@ export class TeamRepository {
    * Get all teams
    * @returns {Promise&lt;Team[]&gt;}
    */
-  async findAll() {
-    throw new Error('Method not implemented');
+<span class="fstat-no" title="function not covered" >  as</span>ync findAll() {
+<span class="cstat-no" title="statement not covered" >    throw new Error('Method not implemented');</span>
   }
 &nbsp;
   /**
@@ -244,8 +244,8 @@ export class TeamRepository {
    * @returns {Promise&lt;Team|null&gt;}
    */
   // eslint-disable-next-line
-  async findById(id) {
-    throw new Error('Method not implemented');
+<span class="fstat-no" title="function not covered" >  as</span>ync findById(id) {
+<span class="cstat-no" title="statement not covered" >    throw new Error('Method not implemented');</span>
   }
 &nbsp;
   /**
@@ -255,8 +255,8 @@ export class TeamRepository {
    * @returns {Promise&lt;Team[]&gt;}
    */
   // eslint-disable-next-line
-  async findByUserId(userId) {
-    throw new Error('Method not implemented');
+<span class="fstat-no" title="function not covered" >  as</span>ync findByUserId(userId) {
+<span class="cstat-no" title="statement not covered" >    throw new Error('Method not implemented');</span>
   }
 &nbsp;
   /**
@@ -267,8 +267,8 @@ export class TeamRepository {
    * @returns {Promise&lt;Team&gt;}
    */
   // eslint-disable-next-line
-  async create(userId, data) {
-    throw new Error('Method not implemented');
+<span class="fstat-no" title="function not covered" >  as</span>ync create(userId, data) {
+<span class="cstat-no" title="statement not covered" >    throw new Error('Method not implemented');</span>
   }
 &nbsp;
   /**
@@ -279,8 +279,8 @@ export class TeamRepository {
    * @returns {Promise&lt;Team&gt;}
    */
   // eslint-disable-next-line
-  async update(id, data) {
-    throw new Error('Method not implemented');
+<span class="fstat-no" title="function not covered" >  as</span>ync update(id, data) {
+<span class="cstat-no" title="statement not covered" >    throw new Error('Method not implemented');</span>
   }
 &nbsp;
   /**
@@ -290,8 +290,8 @@ export class TeamRepository {
    * @returns {Promise&lt;void&gt;}
    */
   // eslint-disable-next-line
-  async delete(id) {
-    throw new Error('Method not implemented');
+<span class="fstat-no" title="function not covered" >  as</span>ync delete(id) {
+<span class="cstat-no" title="statement not covered" >    throw new Error('Method not implemented');</span>
   }
 }
 &nbsp;</pre></td></tr></table></pre>
@@ -301,7 +301,7 @@ export class TeamRepository {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-10T11:56:36.678Z
+                at 2025-07-10T14:26:34.874Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
