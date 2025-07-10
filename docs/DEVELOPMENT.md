@@ -186,7 +186,7 @@ npm run format
 
 ## 🚨 Common Issues
 
-> **📖 For detailed troubleshooting, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)**
+> **📖 For detailed troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md)**
 
 ### Quick fixes for common problems:
 

@@ -9,12 +9,7 @@ import { config } from '../config/environment.js';
 import { AuthController } from '../controllers/AuthController.js';
 import { TeamController } from '../controllers/TeamController.js';
 import { UserController } from '../controllers/UserController.js';
-import {
-  authenticate as authMiddleware,
-  authorize,
-  isAdmin,
-  isManagerOrAdmin,
-} from '../middleware/auth.js';
+import { authenticate as authMiddleware, authorize } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import {
   loginValidation,

@@ -1,38 +1,131 @@
 ---
-description:
+description: To be used when fixing errors or implementing refresh token functionality
 globs:
 alwaysApply: false
----
----
-description: To be used when fixing errors, not only on tests but anywhere
 ---
 
 Diagnose and resolve the issue described above using a systematic, validation-driven approach:
 
+**API Error Response Requirements** (CRITICAL):
+
+- **Consistent Error Responses**:
+  - ALWAYS use `res.apiError()` for all error scenarios
+  - NEVER use `res.json()`, `res.send()`, or `res.status().json()` directly
+  - ALL error responses must include `timestamp` and `requestId`
+  - ALL error messages must be in Spanish
+  - Use exact error codes from `apiCodes.js`
+
+- **Error Response Structure**:
+
+  ```javascript
+  // Authentication error
+  return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_EXPIRED, 'Token de acceso expirado');
+
+  // Validation error with details
+  return res.apiError(422, API_ERROR_CODES.VALIDATION_FAILED, 'Los datos enviados no son válidos', {
+    type: 'validation',
+    details: [{ field: 'token', code: 'INVALID', message: 'El token no es válido' }],
+  });
+
+  // Server error (no stack trace in production)
+  return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Error interno del servidor', {
+    type: 'server',
+    ...(process.env.NODE_ENV !== 'production' && { stack: error.stack }),
+  });
+  ```
+
 **Refresh Token Guidelines**
 
-* **Security**:
-  - Use short-lived tokens (15-30 min)
-  - Implement blacklist
-  - Rotate refresh tokens
-  - Validate fingerprint
-  - Verify IP
-  - Sanitize tokens
+- **Security**:
+  - Use short-lived access tokens (15-30 min)
+  - Implement refresh token rotation
+  - Use secure HTTP-only cookies or Authorization headers
+  - Validate token fingerprints and IP addresses
+  - Sanitize all token-related inputs
+  - Implement token blacklisting/revocation
+  - Use proper JWT signing algorithms (RS256/HS256)
 
-* **Storage**:
-  - Use Redis for blacklist
-  - Implement TTL
-  - Clean expired tokens
-  - Encrypt tokens
-  - Validate storage
-  - Monitor usage
+- **Storage & Management**:
+  - Store refresh tokens securely (Redis recommended)
+  - Implement proper TTL for token expiration
+  - Clean expired tokens automatically
+  - Encrypt sensitive token data
+  - Validate token storage operations
+  - Monitor token usage patterns for anomalies
 
-* **Validation**:
-  - Verify signature
-  - Validate expiration
-  - Check blacklist
-  - Verify fingerprint
-  - Validate IP
-  - Sanitize input
+- **Validation Process**:
+  - Verify token signature and structure
+  - Validate token expiration timestamps
+  - Check token blacklist status
+  - Verify token fingerprint/device info
+  - Validate client IP (if configured)
+  - Sanitize all token inputs
 
-This process ensures a thorough, efficient resolution that strengthens the codebase while directly addressing the reported issue.
+- **Error Handling Specifics**:
+  ```javascript
+  // Specific token error responses using exact API codes
+  switch (tokenError.type) {
+    case 'EXPIRED':
+      return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_EXPIRED, 'El token ha expirado');
+    case 'INVALID':
+      return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_INVALID, 'El token no es válido');
+    case 'REVOKED':
+      return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_REVOKED, 'El token ha sido revocado');
+    case 'ALREADY_USED':
+      return res.apiError(
+        401,
+        API_ERROR_CODES.AUTH_TOKEN_ALREADY_USED,
+        'El token ya ha sido utilizado'
+      );
+    default:
+      return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Error interno del servidor');
+  }
+  ```
+
+**Token Refresh Implementation**:
+
+- **Successful Refresh Response**:
+
+  ```javascript
+  return res.apiSuccess(
+    {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken, // Optional: rotate refresh token
+    },
+    'Token renovado exitosamente'
+  );
+  ```
+
+- **Rate Limiting**:
+  - Implement rate limiting for refresh endpoints
+  - Use specific error response for rate limits:
+  ```javascript
+  return res.apiError(
+    429,
+    API_ERROR_CODES.AUTH_RATE_LIMIT,
+    'Demasiados intentos. Intenta de nuevo en 15 minutos'
+  );
+  ```
+
+**Systematic Error Resolution**:
+
+- **Error Diagnosis**:
+  - Identify error type: validation, authentication, authorization, business, server
+  - Check logs with requestId correlation
+  - Verify error occurs consistently or intermittently
+  - Review recent changes that might affect functionality
+
+- **Fix Implementation**:
+  - Address root cause, not just symptoms
+  - Ensure fix maintains API response consistency
+  - Update error messages to be user-friendly in Spanish
+  - Test both success and error scenarios
+
+- **Validation & Testing**:
+  - Verify response structure matches API standards
+  - Test error scenarios with proper HTTP codes
+  - Ensure timestamps and requestIds are included
+  - Validate Spanish error messages
+  - Run full test suite to prevent regressions
+
+This process ensures a thorough, efficient resolution that strengthens the codebase while directly addressing the reported issue and maintaining API consistency.

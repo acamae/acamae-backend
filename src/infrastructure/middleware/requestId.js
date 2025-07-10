@@ -20,7 +20,7 @@ export const requestIdMiddleware = (req, res, next) => {
   } catch (error) {
     // En caso de error generando UUID, usar timestamp + random
     console.error('Error generating requestId:', error);
-    req.requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    req.requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
     res.setHeader('X-Request-ID', req.requestId);
     next();
   }

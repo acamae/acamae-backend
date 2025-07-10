@@ -11,11 +11,11 @@ export class TeamController {
 
   /**
    * Get all teams
-   * @param {import('express').Request} req
+   * @param {import('express').Request} _req
    * @param {Response} res
    * @param {import('express').NextFunction} next
    */
-  async getAllTeams(req, res, next) {
+  async getAllTeams(_req, res, next) {
     try {
       const teams = await this.teamService.getAllTeams();
 

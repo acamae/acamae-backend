@@ -17,45 +17,18 @@ export class AuthController {
   async register(req, res, next) {
     try {
       const { email, password, username } = req.body;
-      const { user, emailSent, emailError } = await this.authService.register({
+      const { emailSent } = await this.authService.register({
         email,
         password,
         username,
       });
 
-      // Different response according to the email result
-      if (emailSent) {
-        // Email sent successfully - HTTP 201
-        return res.status(HTTP_STATUS.CREATED).apiSuccess(
-          {
-            user: {
-              id: user.id,
-              email: user.email,
-              username: user.username,
-              role: user.role,
-              isVerified: user.isVerified,
-            },
-            emailSent: true,
-          },
-          'User registered successfully. Check your email to verify your account.'
-        );
-      } else {
-        // Email failed - HTTP 207 (Multi-Status)
-        return res.status(207).apiSuccess(
-          {
-            user: {
-              id: user.id,
-              email: user.email,
-              username: user.username,
-              role: user.role,
-              isVerified: user.isVerified,
-            },
-            emailSent: false,
-            emailError: emailError,
-          },
-          'User registered successfully, but the verification email could not be sent. Contact the technical support.'
-        );
-      }
+      // Follow Swagger specification: data null, message in Spanish
+      const message = emailSent
+        ? 'Usuario registrado exitosamente. Revisa tu correo para verificar tu cuenta.'
+        : 'Usuario registrado exitosamente. Sin embargo, no se pudo enviar el email de verificación.';
+
+      return res.status(HTTP_STATUS.CREATED).apiSuccess(null, message);
     } catch (error) {
       next(error);
     }
@@ -76,14 +49,14 @@ export class AuthController {
         return res.redirect(APP_ROUTES.VERIFY_EMAIL_RESEND);
       }
 
-      const result = await this.authService.verifyEmail(token);
+      await this.authService.verifyEmail(token);
 
       // Successful response according to Swagger
       return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Email verificado correctamente');
     } catch (error) {
       // Handle specific errors with custom responses
       if (error.customResponse) {
-        const { status, message, resendRequired } = error.customResponse;
+        const { status } = error.customResponse;
 
         let httpStatus;
         let errorCode;
@@ -166,15 +139,7 @@ export class AuthController {
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
-
-      // Extract user's IP address for tracking
-      const ipAddress =
-        req.ip ||
-        req.connection.remoteAddress ||
-        req.socket.remoteAddress ||
-        (req.connection.socket ? req.connection.socket.remoteAddress : null);
-
-      const result = await this.authService.login(email, password, ipAddress);
+      const result = await this.authService.login(email, password);
 
       // Structure according to Swagger: UserWithTokens
       return res.status(HTTP_STATUS.OK).apiSuccess(result, 'Login exitoso');
