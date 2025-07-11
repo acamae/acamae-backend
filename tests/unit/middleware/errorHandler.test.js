@@ -232,7 +232,7 @@ describe('errorHandler middleware', () => {
         success: false,
         data: null,
         status: HTTP_STATUS.UNPROCESSABLE_ENTITY,
-        code: API_ERROR_CODES.VALIDATION_FAILED,
+        code: API_ERROR_CODES.VALIDATION_ERROR,
         message: 'Los datos enviados no son válidos',
         error: expect.objectContaining({
           type: 'validation',
@@ -351,13 +351,13 @@ describe('errorHandler middleware', () => {
 describe('throwError function', () => {
   it('should create and throw an error with provided parameters', () => {
     expect(() => {
-      throwError('Test message', API_ERROR_CODES.VALIDATION_FAILED, HTTP_STATUS.BAD_REQUEST, {
+      throwError('Test message', API_ERROR_CODES.VALIDATION_ERROR, HTTP_STATUS.BAD_REQUEST, {
         field: 'test',
       });
     }).toThrow(
       expect.objectContaining({
         message: 'Test message',
-        code: API_ERROR_CODES.VALIDATION_FAILED,
+        code: API_ERROR_CODES.VALIDATION_ERROR,
         status: HTTP_STATUS.BAD_REQUEST,
         details: { field: 'test' },
       })
@@ -366,11 +366,11 @@ describe('throwError function', () => {
 
   it('should create and throw an error with default details', () => {
     expect(() => {
-      throwError('Test message', API_ERROR_CODES.VALIDATION_FAILED, HTTP_STATUS.BAD_REQUEST);
+      throwError('Test message', API_ERROR_CODES.VALIDATION_ERROR, HTTP_STATUS.BAD_REQUEST);
     }).toThrow(
       expect.objectContaining({
         message: 'Test message',
-        code: API_ERROR_CODES.VALIDATION_FAILED,
+        code: API_ERROR_CODES.VALIDATION_ERROR,
         status: HTTP_STATUS.BAD_REQUEST,
       })
     );

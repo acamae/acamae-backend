@@ -72,7 +72,7 @@ export const errorHandler = (err, req, res, _next) => {
     return apiError(
       res,
       HTTP_STATUS.UNPROCESSABLE_ENTITY,
-      API_ERROR_CODES.VALIDATION_FAILED,
+      API_ERROR_CODES.VALIDATION_ERROR,
       'Los datos enviados no son válidos',
       {
         type: 'validation',

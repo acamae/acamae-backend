@@ -142,7 +142,7 @@ alwaysApply: true
     AUTH_USER_NOT_FOUND,
     AUTH_USER_BLOCKED,
     // Validation & Resources
-    VALIDATION_FAILED,
+    VALIDATION_ERROR,
     RESOURCE_NOT_FOUND,
     // Network errors (do not change - Axios specific)
     ERR_NETWORK,

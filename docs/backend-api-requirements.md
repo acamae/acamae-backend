@@ -1,69 +1,215 @@
-# Especificaciones de API para Backend - Node.js + Express
+# Backend API Specifications - Node.js + Express
 
-## 🎯 **OBJETIVO PRINCIPAL**
-Refactorizar TODAS las respuestas de la API del backend para que sigan una estructura completamente consistente que el frontend React ya está preparado para consumir.
+## 📚 Table of Contents
 
-## ⚠️ **REQUISITOS NO NEGOCIABLES**
+- [🎯 Main Objective](#-main-objective)
+- [⚠️ Non-Negotiable Requirements](#️-non-negotiable-requirements)
+- [📋 Base Structure](#-base-structure)
+- [🔧 Backend Implementation (Node.js + Express)](#-backend-implementation-nodejs--express)
+- [📊 Response Codes](#-response-codes)
+- [🚨 Error Handling](#-error-handling)
+- [💡 Specific Examples by Endpoint](#-specific-examples-by-endpoint)
+- [⚡ Special Cases](#-special-cases)
+- [🔒 Mandatory Validations](#-mandatory-validations)
+- [🧪 Testing](#-testing)
+- [📊 Logs Configuration](#-logs-configuration)
+- [🎯 Expected Result](#-expected-result)
 
-### **1. ESTRUCTURA OBLIGATORIA - Sin Excepciones**
+---
 
-**TODA respuesta de la API DEBE seguir exactamente esta estructura:**
+## 🎯 **Main Objective**
+
+Refactor **ALL** backend API responses to follow a completely consistent structure that the React frontend is already prepared to consume.
+
+**Only exception**: Endpoints that only require HTTP status 204 No Content (without body).
+
+## ⚠️ **Non-Negotiable Requirements**
+
+### **1. MANDATORY STRUCTURE - No Exceptions**
+
+**EVERY API response MUST follow exactly this structure:**
+
+#### **SUCCESS Response**
 
 ```typescript
-// Respuesta EXITOSA
-{
-  "success": true,                    // SIEMPRE boolean true
-  "data": T | null,                   // Los datos solicitados o null
-  "status": number,                   // Código HTTP (200, 201, etc.)
-  "code": "SUCCESS",                  // SIEMPRE "SUCCESS" para casos exitosos
-  "message": string,                  // Mensaje descriptivo en ESPAÑOL
-  "timestamp": string,                // ISO 8601 timestamp (OBLIGATORIO)
-  "requestId": string,                // UUID único por request (OBLIGATORIO)
-  "meta": object                      // OPCIONAL: paginación, totales, etc.
+interface ApiSuccessResponse<T> {
+  success: true; // ALWAYS boolean true
+  data: T | null; // Requested data or null
+  status: number; // HTTP code (200, 201, etc.)
+  code: 'SUCCESS'; // ALWAYS "SUCCESS" for successful cases
+  message: string; // Descriptive message in English
+  timestamp: string; // ISO 8601 timestamp (MANDATORY)
+  requestId: string; // Unique UUID per request (MANDATORY)
+  meta?: Record<string, any>; // OPTIONAL: pagination, totals, etc.
 }
+```
 
-// Respuesta ERROR
+#### **ERROR Response**
+
+```typescript
+interface ApiErrorResponse {
+  success: false; // ALWAYS boolean false
+  data: null; // ALWAYS null in errors
+  status: number; // HTTP code (400, 401, 500, etc.)
+  code: string; // Semantic code (see list below)
+  message: string; // Error message in English
+  timestamp: string; // ISO 8601 timestamp (MANDATORY)
+  requestId: string; // Unique UUID per request (MANDATORY)
+  meta?: Record<string, any>; // OPTIONAL
+  error?: {
+    // OPTIONAL but recommended
+    type: 'validation' | 'network' | 'server' | 'authentication' | 'authorization' | 'business';
+    details?: Array<{
+      // Array of specific errors
+      field: string; // Field that caused the error
+      code: string; // Field-specific code
+      message: string; // Specific message in English
+    }>;
+    stack?: string; // ONLY in development (NODE_ENV !== 'production')
+  };
+}
+```
+
+### **2. Mandatory vs Optional Fields**
+
+#### ✅ **MANDATORY (Always present)**
+
+- `success`: boolean
+- `data`: T | null
+- `status`: number
+- `code`: string
+- `message`: string
+- `timestamp`: string (ISO 8601)
+- `requestId`: string (UUID)
+
+#### 📝 **OPTIONAL (Depending on context)**
+
+- `meta`: Record<string, any> - For pagination, totals, etc.
+- `error`: object - Additional error details
+
+## 📋 **Base Structure**
+
+### **JSON Examples**
+
+#### **Simple Success Response**
+
+```json
 {
-  "success": false,                   // SIEMPRE boolean false
-  "data": null,                       // SIEMPRE null en errores
-  "status": number,                   // Código HTTP (400, 401, 500, etc.)
-  "code": string,                     // Código semántico (ver lista abajo)
-  "message": string,                  // Mensaje de error en ESPAÑOL
-  "timestamp": string,                // ISO 8601 timestamp (OBLIGATORIO)
-  "requestId": string,                // UUID único por request (OBLIGATORIO)
-  "meta": object,                     // OPCIONAL
-  "error": {                          // OPCIONAL pero recomendado
-    "type": string,                   // validation|server|authentication|authorization|business
-    "details": [                      // Array de errores específicos
-      {
-        "field": string,              // Campo que causó el error
-        "code": string,               // Código específico del campo
-        "message": string             // Mensaje específico en ESPAÑOL
-      }
-    ],
-    "stack": string                   // SOLO en desarrollo (NODE_ENV !== 'production')
+  "success": true,
+  "data": {
+    "id": "user_123",
+    "email": "user@example.com",
+    "username": "user123",
+    "role": "user"
+  },
+  "status": 200,
+  "code": "SUCCESS",
+  "message": "Login successful",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "requestId": "req_abc123"
+}
+```
+
+#### **Success Response with Metadata**
+
+```json
+{
+  "success": true,
+  "data": [
+    { "id": 1, "name": "User 1" },
+    { "id": 2, "name": "User 2" }
+  ],
+  "status": 200,
+  "code": "SUCCESS",
+  "message": "Users retrieved successfully",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "requestId": "req_abc123",
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 50,
+      "totalPages": 5,
+      "hasNext": true,
+      "hasPrev": false
+    }
   }
 }
 ```
 
-### **2. MIDDLEWARE OBLIGATORIO**
+#### **Server Error Response**
 
-Implementar este middleware ANTES de todas las rutas:
+```json
+{
+  "success": false,
+  "data": null,
+  "status": 422,
+  "code": "VALIDATION_ERROR",
+  "message": "The submitted data is not valid",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "requestId": "req_abc123",
+  "error": {
+    "type": "validation",
+    "details": [
+      {
+        "field": "email",
+        "code": "INVALID_FORMAT",
+        "message": "The email format is not valid"
+      },
+      {
+        "field": "password",
+        "code": "TOO_SHORT",
+        "message": "Password must be at least 8 characters"
+      }
+    ]
+  }
+}
+```
+
+#### **Network Error Response**
+
+```json
+{
+  "success": false,
+  "data": null,
+  "status": 0,
+  "code": "ERR_NETWORK",
+  "message": "Network error. Check your connection",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "requestId": "req_generated_client_side",
+  "error": {
+    "type": "network",
+    "details": [
+      {
+        "field": "network",
+        "code": "ERR_NETWORK",
+        "message": "Request failed"
+      }
+    ]
+  }
+}
+```
+
+## 🔧 **Backend Implementation (Node.js + Express)**
+
+### **Mandatory Middleware**
+
+Implement this middleware **BEFORE** all routes:
 
 ```javascript
 const { v4: uuidv4 } = require('uuid');
 
-// Middleware para añadir requestId a todas las requests
+// Middleware to add requestId to all requests
 app.use((req, res, next) => {
   req.requestId = req.headers['x-request-id'] || uuidv4();
   res.setHeader('X-Request-ID', req.requestId);
   next();
 });
 
-// Middleware para respuestas consistentes
+// Middleware for consistent responses
 const responseHandler = {
-  success: (res, data = null, message = 'Operación exitosa', meta = null) => {
-    return res.status(200).json({
+  success: (res, data = null, message = 'Operation successful', meta = null) => {
+    return res.json({
       success: true,
       data,
       status: res.statusCode,
@@ -71,7 +217,7 @@ const responseHandler = {
       message,
       timestamp: new Date().toISOString(),
       requestId: res.req.requestId,
-      ...(meta && { meta })
+      ...(meta && { meta }),
     });
   },
 
@@ -84,7 +230,7 @@ const responseHandler = {
       message,
       timestamp: new Date().toISOString(),
       requestId: res.req.requestId,
-      ...(meta && { meta })
+      ...(meta && { meta }),
     };
 
     if (errorDetails) {
@@ -92,10 +238,10 @@ const responseHandler = {
     }
 
     return res.status(statusCode).json(errorResponse);
-  }
+  },
 };
 
-// Hacer disponible en todas las respuestas
+// Make available in all responses
 app.use((req, res, next) => {
   res.apiSuccess = responseHandler.success.bind(null, res);
   res.apiError = responseHandler.error.bind(null, res);
@@ -103,16 +249,40 @@ app.use((req, res, next) => {
 });
 ```
 
-## 📋 **CÓDIGOS DE RESPUESTA EXACTOS**
+### **TypeScript Type Extensions**
 
-### **Código de Éxito**
+```typescript
+declare global {
+  namespace Express {
+    interface Request {
+      requestId: string;
+    }
+    interface Response {
+      apiSuccess: (data?: any, message?: string, meta?: any) => Response;
+      apiError: (
+        statusCode: number,
+        code: string,
+        message: string,
+        errorDetails?: any,
+        meta?: any
+      ) => Response;
+    }
+  }
+}
+```
+
+## 📊 **Response Codes**
+
+### **Success Code**
+
 ```javascript
 const API_SUCCESS_CODES = {
-  SUCCESS: 'SUCCESS'
+  SUCCESS: 'SUCCESS',
 };
 ```
 
-### **Códigos de Error - USAR EXACTAMENTE ESTOS**
+### **Error Codes - USE EXACTLY THESE**
+
 ```javascript
 const API_ERROR_CODES = {
   // Authentication & Authorization
@@ -130,12 +300,12 @@ const API_ERROR_CODES = {
   AUTH_UPDATE_FAILED: 'AUTH_UPDATE_FAILED',
 
   // Validation
-  VALIDATION_FAILED: 'VALIDATION_FAILED',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
 
   // Resource related
   RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
 
-  // Network errors (no cambiar estos códigos, son específicos de Axios)
+  // Network errors (don't change these codes, they are Axios-specific)
   ERR_NETWORK: 'ERR_NETWORK',
   ERR_CANCELED: 'ERR_CANCELED',
   ECONNABORTED: 'ECONNABORTED',
@@ -148,80 +318,219 @@ const API_ERROR_CODES = {
 
   // User related
   AUTH_USER_NOT_FOUND: 'AUTH_USER_NOT_FOUND',
-  AUTH_USER_BLOCKED: 'AUTH_USER_BLOCKED'
+  AUTH_USER_BLOCKED: 'AUTH_USER_BLOCKED',
 };
 ```
 
-## 🔧 **EJEMPLOS ESPECÍFICOS POR ENDPOINT**
+## 🚨 **Error Handling**
 
-### **POST /auth/login - Éxito**
+### **Global Error Handler**
+
+```javascript
+// Global error handler (MUST go at the end)
+app.use((error, req, res, next) => {
+  console.error('Error:', error);
+
+  // Log for Morgan
+  req.log = {
+    error: error.message,
+    stack: error.stack,
+    requestId: req.requestId,
+  };
+
+  // If response already sent, do nothing
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  // Express Validator validation errors
+  if (error.type === 'validation') {
+    return res.apiError(422, API_ERROR_CODES.VALIDATION_ERROR, 'The submitted data is not valid', {
+      type: 'validation',
+      details: error.details,
+      ...(process.env.NODE_ENV !== 'production' && { stack: error.stack }),
+    });
+  }
+
+  // JWT authentication errors
+  if (error.name === 'JsonWebTokenError') {
+    return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_INVALID, 'Invalid access token');
+  }
+
+  if (error.name === 'TokenExpiredError') {
+    return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_EXPIRED, 'Expired access token');
+  }
+
+  // Database error
+  if (error.code === 'ER_DUP_ENTRY') {
+    return res.apiError(409, API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS, 'Resource already exists');
+  }
+
+  // Generic error
+  return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Internal server error', {
+    type: 'server',
+    ...(process.env.NODE_ENV !== 'production' && {
+      details: [{ field: 'server', code: 'INTERNAL_ERROR', message: error.message }],
+      stack: error.stack,
+    }),
+  });
+});
+
+// 404 Handler
+app.use('*', (req, res) => {
+  return res.apiError(
+    404,
+    API_ERROR_CODES.RESOURCE_NOT_FOUND,
+    `Route ${req.originalUrl} does not exist`
+  );
+});
+```
+
+### **Differentiation: Server vs Network Errors**
+
+#### **Server Errors (with response)**
+
+The server responds but with error:
+
+```javascript
+// Authentication error
+return res.apiError(
+  401,
+  API_ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+  'The provided credentials are incorrect',
+  {
+    type: 'authentication',
+    details: [
+      {
+        field: 'credentials',
+        code: 'INVALID',
+        message: 'Incorrect email or password',
+      },
+    ],
+  }
+);
+```
+
+#### **Network Errors (no response)**
+
+Handled by the client when there's no server response:
+
+```javascript
+// In the client (axios interceptor)
+if (!error.response) {
+  // Network error, timeout, etc.
+  return {
+    success: false,
+    data: null,
+    status: 0,
+    code: error.code || 'ERR_NETWORK',
+    message: getNetworkErrorMessage(error.code),
+    timestamp: new Date().toISOString(),
+    requestId: error.config?.headers?.['X-Request-ID'] || 'req_' + Date.now(),
+    error: {
+      type: 'network',
+      details: [
+        {
+          field: 'network',
+          code: error.code || 'ERR_NETWORK',
+          message: error.message,
+        },
+      ],
+    },
+  };
+}
+```
+
+## 💡 **Specific Examples by Endpoint**
+
+### **POST /auth/login - Success**
+
 ```javascript
 app.post('/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Lógica de autenticación...
+    // Authentication logic...
     const user = await authenticateUser(email, password);
     const tokens = await generateTokens(user.id);
 
-    return res.apiSuccess({
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
+    return res.apiSuccess(
+      {
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          role: user.role,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        },
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       },
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken
-    }, 'Login exitoso');
-
+      'Login successful'
+    );
   } catch (error) {
     if (error.code === 'INVALID_CREDENTIALS') {
-      return res.apiError(401, API_ERROR_CODES.AUTH_INVALID_CREDENTIALS, 'Las credenciales proporcionadas son incorrectas');
+      return res.apiError(
+        401,
+        API_ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+        'The provided credentials are incorrect'
+      );
     }
 
-    return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Error interno del servidor');
+    return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Internal server error');
   }
 });
 ```
 
-### **POST /auth/register - Error de Validación**
+### **POST /auth/register - Validation Error**
+
 ```javascript
 app.post('/auth/register', async (req, res) => {
   try {
     const validationErrors = validateRegistrationData(req.body);
 
     if (validationErrors.length > 0) {
-      return res.apiError(422, API_ERROR_CODES.VALIDATION_FAILED, 'Los datos enviados no son válidos', {
-        type: 'validation',
-        details: validationErrors.map(err => ({
-          field: err.field,
-          code: err.code,
-          message: err.message
-        }))
-      });
+      return res.apiError(
+        422,
+        API_ERROR_CODES.VALIDATION_ERROR,
+        'The submitted data is not valid',
+        {
+          type: 'validation',
+          details: validationErrors.map((err) => ({
+            field: err.field,
+            code: err.code,
+            message: err.message,
+          })),
+        }
+      );
     }
 
-    // Lógica de registro...
+    // Registration logic...
     const user = await createUser(req.body);
 
-    return res.apiSuccess(null, 'Usuario registrado exitosamente. Revisa tu correo para verificar tu cuenta.');
-
+    return res.apiSuccess(
+      null,
+      'User registered successfully. Check your email to verify your account.'
+    );
   } catch (error) {
     if (error.code === 'USER_EXISTS') {
-      return res.apiError(409, API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS, 'El email ya está registrado');
+      return res.apiError(
+        409,
+        API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS,
+        'Email is already registered'
+      );
     }
 
-    return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Error interno del servidor');
+    return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Internal server error');
   }
 });
 ```
 
-### **GET /auth/verify-email/:token - Error de Token**
+### **POST /auth/verify-email/:token - Token Error**
+
 ```javascript
-app.get('/auth/verify-email/:token', async (req, res) => {
+app.post('/auth/verify-email/:token', async (req, res) => {
   try {
     const { token } = req.params;
 
@@ -233,43 +542,55 @@ app.get('/auth/verify-email/:token', async (req, res) => {
 
       return res.apiError(400, errorCode, errorMessage, {
         type: 'authentication',
-        details: [{
-          field: 'token',
-          code: errorCode,
-          message: errorMessage
-        }]
+        details: [
+          {
+            field: 'token',
+            code: errorCode,
+            message: errorMessage,
+          },
+        ],
       });
     }
 
-    return res.apiSuccess(null, 'Email verificado correctamente');
-
+    return res.apiSuccess(null, 'Email verified successfully');
   } catch (error) {
-    return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Error interno del servidor');
+    return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Internal server error');
   }
 });
 
 function getTokenErrorCode(reason) {
   switch (reason) {
-    case 'EXPIRED': return API_ERROR_CODES.AUTH_TOKEN_EXPIRED;
-    case 'INVALID': return API_ERROR_CODES.AUTH_TOKEN_INVALID;
-    case 'ALREADY_USED': return API_ERROR_CODES.AUTH_TOKEN_ALREADY_USED;
-    case 'REVOKED': return API_ERROR_CODES.AUTH_TOKEN_REVOKED;
-    default: return API_ERROR_CODES.AUTH_TOKEN_INVALID;
+    case 'EXPIRED':
+      return API_ERROR_CODES.AUTH_TOKEN_EXPIRED;
+    case 'INVALID':
+      return API_ERROR_CODES.AUTH_TOKEN_INVALID;
+    case 'ALREADY_USED':
+      return API_ERROR_CODES.AUTH_TOKEN_ALREADY_USED;
+    case 'REVOKED':
+      return API_ERROR_CODES.AUTH_TOKEN_REVOKED;
+    default:
+      return API_ERROR_CODES.AUTH_TOKEN_INVALID;
   }
 }
 
 function getTokenErrorMessage(reason) {
   switch (reason) {
-    case 'EXPIRED': return 'El enlace de verificación ha expirado';
-    case 'INVALID': return 'El enlace de verificación no es válido';
-    case 'ALREADY_USED': return 'Este enlace ya ha sido utilizado';
-    case 'REVOKED': return 'El enlace de verificación ha sido revocado';
-    default: return 'El enlace de verificación no es válido';
+    case 'EXPIRED':
+      return 'The verification link has expired';
+    case 'INVALID':
+      return 'The verification link is not valid';
+    case 'ALREADY_USED':
+      return 'This link has already been used';
+    case 'REVOKED':
+      return 'The verification link has been revoked';
+    default:
+      return 'The verification link is not valid';
   }
 }
 ```
 
-### **GET /users - Lista con Paginación**
+### **GET /users - List with Pagination**
+
 ```javascript
 app.get('/users', async (req, res) => {
   try {
@@ -279,15 +600,15 @@ app.get('/users', async (req, res) => {
     const result = await getUsersPaginated(page, limit);
 
     return res.apiSuccess(
-      result.users.map(user => ({
+      result.users.map((user) => ({
         id: user.id,
         email: user.email,
         username: user.username,
         role: user.role,
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt
+        updatedAt: user.updatedAt,
       })),
-      'Usuarios obtenidos exitosamente',
+      'Users retrieved successfully',
       {
         pagination: {
           page: result.page,
@@ -295,158 +616,249 @@ app.get('/users', async (req, res) => {
           total: result.total,
           totalPages: result.totalPages,
           hasNext: result.hasNext,
-          hasPrev: result.hasPrev
-        }
+          hasPrev: result.hasPrev,
+        },
       }
     );
-
   } catch (error) {
-    return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Error interno del servidor');
+    return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Internal server error');
   }
 });
 ```
 
-## 🚨 **MANEJO DE ERRORES GLOBAL**
-
-### **Error Handler Middleware**
-```javascript
-// Error handler global (DEBE ir al final)
-app.use((error, req, res, next) => {
-  console.error('Error:', error);
-
-  // Log para Morgan
-  req.log = {
-    error: error.message,
-    stack: error.stack,
-    requestId: req.requestId
-  };
-
-  // Si ya se envió la respuesta, no hacer nada
-  if (res.headersSent) {
-    return next(error);
-  }
-
-  // Errores de validación de Express Validator
-  if (error.type === 'validation') {
-    return res.apiError(422, API_ERROR_CODES.VALIDATION_FAILED, 'Los datos enviados no son válidos', {
-      type: 'validation',
-      details: error.details,
-      ...(process.env.NODE_ENV !== 'production' && { stack: error.stack })
-    });
-  }
-
-  // Errores de autenticación JWT
-  if (error.name === 'JsonWebTokenError') {
-    return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_INVALID, 'Token de acceso inválido');
-  }
-
-  if (error.name === 'TokenExpiredError') {
-    return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_EXPIRED, 'Token de acceso expirado');
-  }
-
-  // Error de base de datos
-  if (error.code === 'ER_DUP_ENTRY') {
-    return res.apiError(409, API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS, 'El recurso ya existe');
-  }
-
-  // Error genérico
-  return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Error interno del servidor', {
-    type: 'server',
-    ...(process.env.NODE_ENV !== 'production' && {
-      details: [{ field: 'server', code: 'INTERNAL_ERROR', message: error.message }],
-      stack: error.stack
-    })
-  });
-});
-
-// 404 Handler
-app.use('*', (req, res) => {
-  return res.apiError(404, API_ERROR_CODES.RESOURCE_NOT_FOUND, `La ruta ${req.originalUrl} no existe`);
-});
-```
-
-## 📊 **CONFIGURACIÓN DE MORGAN LOGS**
-
-```javascript
-const morgan = require('morgan');
-
-// Token personalizado para requestId
-morgan.token('requestId', (req) => req.requestId);
-morgan.token('errorDetails', (req) => req.log ? JSON.stringify(req.log) : '');
-
-// Formato de log personalizado
-const logFormat = process.env.NODE_ENV === 'production'
-  ? ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :requestId :errorDetails'
-  : ':method :url :status :response-time ms - :res[content-length] :requestId :errorDetails';
-
-app.use(morgan(logFormat));
-```
-
-## ⚡ **CASOS ESPECIALES**
+## ⚡ **Special Cases**
 
 ### **Rate Limiting**
+
 ```javascript
 const rateLimit = require('express-rate-limit');
 
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 5, // 5 intentos
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts
   skipSuccessfulRequests: true,
   handler: (req, res) => {
-    return res.apiError(429, API_ERROR_CODES.AUTH_RATE_LIMIT, 'Demasiados intentos de login. Intenta de nuevo en 15 minutos');
-  }
+    return res.apiError(
+      429,
+      API_ERROR_CODES.AUTH_RATE_LIMIT,
+      'Too many login attempts. Try again in 15 minutes'
+    );
+  },
 });
 
 app.use('/auth/login', loginLimiter);
 ```
 
 ### **Maintenance Mode**
+
 ```javascript
 app.use((req, res, next) => {
   if (process.env.MAINTENANCE_MODE === 'true') {
-    return res.apiError(503, API_ERROR_CODES.SERVICE_UNAVAILABLE, 'El servicio está en mantenimiento. Intenta más tarde');
+    return res.apiError(
+      503,
+      API_ERROR_CODES.SERVICE_UNAVAILABLE,
+      'Service is under maintenance. Try again later'
+    );
   }
   next();
 });
 ```
 
-## 🔒 **VALIDACIONES OBLIGATORIAS**
+### **HTTP 204 No Content - Only Exception**
 
-### **1. NUNCA devolver respuestas que no sigan la estructura**
-### **2. SIEMPRE incluir timestamp y requestId**
-### **3. SIEMPRE usar los códigos exactos de la lista**
-### **4. TODOS los mensajes en ESPAÑOL**
-### **5. NEVER usar console.log en producción, usar Morgan**
-### **6. SIEMPRE manejar async/await con try/catch**
-### **7. NEVER exponer stack traces en producción**
+For endpoints that don't require response with body:
 
-## 🧪 **TESTING**
-
-Cada endpoint DEBE devolver respuestas que cumplan exactamente esta estructura. El frontend ya está preparado para consumir estas respuestas y fallará si no son consistentes.
-
-**Ejemplo de test:**
 ```javascript
-// Verificar estructura de respuesta exitosa
-expect(response.body).toHaveProperty('success', true);
-expect(response.body).toHaveProperty('data');
-expect(response.body).toHaveProperty('status');
-expect(response.body).toHaveProperty('code', 'SUCCESS');
-expect(response.body).toHaveProperty('message');
-expect(response.body).toHaveProperty('timestamp');
-expect(response.body).toHaveProperty('requestId');
+app.delete('/users/:id', async (req, res) => {
+  try {
+    await deleteUser(req.params.id);
 
-// Verificar estructura de respuesta de error
-expect(response.body).toHaveProperty('success', false);
-expect(response.body).toHaveProperty('data', null);
-expect(response.body).toHaveProperty('status');
-expect(response.body).toHaveProperty('code');
-expect(response.body).toHaveProperty('message');
-expect(response.body).toHaveProperty('timestamp');
-expect(response.body).toHaveProperty('requestId');
+    // Only exception: No body, only status
+    return res.status(204).send();
+  } catch (error) {
+    // Even in errors, follow the structure
+    return res.apiError(404, API_ERROR_CODES.RESOURCE_NOT_FOUND, 'User not found');
+  }
+});
 ```
 
-## 🎯 **RESULTADO ESPERADO**
+## 🔒 **Mandatory Validations**
 
-Después de esta refactorización, TODA respuesta de la API debe ser predecible y consistente. El frontend React + TypeScript ya está completamente preparado para consumir esta estructura exacta.
+### **1. NEVER return responses that don't follow the structure**
 
-**NO HAY EXCEPCIONES. TODA respuesta debe seguir esta estructura.**
+### **2. ALWAYS include timestamp and requestId**
+
+### **3. ALWAYS use the exact codes from the list**
+
+### **4. ALL messages in ENGLISH**
+
+### **5. NEVER use console.log in production, use Morgan**
+
+### **6. ALWAYS handle async/await with try/catch**
+
+### **7. NEVER expose stack traces in production**
+
+### **8. ALWAYS use res.apiSuccess() and res.apiError()**
+
+## 🧪 **Testing**
+
+Each endpoint MUST return responses that comply exactly with this structure. The frontend is already prepared to consume these responses and will fail if they are not consistent.
+
+### **Structure Test Example**
+
+```javascript
+describe('API Response Structure', () => {
+  test('successful response should have correct structure', async () => {
+    const response = await request(app)
+      .post('/auth/login')
+      .send({ email: 'test@example.com', password: 'password123' });
+
+    // Verify successful response structure
+    expect(response.body).toHaveProperty('success', true);
+    expect(response.body).toHaveProperty('data');
+    expect(response.body).toHaveProperty('status');
+    expect(response.body).toHaveProperty('code', 'SUCCESS');
+    expect(response.body).toHaveProperty('message');
+    expect(response.body).toHaveProperty('timestamp');
+    expect(response.body).toHaveProperty('requestId');
+
+    // Verify types
+    expect(typeof response.body.success).toBe('boolean');
+    expect(typeof response.body.status).toBe('number');
+    expect(typeof response.body.code).toBe('string');
+    expect(typeof response.body.message).toBe('string');
+    expect(typeof response.body.timestamp).toBe('string');
+    expect(typeof response.body.requestId).toBe('string');
+  });
+
+  test('error response should have correct structure', async () => {
+    const response = await request(app)
+      .post('/auth/login')
+      .send({ email: 'invalid@example.com', password: 'wrongpassword' });
+
+    // Verify error response structure
+    expect(response.body).toHaveProperty('success', false);
+    expect(response.body).toHaveProperty('data', null);
+    expect(response.body).toHaveProperty('status');
+    expect(response.body).toHaveProperty('code');
+    expect(response.body).toHaveProperty('message');
+    expect(response.body).toHaveProperty('timestamp');
+    expect(response.body).toHaveProperty('requestId');
+
+    // Verify that error code is valid
+    expect(Object.values(API_ERROR_CODES)).toContain(response.body.code);
+  });
+});
+```
+
+### **Testing Utility**
+
+```javascript
+// Utility to verify response structure
+function validateApiResponseStructure(response, shouldBeSuccess = true) {
+  const requiredFields = ['success', 'data', 'status', 'code', 'message', 'timestamp', 'requestId'];
+
+  requiredFields.forEach((field) => {
+    expect(response.body).toHaveProperty(field);
+  });
+
+  expect(response.body.success).toBe(shouldBeSuccess);
+
+  if (shouldBeSuccess) {
+    expect(response.body.code).toBe('SUCCESS');
+  } else {
+    expect(response.body.data).toBeNull();
+    expect(Object.values(API_ERROR_CODES)).toContain(response.body.code);
+  }
+}
+
+// Usage in tests
+test('login should return valid success response', async () => {
+  const response = await request(app).post('/auth/login').send(validCredentials);
+
+  validateApiResponseStructure(response, true);
+  expect(response.body.data).toHaveProperty('user');
+  expect(response.body.data).toHaveProperty('accessToken');
+});
+```
+
+## 📊 **Logs Configuration**
+
+### **Morgan Logs**
+
+```javascript
+const morgan = require('morgan');
+
+// Custom token for requestId
+morgan.token('requestId', (req) => req.requestId);
+morgan.token('errorDetails', (req) => (req.log ? JSON.stringify(req.log) : ''));
+
+// Custom log format
+const logFormat =
+  process.env.NODE_ENV === 'production'
+    ? ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :requestId :errorDetails'
+    : ':method :url :status :response-time ms - :res[content-length] :requestId :errorDetails';
+
+app.use(morgan(logFormat));
+```
+
+### **Structured Logs**
+
+```javascript
+const winston = require('winston');
+
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'api' },
+  transports: [
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' }),
+  ],
+});
+
+// Add requestId to all logs
+app.use((req, res, next) => {
+  req.logger = logger.child({ requestId: req.requestId });
+  next();
+});
+```
+
+## 🎯 **Expected Result**
+
+After this implementation:
+
+### ✅ **Guarantees**
+
+1. **Total Consistency**: EVERY response follows the same structure
+2. **Predictability**: Frontend always knows what to expect
+3. **Traceability**: requestId for complete tracking
+4. **Debugging**: Rich information to diagnose problems
+5. **Localization**: Appropriate messages in English
+6. **Strong Typing**: Complete TypeScript for better DX
+7. **Maintainability**: Clean and easy-to-maintain code
+
+### 📋 **Development Benefits**
+
+- **Frontend**: Unified response handling
+- **Backend**: Cleaner and more maintainable code
+- **Testing**: Consistent and automatable validations
+- **Debugging**: Complete request traceability
+- **Monitoring**: Structured and useful logs
+- **Documentation**: Clear and complete specification
+
+### 🚀 **Implementation**
+
+**NO EXCEPTIONS. EVERY response must follow this structure.**
+
+The React + TypeScript frontend is already completely prepared to consume this exact structure.
+
+---
+
+> 🔗 **Unified API Documentation** - Version 2.0
+> 📅 Last updated: 2024-12-19
+> ✅ **Status**: Complete specification ready for implementation

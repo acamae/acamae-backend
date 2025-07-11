@@ -2,39 +2,8 @@ import { API_ERROR_CODES, ERROR_MESSAGES } from '../../../src/shared/constants/a
 
 describe('API_ERROR_CODES', () => {
   describe('validation codes compatibility', () => {
-    it('VALIDATION_ERROR and VALIDATION_FAILED should point to the same value', () => {
-      expect(API_ERROR_CODES.VALIDATION_ERROR).toBe('VALIDATION_ERROR');
-      expect(API_ERROR_CODES.VALIDATION_FAILED).toBe('VALIDATION_ERROR');
-      expect(API_ERROR_CODES.VALIDATION_ERROR).toBe(API_ERROR_CODES.VALIDATION_FAILED);
-    });
-
-    it('VALIDATION_ERROR and VALIDATION_FAILED should have the same error message', () => {
+    it('VALIDATION_ERROR should have a error message', () => {
       expect(ERROR_MESSAGES[API_ERROR_CODES.VALIDATION_ERROR]).toBe('Validation error');
-      expect(ERROR_MESSAGES[API_ERROR_CODES.VALIDATION_FAILED]).toBe('Validation error');
-      expect(ERROR_MESSAGES[API_ERROR_CODES.VALIDATION_ERROR]).toBe(
-        ERROR_MESSAGES[API_ERROR_CODES.VALIDATION_FAILED]
-      );
-    });
-
-    it('both codes should be defined', () => {
-      expect(API_ERROR_CODES.VALIDATION_ERROR).toBeDefined();
-      expect(API_ERROR_CODES.VALIDATION_FAILED).toBeDefined();
-    });
-
-    it('should maintain backward compatibility', () => {
-      // Verificar que ambos códigos pueden usarse indistintamente
-      const errorWithValidationError = {
-        code: API_ERROR_CODES.VALIDATION_ERROR,
-        message: ERROR_MESSAGES[API_ERROR_CODES.VALIDATION_ERROR],
-      };
-
-      const errorWithValidationFailed = {
-        code: API_ERROR_CODES.VALIDATION_FAILED,
-        message: ERROR_MESSAGES[API_ERROR_CODES.VALIDATION_FAILED],
-      };
-
-      expect(errorWithValidationError.code).toBe(errorWithValidationFailed.code);
-      expect(errorWithValidationError.message).toBe(errorWithValidationFailed.message);
     });
   });
 
@@ -49,7 +18,6 @@ describe('API_ERROR_CODES', () => {
     it('should have all required validation error codes', () => {
       const requiredCodes = [
         'VALIDATION_ERROR',
-        'VALIDATION_FAILED',
         'INVALID_INPUT',
         'MISSING_REQUIRED_FIELD',
         'INVALID_FORMAT',

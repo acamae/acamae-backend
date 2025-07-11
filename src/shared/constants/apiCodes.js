@@ -25,7 +25,6 @@ import {
 export const API_ERROR_CODES = {
   // Validation errors (400)
   VALIDATION_ERROR: 'VALIDATION_ERROR',
-  VALIDATION_FAILED: 'VALIDATION_ERROR', // Alias for frontend compatibility
   INVALID_INPUT: 'INVALID_INPUT',
   MISSING_REQUIRED_FIELD: 'MISSING_REQUIRED_FIELD',
   INVALID_FORMAT: 'INVALID_FORMAT',
@@ -117,7 +116,6 @@ export const API_SUCCESS_CODES = {
 export const ERROR_MESSAGES = {
   // API Error Messages
   [API_ERROR_CODES.VALIDATION_ERROR]: 'Validation error',
-  [API_ERROR_CODES.VALIDATION_FAILED]: 'Validation error', // Alias message
   [API_ERROR_CODES.INVALID_INPUT]: 'Invalid input',
   [API_ERROR_CODES.MISSING_REQUIRED_FIELD]: 'Missing required field',
   [API_ERROR_CODES.INVALID_FORMAT]: 'Invalid format',

@@ -101,14 +101,14 @@ describe('API Response Structure Tests (Unit)', () => {
         details: [{ field: 'email', code: 'INVALID_FORMAT', message: 'Email invalid' }],
       };
 
-      res.apiError(400, API_ERROR_CODES.VALIDATION_FAILED, 'Validation error', errorDetails);
+      res.apiError(400, API_ERROR_CODES.VALIDATION_ERROR, 'Validation error', errorDetails);
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
         success: false,
         data: null,
         status: 400,
-        code: API_ERROR_CODES.VALIDATION_FAILED,
+        code: API_ERROR_CODES.VALIDATION_ERROR,
         message: 'Validation error',
         timestamp: expect.any(String),
         requestId: '12345678-1234-1234-1234-123456789012',
@@ -175,7 +175,7 @@ describe('API Response Structure Tests (Unit)', () => {
     });
 
     it('should ensure error response has required fields', () => {
-      res.apiError(400, API_ERROR_CODES.VALIDATION_FAILED, 'Error message');
+      res.apiError(400, API_ERROR_CODES.VALIDATION_ERROR, 'Error message');
 
       const jsonCall = res.json.mock.calls[0][0];
       const requiredFields = [

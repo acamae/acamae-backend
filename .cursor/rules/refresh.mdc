@@ -22,7 +22,7 @@ Diagnose and resolve the issue described above using a systematic, validation-dr
   return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_EXPIRED, 'Token de acceso expirado');
 
   // Validation error with details
-  return res.apiError(422, API_ERROR_CODES.VALIDATION_FAILED, 'Los datos enviados no son válidos', {
+  return res.apiError(422, API_ERROR_CODES.VALIDATION_ERROR, 'Los datos enviados no son válidos', {
     type: 'validation',
     details: [{ field: 'token', code: 'INVALID', message: 'El token no es válido' }],
   });

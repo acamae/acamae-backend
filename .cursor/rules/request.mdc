@@ -16,7 +16,7 @@ Design and implement the request described above using a systematic, validation-
 - **API Codes Compliance**:
   - Import exact codes from `src/shared/constants/apiCodes.js`
   - Use `SUCCESS` for all successful operations
-  - Use specific error codes: `AUTH_INVALID_CREDENTIALS`, `VALIDATION_FAILED`, `RESOURCE_NOT_FOUND`, etc.
+  - Use specific error codes: `AUTH_INVALID_CREDENTIALS`, `VALIDATION_ERROR`, `RESOURCE_NOT_FOUND`, etc.
   - Never create custom/ad-hoc error codes
 
 - **Response Examples**:
@@ -34,7 +34,7 @@ Design and implement the request described above using a systematic, validation-
   return res.apiError(404, API_ERROR_CODES.RESOURCE_NOT_FOUND, 'El usuario solicitado no existe');
 
   // Validation error with details
-  return res.apiError(422, API_ERROR_CODES.VALIDATION_FAILED, 'Los datos enviados no son válidos', {
+  return res.apiError(422, API_ERROR_CODES.VALIDATION_ERROR, 'Los datos enviados no son válidos', {
     type: 'validation',
     details: [
       { field: 'email', code: 'INVALID_FORMAT', message: 'El formato del email no es válido' },
