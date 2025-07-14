@@ -78,7 +78,7 @@ npm run docker:reset
 
 # Option 2: Create baseline migration
 npm run prisma:migrate -- --name baseline
-npm run prisma:deploy
+npm run prisma:deploy:dev
 
 # Option 3: Manual sync
 npm run prisma:push
@@ -307,7 +307,7 @@ docker compose -f docker/docker-compose.yml logs -f
 # Database management
 npm run prisma:status
 npm run prisma:migrate -- --name baseline
-npm run prisma:deploy
+npm run prisma:deploy:dev
 
 # Environment management
 npm run env:dev

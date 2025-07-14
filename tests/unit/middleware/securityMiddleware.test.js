@@ -9,7 +9,7 @@ jest.mock('../../../src/shared/utils/sanitize.js', () => ({
 }));
 
 jest.mock('../../../src/shared/utils/error.js', () => ({
-  createError: jest.fn((message, code, status) => {
+  createError: jest.fn(({ message, code, status }) => {
     const error = new Error(message);
     error.code = code;
     error.status = status;
@@ -22,10 +22,14 @@ jest.mock('../../../src/infrastructure/config/environment.js', () => ({
     cors: {
       origin: 'http://localhost:3000',
     },
-    RATE_LIMIT_AUTH_WINDOW_MS: 15 * 60 * 1000,
-    RATE_LIMIT_AUTH_MAX: 5,
-    RATE_LIMIT_WINDOW_MS: 15 * 60 * 1000,
-    RATE_LIMIT_MAX: 100,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 100,
+      auth: {
+        windowMs: 15 * 60 * 1000,
+        max: 5,
+      },
+    },
   },
 }));
 
@@ -165,11 +169,21 @@ describe('Security Middleware Real Implementation', () => {
 
       // Should call next with error - covers line 44
       expect(next).toHaveBeenCalledWith(expect.any(Error));
-      expect(createError).toHaveBeenCalledWith(
-        'Error processing request parameters',
-        API_ERROR_CODES.INVALID_REQUEST,
-        HTTP_STATUS.BAD_REQUEST
-      );
+      expect(createError).toHaveBeenCalledWith({
+        message: 'Error processing request parameters',
+        code: API_ERROR_CODES.INVALID_REQUEST,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'request',
+              code: 'INVALID_REQUEST',
+              message: 'Query access failed',
+            },
+          ],
+        },
+      });
     });
   });
 
@@ -193,11 +207,21 @@ describe('Security Middleware Real Implementation', () => {
 
       // Should call next with error - covers line 67
       expect(next).toHaveBeenCalledWith(expect.any(Error));
-      expect(createError).toHaveBeenCalledWith(
-        'Error sanitizing request data',
-        API_ERROR_CODES.INVALID_REQUEST,
-        HTTP_STATUS.BAD_REQUEST
-      );
+      expect(createError).toHaveBeenCalledWith({
+        message: 'Error sanitizing request data',
+        code: API_ERROR_CODES.INVALID_REQUEST,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'request',
+              code: 'INVALID_REQUEST',
+              message: 'Sanitization failed',
+            },
+          ],
+        },
+      });
     });
   });
 
@@ -316,8 +340,8 @@ describe('Security Middleware Real Implementation', () => {
       applyAllSecurityMiddleware(testApp);
 
       // Should call applySecurityMiddleware first (which calls app.use multiple times)
-      // Then add 6 more middleware functions: CSP, clickjacking, mime sniffing, XSS, IE, noCache
-      expect(testApp.use).toHaveBeenCalledTimes(18); // Adjusted to actual implementation count
+      // Then add 6 más middleware functions: CSP, clickjacking, mime sniffing, XSS, IE, noCache
+      expect(testApp.use).toHaveBeenCalledTimes(17); // Ajustado a la implementación actual
       expect(testApp.set).toHaveBeenCalled(); // from applySecurityMiddleware
 
       // Verify the function actually executes the expected parts

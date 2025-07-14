@@ -17,7 +17,6 @@ import {
   asyncHandler,
   errorHandler,
   notFoundHandler,
-  throwError,
 } from '../../../src/infrastructure/middleware/errorHandler.js';
 import { API_ERROR_CODES } from '../../../src/shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../../src/shared/constants/httpStatus.js';
@@ -78,19 +77,19 @@ describe('errorHandler middleware', () => {
         data: null,
         status: HTTP_STATUS.CONFLICT,
         code: API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS,
-        message: 'El recurso ya existe',
+        message: 'Resource already exists',
+        requestId: 'test-123',
+        timestamp: expect.any(String),
         error: expect.objectContaining({
           type: 'database',
           details: expect.arrayContaining([
             expect.objectContaining({
               field: 'email',
               code: 'DUPLICATE_ENTRY',
-              message: 'Valor duplicado',
+              message: 'Duplicate value',
             }),
           ]),
         }),
-        timestamp: expect.any(String),
-        requestId: 'test-123',
       })
     );
   });
@@ -109,7 +108,7 @@ describe('errorHandler middleware', () => {
             expect.objectContaining({
               field: 'unknown',
               code: 'DUPLICATE_ENTRY',
-              message: 'Valor duplicado',
+              message: 'Duplicate value',
             }),
           ]),
         }),
@@ -132,14 +131,14 @@ describe('errorHandler middleware', () => {
         data: null,
         status: HTTP_STATUS.NOT_FOUND,
         code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
-        message: 'Recurso no encontrado',
+        message: 'Resource not found',
         error: expect.objectContaining({
           type: 'database',
           details: expect.arrayContaining([
             expect.objectContaining({
               field: 'resource',
               code: 'NOT_FOUND',
-              message: 'El recurso solicitado no existe',
+              message: 'The requested resource does not exist',
             }),
           ]),
         }),
@@ -163,7 +162,7 @@ describe('errorHandler middleware', () => {
         data: null,
         status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
         code: API_ERROR_CODES.UNKNOWN_ERROR,
-        message: 'Error de base de datos',
+        message: 'Database error',
         error: expect.objectContaining({
           type: 'database',
         }),
@@ -188,7 +187,7 @@ describe('errorHandler middleware', () => {
         data: null,
         status: HTTP_STATUS.UNAUTHORIZED,
         code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
-        message: 'Token de acceso inválido',
+        message: 'Invalid access token',
         timestamp: expect.any(String),
         requestId: 'test-123',
       })
@@ -210,7 +209,7 @@ describe('errorHandler middleware', () => {
         data: null,
         status: HTTP_STATUS.UNAUTHORIZED,
         code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-        message: 'Token de acceso expirado',
+        message: 'Expired access token',
         timestamp: expect.any(String),
         requestId: 'test-123',
       })
@@ -233,7 +232,7 @@ describe('errorHandler middleware', () => {
         data: null,
         status: HTTP_STATUS.UNPROCESSABLE_ENTITY,
         code: API_ERROR_CODES.VALIDATION_ERROR,
-        message: 'Los datos enviados no son válidos',
+        message: 'The submitted data is not valid',
         error: expect.objectContaining({
           type: 'validation',
           details: [{ field: 'email', message: 'Invalid email' }],
@@ -245,7 +244,11 @@ describe('errorHandler middleware', () => {
   });
 
   it('handles standard custom error created with createError', () => {
-    const err = createError('Bad input', API_ERROR_CODES.INVALID_INPUT, HTTP_STATUS.BAD_REQUEST);
+    const err = createError({
+      message: 'Bad input',
+      code: API_ERROR_CODES.INVALID_INPUT,
+      status: HTTP_STATUS.BAD_REQUEST,
+    });
 
     const { req, res } = linkReqRes(buildMockReq(), buildMockRes());
 
@@ -311,7 +314,7 @@ describe('errorHandler middleware', () => {
         data: null,
         status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
         code: API_ERROR_CODES.UNKNOWN_ERROR,
-        message: 'Error interno del servidor',
+        message: 'Internal server error',
         timestamp: expect.any(String),
         requestId: 'test-123',
       })
@@ -343,35 +346,6 @@ describe('errorHandler middleware', () => {
       expect.objectContaining({
         // When requestId is undefined, the response helper falls back to 'unknown'
         requestId: 'unknown',
-      })
-    );
-  });
-});
-
-describe('throwError function', () => {
-  it('should create and throw an error with provided parameters', () => {
-    expect(() => {
-      throwError('Test message', API_ERROR_CODES.VALIDATION_ERROR, HTTP_STATUS.BAD_REQUEST, {
-        field: 'test',
-      });
-    }).toThrow(
-      expect.objectContaining({
-        message: 'Test message',
-        code: API_ERROR_CODES.VALIDATION_ERROR,
-        status: HTTP_STATUS.BAD_REQUEST,
-        details: { field: 'test' },
-      })
-    );
-  });
-
-  it('should create and throw an error with default details', () => {
-    expect(() => {
-      throwError('Test message', API_ERROR_CODES.VALIDATION_ERROR, HTTP_STATUS.BAD_REQUEST);
-    }).toThrow(
-      expect.objectContaining({
-        message: 'Test message',
-        code: API_ERROR_CODES.VALIDATION_ERROR,
-        status: HTTP_STATUS.BAD_REQUEST,
       })
     );
   });
@@ -421,14 +395,14 @@ describe('notFoundHandler function', () => {
         data: null,
         status: HTTP_STATUS.NOT_FOUND,
         code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
-        message: 'La ruta /non-existent no existe',
+        message: 'The requested endpoint does not exist',
         error: expect.objectContaining({
           type: 'routing',
           details: expect.arrayContaining([
             expect.objectContaining({
               field: 'route',
               code: 'ROUTE_NOT_FOUND',
-              message: 'El endpoint GET /non-existent no está disponible',
+              message: 'The endpoint GET /non-existent is not available',
             }),
           ]),
         }),

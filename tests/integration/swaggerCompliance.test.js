@@ -8,11 +8,7 @@ jest.mock('../../src/application/services/AuthService.js', () => {
   };
   return {
     AuthService: jest.fn().mockImplementation(() => ({
-      register: jest.fn().mockResolvedValue({
-        user: mockUser,
-        emailSent: true,
-        emailError: null,
-      }),
+      register: jest.fn().mockResolvedValue(mockUser), // Ahora devuelve directamente el usuario creado
       login: jest.fn().mockResolvedValue({
         user: mockUser,
         accessToken: 'mock-access-token',
@@ -24,6 +20,10 @@ jest.mock('../../src/application/services/AuthService.js', () => {
 });
 
 jest.mock('../../src/application/services/UserService.js', () => {
+  const { createError } = require('../../src/shared/utils/error.js');
+  const { API_ERROR_CODES } = require('../../src/shared/constants/apiCodes.js');
+  const { HTTP_STATUS } = require('../../src/shared/constants/httpStatus.js');
+
   const mockUsers = [
     { id: 'user_1', email: 'user1@example.com', username: 'user1', role: 'user' },
     { id: 'user_2', email: 'user2@example.com', username: 'user2', role: 'admin' },
@@ -40,7 +40,25 @@ jest.mock('../../src/application/services/UserService.js', () => {
         hasPrev: false,
       }),
       getUserById: jest.fn().mockImplementation((id) => {
-        return Promise.resolve(id === 'user_1' ? mockUsers[0] : null);
+        const user = mockUsers.find((u) => u.id === id);
+        if (!user) {
+          throw createError({
+            message: 'The requested user does not exist',
+            code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+            status: HTTP_STATUS.NOT_FOUND,
+            errorDetails: {
+              type: 'business',
+              details: [
+                {
+                  field: 'user',
+                  code: 'NOT_FOUND',
+                  message: `User id ${id} not found`,
+                },
+              ],
+            },
+          });
+        }
+        return Promise.resolve(user);
       }),
     })),
   };
@@ -155,8 +173,8 @@ describe('Swagger Compliance Tests', () => {
         expect(response.body.data.user).toHaveProperty('username');
         expect(response.body.data.user).toHaveProperty('role');
 
-        // Validate Spanish message
-        expect(response.body.message).toBe('Login exitoso');
+        // Validate English message (according to official documentation)
+        expect(response.body.message).toBe('Login successful');
       });
     });
 
@@ -173,12 +191,15 @@ describe('Swagger Compliance Tests', () => {
 
         validateSuccessResponse(response, 201);
 
-        // According to Swagger, register returns data: null
-        expect(response.body.data).toBe(null);
+        // According to updated Swagger, register returns the created user
+        expect(response.body.data).toHaveProperty('id');
+        expect(response.body.data).toHaveProperty('email');
+        expect(response.body.data).toHaveProperty('username');
+        expect(response.body.data).toHaveProperty('role');
 
-        // Validate Spanish message contains verification info
-        expect(response.body.message).toContain('exitosamente');
-        expect(response.body.message).toContain('correo');
+        // Validate English message contains verification info (according to official documentation)
+        expect(response.body.message).toContain('successfully');
+        expect(response.body.message).toContain('email');
       });
     });
 
@@ -197,8 +218,8 @@ describe('Swagger Compliance Tests', () => {
         expect(response.body.data).toHaveProperty('username');
         expect(response.body.data).toHaveProperty('role');
 
-        // Validate Spanish message
-        expect(response.body.message).toBe('Usuario obtenido exitosamente');
+        // Validate English message (according to official documentation)
+        expect(response.body.message).toBe('User retrieved successfully');
       });
     });
   });
@@ -225,8 +246,8 @@ describe('Swagger Compliance Tests', () => {
         expect(response.body.meta.pagination).toHaveProperty('hasNext');
         expect(response.body.meta.pagination).toHaveProperty('hasPrev');
 
-        // Validate Spanish message
-        expect(response.body.message).toBe('Usuarios obtenidos exitosamente');
+        // Validate English message (according to official documentation)
+        expect(response.body.message).toBe('Users retrieved successfully');
       });
     });
 
@@ -245,23 +266,24 @@ describe('Swagger Compliance Tests', () => {
         expect(response.body.data).toHaveProperty('username');
         expect(response.body.data).toHaveProperty('role');
 
-        // Validate Spanish message
-        expect(response.body.message).toBe('Usuario obtenido exitosamente');
+        // Validate English message (according to official documentation)
+        expect(response.body.message).toBe('User retrieved successfully');
       });
 
       it('should return valid 404 error response according to Swagger', async () => {
         const response = await agent
           .get('/api/users/nonexistent')
           .set('Authorization', 'Bearer admin-token')
-          .set('Connection', 'close');
+          .set('Connection', 'close')
+          .expect(404);
 
         validateApiResponseStructure(response, 404);
         expect(response.body.success).toBe(false);
         expect(response.body.data).toBe(null);
         expect(response.body.code).toBe('RESOURCE_NOT_FOUND');
 
-        // Validate Spanish error message
-        expect(response.body.message).toContain('no existe');
+        // Validate English error message (according to official documentation)
+        expect(response.body.message).toBe('The requested user does not exist');
       });
     });
   });
@@ -300,7 +322,8 @@ describe('Swagger Compliance Tests', () => {
       const response = await agent
         .get('/api/users/nonexistent')
         .set('Authorization', 'Bearer admin-token')
-        .set('Connection', 'close');
+        .set('Connection', 'close')
+        .expect(404);
 
       validateApiResponseStructure(response, 404);
       expect(response.body.success).toBe(false);
@@ -314,8 +337,8 @@ describe('Swagger Compliance Tests', () => {
     });
   });
 
-  describe('Spanish Messages Validation', () => {
-    it('should return all messages in Spanish', async () => {
+  describe('English Messages Validation', () => {
+    it('should return all messages in English (according to official documentation)', async () => {
       const loginResponse = await agent
         .post('/api/auth/login')
         .send({
@@ -324,18 +347,19 @@ describe('Swagger Compliance Tests', () => {
         })
         .set('Connection', 'close');
 
-      // Success messages should be in Spanish
-      expect(loginResponse.body.message).toMatch(/exitoso/);
-      expect(loginResponse.body.message).not.toMatch(/successful|success/i);
+      // Success messages should be in English
+      expect(loginResponse.body.message).toMatch(/successful/);
+      expect(loginResponse.body.message).not.toMatch(/exitoso/i);
 
       const errorResponse = await agent
         .get('/api/users/nonexistent')
         .set('Authorization', 'Bearer admin-token')
-        .set('Connection', 'close');
+        .set('Connection', 'close')
+        .expect(404);
 
-      // Error messages should be in Spanish
-      expect(errorResponse.body.message).toMatch(/no existe/);
-      expect(errorResponse.body.message).not.toMatch(/not found|does not exist/i);
+      // Error messages should be in English
+      expect(errorResponse.body.message).toBe('The requested user does not exist');
+      expect(errorResponse.body.message).not.toMatch(/no existe/);
     });
   });
 });

@@ -2,7 +2,6 @@ import { Prisma } from '@prisma/client';
 
 import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
-import { createError } from '../../shared/utils/error.js';
 import { sanitizeResponse } from '../../shared/utils/sanitize.js';
 
 import { apiError } from './responseHelpers.js';
@@ -15,16 +14,23 @@ import { apiError } from './responseHelpers.js';
  * @param {Error} err - Error object
  * @param {import('express').Request} req - Express request
  * @param {import('express').Response} res - Express response
- * @param {import('express').NextFunction} _next - Express next function
+ * @param {import('express').NextFunction} next - Express next function
  */
-export const errorHandler = (err, req, res, _next) => {
+export const errorHandler = (err, req, res, next) => {
   // If headers already sent, delegate to default Express error handler
   if (res.headersSent) {
-    return _next(err);
+    return next(err);
   }
 
-  // Enhanced error logging with requestId
-  const errorDetails = {
+  // Log for Morgan
+  req.log = {
+    error: err.message,
+    stack: err.stack,
+    requestId: req.requestId,
+  };
+
+  // Log error details
+  console.error('Error Details:', {
     message: err.message,
     code: err.code,
     status: err.status,
@@ -36,17 +42,7 @@ export const errorHandler = (err, req, res, _next) => {
     params: req.params,
     requestId: req.requestId,
     timestamp: new Date().toISOString(),
-  };
-
-  // Log for Morgan
-  req.log = {
-    error: err.message,
-    stack: err.stack,
-    requestId: req.requestId,
-  };
-
-  // Log error details
-  console.error('Error Details:', errorDetails);
+  });
 
   // Handle JWT errors
   if (err.name === 'JsonWebTokenError') {
@@ -54,7 +50,7 @@ export const errorHandler = (err, req, res, _next) => {
       res,
       HTTP_STATUS.UNAUTHORIZED,
       API_ERROR_CODES.AUTH_TOKEN_INVALID,
-      'Token de acceso inválido'
+      'Invalid access token'
     );
   }
 
@@ -63,7 +59,7 @@ export const errorHandler = (err, req, res, _next) => {
       res,
       HTTP_STATUS.UNAUTHORIZED,
       API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-      'Token de acceso expirado'
+      'Expired access token'
     );
   }
 
@@ -73,7 +69,7 @@ export const errorHandler = (err, req, res, _next) => {
       res,
       HTTP_STATUS.UNPROCESSABLE_ENTITY,
       API_ERROR_CODES.VALIDATION_ERROR,
-      'Los datos enviados no son válidos',
+      'The submitted data is not valid',
       {
         type: 'validation',
         details: err.details,
@@ -90,14 +86,14 @@ export const errorHandler = (err, req, res, _next) => {
           res,
           HTTP_STATUS.CONFLICT,
           API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS,
-          'El recurso ya existe',
+          'Resource already exists',
           {
             type: 'database',
             details: [
               {
                 field: err.meta?.target?.[0] || 'unknown',
                 code: 'DUPLICATE_ENTRY',
-                message: 'Valor duplicado',
+                message: 'Duplicate value',
               },
             ],
           }
@@ -107,11 +103,15 @@ export const errorHandler = (err, req, res, _next) => {
           res,
           HTTP_STATUS.NOT_FOUND,
           API_ERROR_CODES.RESOURCE_NOT_FOUND,
-          'Recurso no encontrado',
+          'Resource not found',
           {
             type: 'database',
             details: [
-              { field: 'resource', code: 'NOT_FOUND', message: 'El recurso solicitado no existe' },
+              {
+                field: 'resource',
+                code: 'NOT_FOUND',
+                message: 'The requested resource does not exist',
+              },
             ],
           }
         );
@@ -120,7 +120,7 @@ export const errorHandler = (err, req, res, _next) => {
           res,
           HTTP_STATUS.INTERNAL_SERVER_ERROR,
           API_ERROR_CODES.UNKNOWN_ERROR,
-          'Error de base de datos',
+          'Database error',
           {
             type: 'database',
             ...(process.env.NODE_ENV !== 'production' && {
@@ -161,29 +161,16 @@ export const errorHandler = (err, req, res, _next) => {
     res,
     HTTP_STATUS.INTERNAL_SERVER_ERROR,
     API_ERROR_CODES.UNKNOWN_ERROR,
-    'Error interno del servidor',
+    'Internal server error',
     {
       type: 'server',
       ...(process.env.NODE_ENV !== 'production' && {
         details: [
-          { field: 'server', code: 'UNEXPECTED_ERROR', message: 'Se recibió un objeto no-Error' },
+          { field: 'server', code: 'UNEXPECTED_ERROR', message: 'Non-Error object received' },
         ],
       }),
     }
   );
-};
-
-/**
- * Helper function to create and throw known errors
- * This makes error creation consistent across the application
- * @param {string} message - The error message
- * @param {string} code - The error code
- * @param {number} status - The HTTP status code
- * @param {object} details - The error details
- */
-export const throwError = (message, code, status, details = null) => {
-  const error = createError({ message, code, status, details });
-  throw error;
 };
 
 /**
@@ -218,14 +205,14 @@ export const notFoundHandler = (req, res) => {
     res,
     HTTP_STATUS.NOT_FOUND,
     API_ERROR_CODES.RESOURCE_NOT_FOUND,
-    `La ruta ${req.originalUrl} no existe`,
+    'The requested endpoint does not exist',
     {
       type: 'routing',
       details: [
         {
           field: 'route',
           code: 'ROUTE_NOT_FOUND',
-          message: `El endpoint ${req.method} ${req.originalUrl} no está disponible`,
+          message: `The endpoint ${req.method} ${req.originalUrl} is not available`,
         },
       ],
     }

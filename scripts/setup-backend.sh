@@ -201,7 +201,7 @@ apply_migrations() {
         exit 3
     fi
 
-if npm run prisma:deploy; then
+if npm run prisma:deploy:dev; then
         print_status "Database migrations applied successfully"
     else
         print_warning "Failed to apply migrations"

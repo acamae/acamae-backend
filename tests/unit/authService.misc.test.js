@@ -81,12 +81,14 @@ describe('AuthService.verifyEmail', () => {
       isVerified: false,
     });
 
+    const verifiedUser = { ...user, isVerified: true };
+
     userRepo.findByVerificationToken.mockResolvedValue(user);
-    userRepo.setVerified.mockResolvedValue(user);
+    userRepo.setVerified.mockResolvedValue(verifiedUser);
 
     const result = await service.verifyEmail(validToken);
 
-    expect(result.status).toBe('SUCCESS');
+    expect(result).toEqual(verifiedUser);
     expect(userRepo.setVerified).toHaveBeenCalledWith(user.id, true);
   });
 });

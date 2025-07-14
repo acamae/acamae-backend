@@ -106,56 +106,147 @@ export class User {
    */
   validate() {
     if (!this.username) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.MISSING_REQUIRED_FIELD],
-        API_ERROR_CODES.MISSING_REQUIRED_FIELD
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.MISSING_REQUIRED_FIELD],
+        code: API_ERROR_CODES.MISSING_REQUIRED_FIELD,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'username',
+              code: 'REQUIRED',
+              message: 'Username is required',
+            },
+          ],
+        },
+      });
     }
 
     if (this.username.length < MIN_USERNAME_LENGTH || this.username.length > MAX_USERNAME_LENGTH) {
-      throw createError(
-        `Username must be between ${MIN_USERNAME_LENGTH} and ${MAX_USERNAME_LENGTH} characters`,
-        API_ERROR_CODES.VALIDATION_ERROR
-      );
+      throw createError({
+        message: `Username must be between ${MIN_USERNAME_LENGTH} and ${MAX_USERNAME_LENGTH} characters`,
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'username',
+              code: 'INVALID_FORMAT',
+              message: `Username must be between ${MIN_USERNAME_LENGTH} and ${MAX_USERNAME_LENGTH} characters`,
+            },
+          ],
+        },
+      });
     }
 
     if (!this.email) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.MISSING_REQUIRED_FIELD],
-        API_ERROR_CODES.MISSING_REQUIRED_FIELD
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.MISSING_REQUIRED_FIELD],
+        code: API_ERROR_CODES.MISSING_REQUIRED_FIELD,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'email',
+              code: 'REQUIRED',
+              message: 'Email is required',
+            },
+          ],
+        },
+      });
     }
 
     if (!REGEX.EMAIL.test(this.email)) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_FORMAT],
-        API_ERROR_CODES.INVALID_FORMAT
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.INVALID_FORMAT],
+        code: API_ERROR_CODES.INVALID_FORMAT,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'email',
+              code: 'INVALID_FORMAT',
+              message: 'Email is not valid',
+            },
+          ],
+        },
+      });
     }
 
     if (this.email.length > MAX_EMAIL_LENGTH) {
-      throw createError(
-        `Email must not exceed ${MAX_EMAIL_LENGTH} characters`,
-        API_ERROR_CODES.VALIDATION_ERROR
-      );
+      throw createError({
+        message: `Email must not exceed ${MAX_EMAIL_LENGTH} characters`,
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'email',
+              code: 'INVALID_FORMAT',
+              message: `Email must not exceed ${MAX_EMAIL_LENGTH} characters`,
+            },
+          ],
+        },
+      });
     }
 
     if (this.firstName && this.firstName.length > MAX_NAME_LENGTH) {
-      throw createError(
-        `First name must not exceed ${MAX_NAME_LENGTH} characters`,
-        API_ERROR_CODES.VALIDATION_ERROR
-      );
+      throw createError({
+        message: `First name must not exceed ${MAX_NAME_LENGTH} characters`,
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'firstName',
+              code: 'INVALID_FORMAT',
+              message: `First name must not exceed ${MAX_NAME_LENGTH} characters`,
+            },
+          ],
+        },
+      });
     }
 
     if (this.lastName && this.lastName.length > MAX_NAME_LENGTH) {
-      throw createError(
-        `Last name must not exceed ${MAX_NAME_LENGTH} characters`,
-        API_ERROR_CODES.VALIDATION_ERROR
-      );
+      throw createError({
+        message: `Last name must not exceed ${MAX_NAME_LENGTH} characters`,
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'lastName',
+              code: 'INVALID_FORMAT',
+              message: `Last name must not exceed ${MAX_NAME_LENGTH} characters`,
+            },
+          ],
+        },
+      });
     }
 
     if (!Object.values(USER_ROLES).includes(this.role)) {
-      throw createError(ERROR_MESSAGES[API_ERROR_CODES.INVALID_ROLE], API_ERROR_CODES.INVALID_ROLE);
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.INVALID_ROLE],
+        code: API_ERROR_CODES.INVALID_ROLE,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'role',
+              code: 'INVALID_FORMAT',
+              message: 'Role is not valid',
+            },
+          ],
+        },
+      });
     }
   }
 

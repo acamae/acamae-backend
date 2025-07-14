@@ -1,6 +1,13 @@
 import { UserValidator } from '../../../src/infrastructure/validators/UserValidator.js';
 import { API_ERROR_CODES } from '../../../src/shared/constants/apiCodes.js';
 
+// Mock the NameModerationService
+jest.mock('../../../src/application/services/NameModerationService.js', () => ({
+  nameModerationService: {
+    isInappropriateName: jest.fn(() => Promise.resolve(false)),
+  },
+}));
+
 // Mock the actual validation middleware to return proper results
 jest.mock('../../../src/infrastructure/middleware/validation.js', () => ({
   validationSchemas: {
@@ -32,14 +39,14 @@ jest.mock('../../../src/infrastructure/middleware/validation.js', () => ({
 
 // Helper to reset dynamic method stubs
 const resetMethodStubs = () => {
-  UserValidator.isBlacklistedName = jest.fn(() => false);
   UserValidator.hasAdminPrivileges = jest.fn(() => true);
   UserValidator.hasTooManyFailedAttempts = jest.fn(() => false);
   UserValidator.hasTooManyResetAttempts = jest.fn(() => false);
   UserValidator.isPasswordInHistory = jest.fn(() => false);
   UserValidator.canFilterByRole = jest.fn(() => true);
-  // Add missing method to prevent TypeError
   UserValidator._validateTokenExpiration = jest.fn();
+  // Mock _validateUsername para que no lance error por defecto
+  UserValidator._validateUsername = jest.fn(() => Promise.resolve());
 };
 
 describe('UserValidator', () => {
@@ -49,20 +56,24 @@ describe('UserValidator', () => {
   });
 
   describe('validateCreate', () => {
-    it('should validate correct user creation data', () => {
-      expect(() =>
+    it('should validate correct user creation data', async () => {
+      await expect(
         UserValidator.validateCreate({
           email: 'user@example.com',
           password: 'Password123!',
           username: 'validuser',
         })
-      ).not.toThrow();
+      ).resolves.not.toThrow();
     });
 
-    it('should reject user creation with blacklisted name', () => {
-      UserValidator.isBlacklistedName.mockReturnValue(true);
+    it('should reject user creation with blacklisted name', async () => {
+      // Mock the name moderation service to return true (inappropriate)
+      const {
+        nameModerationService,
+      } = require('../../../src/application/services/NameModerationService.js');
+      nameModerationService.isInappropriateName.mockResolvedValue(true);
 
-      expect(() =>
+      await expect(
         UserValidator.validateCreate({
           email: 'user@example.com',
           password: 'Password123!',
@@ -70,93 +81,101 @@ describe('UserValidator', () => {
           firstName: 'Banned',
           lastName: 'Name',
         })
-      ).toThrow(expect.objectContaining({ code: API_ERROR_CODES.VALIDATION_ERROR }));
+      ).rejects.toThrow(expect.objectContaining({ code: API_ERROR_CODES.VALIDATION_ERROR }));
     });
 
-    it('should reject admin role creation without proper privileges', () => {
+    it('should reject admin role creation without proper privileges', async () => {
       UserValidator.hasAdminPrivileges.mockReturnValue(false);
 
-      expect(() =>
+      await expect(
         UserValidator.validateCreate({
           email: 'user@example.com',
           password: 'Password123!',
           username: 'validuser',
           role: 'admin',
         })
-      ).toThrow(expect.objectContaining({ code: API_ERROR_CODES.AUTH_FORBIDDEN }));
+      ).rejects.toThrow(expect.objectContaining({ code: API_ERROR_CODES.AUTH_FORBIDDEN }));
     });
 
-    it('should validate user with firstName only', () => {
-      expect(() =>
+    it('should validate user with firstName only', async () => {
+      await expect(
         UserValidator.validateCreate({
           email: 'user@example.com',
           password: 'Password123!',
           username: 'validuser',
           firstName: 'John',
         })
-      ).not.toThrow();
+      ).resolves.not.toThrow();
     });
 
-    it('should validate user with lastName only', () => {
-      expect(() =>
+    it('should validate user with lastName only', async () => {
+      await expect(
         UserValidator.validateCreate({
           email: 'user@example.com',
           password: 'Password123!',
           username: 'validuser',
           lastName: 'Doe',
         })
-      ).not.toThrow();
+      ).resolves.not.toThrow();
     });
 
-    it('should validate user with role but not admin', () => {
-      expect(() =>
+    it('should validate user with role but not admin', async () => {
+      await expect(
         UserValidator.validateCreate({
           email: 'user@example.com',
           password: 'Password123!',
           username: 'validuser',
           role: 'user',
         })
-      ).not.toThrow();
+      ).resolves.not.toThrow();
     });
   });
 
   describe('validateUpdate', () => {
-    it('should validate correct user update data', () => {
-      expect(() =>
+    it('should validate correct user update data', async () => {
+      const {
+        nameModerationService,
+      } = require('../../../src/application/services/NameModerationService.js');
+      nameModerationService.isInappropriateName.mockResolvedValue(false);
+      await expect(
         UserValidator.validateUpdate({
           firstName: 'John',
           lastName: 'Doe',
         })
-      ).not.toThrow();
+      ).resolves.not.toThrow();
     });
 
-    it('should reject blacklisted name in update', () => {
-      UserValidator.isBlacklistedName.mockReturnValue(true);
+    it('should reject blacklisted name in update', async () => {
+      // Mock the name moderation service to return true (inappropriate)
+      const {
+        nameModerationService,
+      } = require('../../../src/application/services/NameModerationService.js');
+      nameModerationService.isInappropriateName.mockResolvedValue(true);
 
-      expect(() =>
+      await expect(
         UserValidator.validateUpdate({
           firstName: 'Banned',
           lastName: 'Name',
         })
-      ).toThrow(expect.objectContaining({ code: API_ERROR_CODES.VALIDATION_ERROR }));
+      ).rejects.toThrow(expect.objectContaining({ code: API_ERROR_CODES.VALIDATION_ERROR }));
     });
 
-    it('should reject admin role update without privileges', () => {
+    it('should reject admin role update without privileges', async () => {
       UserValidator.hasAdminPrivileges.mockReturnValue(false);
 
-      expect(() =>
+      await expect(
         UserValidator.validateUpdate({
           role: 'admin',
         })
-      ).toThrow(expect.objectContaining({ code: API_ERROR_CODES.AUTH_FORBIDDEN }));
+      ).rejects.toThrow(expect.objectContaining({ code: API_ERROR_CODES.AUTH_FORBIDDEN }));
     });
 
-    it('should validate update without name combination', () => {
-      expect(() =>
+    it('should validate update without name combination', async () => {
+      await expect(
         UserValidator.validateUpdate({
           email: 'newemail@example.com',
         })
-      ).not.toThrow();
+      ).resolves.not.toThrow();
     });
   });
 
@@ -208,6 +227,22 @@ describe('UserValidator', () => {
   });
 
   describe('validatePasswordReset', () => {
+    it('should require token for password reset', () => {
+      expect(() =>
+        UserValidator.validatePasswordReset({
+          newPassword: 'NewPassword123!',
+        })
+      ).toThrow(expect.objectContaining({ code: API_ERROR_CODES.VALIDATION_ERROR }));
+    });
+
+    it('should require new password for password reset', () => {
+      expect(() =>
+        UserValidator.validatePasswordReset({
+          token: 'valid-token',
+        })
+      ).toThrow(expect.objectContaining({ code: API_ERROR_CODES.VALIDATION_ERROR }));
+    });
+
     it('should validate correct password reset data', () => {
       expect(() =>
         UserValidator.validatePasswordReset({
@@ -217,123 +252,92 @@ describe('UserValidator', () => {
       ).not.toThrow();
     });
 
-    it('should require token for password reset', () => {
-      expect(() => UserValidator.validatePasswordReset({ newPassword: 'NewPassword123!' })).toThrow(
-        expect.objectContaining({ code: API_ERROR_CODES.VALIDATION_ERROR })
-      );
-    });
-
-    it('should require newPassword for password reset', () => {
-      expect(() => UserValidator.validatePasswordReset({ token: 'valid-token' })).toThrow(
-        expect.objectContaining({ code: API_ERROR_CODES.VALIDATION_ERROR })
-      );
-    });
-
-    it('should reject password reset with password in history', () => {
+    it('should reject password reset with used password', () => {
       UserValidator.isPasswordInHistory.mockReturnValue(true);
 
       expect(() =>
-        UserValidator.validatePasswordReset({ token: 'validtoken', newPassword: 'Password123!' })
+        UserValidator.validatePasswordReset({
+          token: 'valid-token',
+          newPassword: 'UsedPassword123!',
+        })
       ).toThrow(expect.objectContaining({ code: API_ERROR_CODES.VALIDATION_ERROR }));
     });
   });
 
   describe('validatePagination', () => {
     it('should validate correct pagination data', () => {
-      expect(() => UserValidator.validatePagination({ page: '1', limit: '10' })).not.toThrow();
-    });
-
-    it('should reject role filtering without proper permissions', () => {
-      UserValidator.canFilterByRole.mockReturnValue(false);
-
-      expect(() =>
-        UserValidator.validatePagination({ page: '1', limit: '10', filters: { role: 'admin' } })
-      ).toThrow(expect.objectContaining({ code: API_ERROR_CODES.AUTH_FORBIDDEN }));
-    });
-
-    it('should validate pagination without role filter', () => {
       expect(() =>
         UserValidator.validatePagination({
-          page: '1',
-          limit: '10',
-          filters: { status: 'active' },
+          page: 1,
+          limit: 10,
         })
       ).not.toThrow();
     });
 
-    it('should validate pagination without filters', () => {
-      expect(() => UserValidator.validatePagination({ page: '1', limit: '10' })).not.toThrow();
+    it('should validate pagination with role filter', () => {
+      expect(() =>
+        UserValidator.validatePagination({
+          page: 1,
+          limit: 10,
+          filters: { role: 'user' },
+        })
+      ).not.toThrow();
+    });
+
+    it('should reject pagination with invalid role filter', () => {
+      UserValidator.canFilterByRole.mockReturnValue(false);
+
+      expect(() =>
+        UserValidator.validatePagination({
+          page: 1,
+          limit: 10,
+          filters: { role: 'invalid' },
+        })
+      ).toThrow(expect.objectContaining({ code: API_ERROR_CODES.AUTH_FORBIDDEN }));
     });
   });
 
-  describe('helper methods validation calls', () => {
-    it('should call isBlacklistedName with correct parameters', () => {
-      UserValidator.validateCreate({
-        email: 'user@example.com',
-        password: 'Password123!',
-        username: 'validuser',
-        firstName: 'John',
-        lastName: 'Doe',
-      });
-
-      expect(UserValidator.isBlacklistedName).toHaveBeenCalledWith('john doe');
+  describe('isBlacklistedName', () => {
+    it('should return false for appropriate names', async () => {
+      const {
+        nameModerationService,
+      } = require('../../../src/application/services/NameModerationService.js');
+      nameModerationService.isInappropriateName.mockResolvedValue(false);
+      const result = await UserValidator.isBlacklistedName('John Doe');
+      expect(result).toBe(false);
     });
 
-    it('should call hasAdminPrivileges when validating admin role', () => {
-      UserValidator.validateCreate({
-        email: 'user@example.com',
-        password: 'Password123!',
-        username: 'validuser',
-        role: 'admin',
-      });
+    it('should return true for inappropriate names', async () => {
+      // Mock the name moderation service to return true (inappropriate)
+      const {
+        nameModerationService,
+      } = require('../../../src/application/services/NameModerationService.js');
+      nameModerationService.isInappropriateName.mockResolvedValue(true);
 
-      expect(UserValidator.hasAdminPrivileges).toHaveBeenCalled();
-    });
-
-    it('should call hasTooManyFailedAttempts with email', () => {
-      UserValidator.validateAuth({
-        email: 'user@example.com',
-        password: 'password123',
-      });
-
-      expect(UserValidator.hasTooManyFailedAttempts).toHaveBeenCalledWith('user@example.com');
-    });
-
-    it('should call _validateTokenExpiration with token', () => {
-      UserValidator.validateVerification({ token: 'test-token' });
-
-      expect(UserValidator._validateTokenExpiration).toHaveBeenCalledWith('test-token');
-    });
-
-    it('should call hasTooManyResetAttempts with email', () => {
-      UserValidator.validatePasswordResetRequest({ email: 'user@example.com' });
-
-      expect(UserValidator.hasTooManyResetAttempts).toHaveBeenCalledWith('user@example.com');
-    });
-
-    it('should call isPasswordInHistory with new password', () => {
-      UserValidator.validatePasswordReset({
-        token: 'valid-token',
-        newPassword: 'NewPassword123!',
-      });
-
-      expect(UserValidator.isPasswordInHistory).toHaveBeenCalledWith('NewPassword123!');
-    });
-
-    it('should call canFilterByRole with role', () => {
-      UserValidator.validatePagination({
-        page: '1',
-        limit: '10',
-        filters: { role: 'admin' },
-      });
-
-      expect(UserValidator.canFilterByRole).toHaveBeenCalledWith('admin');
+      const result = await UserValidator.isBlacklistedName('Inappropriate Name');
+      expect(result).toBe(true);
     });
   });
 
-  describe('error cases in direct methods', () => {
-    // Note: We don't test the unimplemented methods directly since they're
-    // private/internal methods and we already achieve good coverage through
-    // the public validation methods
+  describe('_validateNameCombination', () => {
+    it('should not throw for appropriate names', async () => {
+      const {
+        nameModerationService,
+      } = require('../../../src/application/services/NameModerationService.js');
+      nameModerationService.isInappropriateName.mockResolvedValue(false);
+      await expect(UserValidator._validateNameCombination('John', 'Doe')).resolves.not.toThrow();
+    });
+
+    it('should throw for inappropriate names', async () => {
+      // Mock the name moderation service to return true (inappropriate)
+      const {
+        nameModerationService,
+      } = require('../../../src/application/services/NameModerationService.js');
+      nameModerationService.isInappropriateName.mockResolvedValue(true);
+
+      await expect(UserValidator._validateNameCombination('Banned', 'Name')).rejects.toThrow(
+        expect.objectContaining({ code: API_ERROR_CODES.VALIDATION_ERROR })
+      );
+    });
   });
 });

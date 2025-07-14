@@ -352,11 +352,11 @@ apply_initial_migrations() {
 
     # Apply migrations
     print_info "Applying database migrations..."
-    if npm run prisma:deploy; then
+    if npm run prisma:deploy:dev; then
         print_status "Database migrations applied successfully"
     else
         print_warning "Could not apply migrations automatically"
-        print_info "Try manually: npm run prisma:deploy"
+        print_info "Try manually: npm run prisma:deploy:dev"
         return 1
     fi
 

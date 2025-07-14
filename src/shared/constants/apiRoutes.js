@@ -9,7 +9,7 @@ export const API_ROUTES = {
     REFRESH_TOKEN: '/api/auth/refresh-token',
     LOGOUT: '/api/auth/logout',
     VERIFY_EMAIL: '/api/auth/verify-email/:token',
-    RESEND_VERIFICATION: '/api/auth/resend-verification',
+    VERIFY_EMAIL_RESEND: '/api/auth/verify-email-resend',
     FORGOT_PASSWORD: '/api/auth/forgot-password',
     RESET_PASSWORD: '/api/auth/reset-password/:token',
     ME: '/api/auth/me',

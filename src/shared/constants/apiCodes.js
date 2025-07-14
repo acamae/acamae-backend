@@ -103,7 +103,7 @@ export const API_ERROR_CODES = {
 };
 
 /**
- * Códigos de éxito de la API
+ * API success codes
  */
 export const API_SUCCESS_CODES = {
   SUCCESS: 'SUCCESS',

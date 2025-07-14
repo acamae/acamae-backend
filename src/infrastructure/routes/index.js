@@ -4,20 +4,28 @@ import { rateLimit } from 'express-rate-limit';
 import { AuthService } from '../../application/services/AuthService.js';
 import { TeamService } from '../../application/services/TeamService.js';
 import { UserService } from '../../application/services/UserService.js';
+import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
 import { API_ROUTES } from '../../shared/constants/apiRoutes.js';
+import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { config } from '../config/environment.js';
 import { AuthController } from '../controllers/AuthController.js';
 import { TeamController } from '../controllers/TeamController.js';
 import { UserController } from '../controllers/UserController.js';
 import { authenticate as authMiddleware, authorize } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { timeoutMiddleware } from '../middleware/index.js';
 import {
+  forgotPasswordValidation,
+  idValidation,
   loginValidation,
   logoutValidation,
+  paginationValidation,
+  refreshTokenValidation,
   registerValidation,
+  resendVerificationValidation,
+  resetPasswordValidation,
   teamValidation,
   updateUserValidation,
-  validateRequest,
   verifyEmailValidation,
 } from '../middleware/validation.js';
 import { PrismaSessionTokenRepository } from '../repositories/PrismaSessionTokenRepository.js';
@@ -26,16 +34,16 @@ import { PrismaUserRepository } from '../repositories/PrismaUserRepository.js';
 
 const router = Router();
 
-// --- INYECCIÓN DE DEPENDENCIAS (PATRÓN RECOMENDADO) ---
+// --- Dependency Injection ---
 // 1. Instanciar el repositorio de infraestructura (implementa la interfaz de dominio)
 const userRepository = new PrismaUserRepository();
 // 2. Instanciar el servicio de aplicación, inyectando el repositorio
 const userService = new UserService(userRepository);
 // 3. Instanciar el controlador, inyectando el servicio (y futuros validadores/DTOs si aplica)
 const userController = new UserController(userService);
-// --- FIN INYECCIÓN DE DEPENDENCIAS ---
+// --- END Dependency Injection ---
 
-// Inicialización de controladores
+// Initialize controllers
 const sessionTokenRepository = new PrismaSessionTokenRepository();
 const authService = new AuthService(userRepository, sessionTokenRepository);
 const authController = new AuthController(authService);
@@ -43,8 +51,30 @@ const teamRepository = new PrismaTeamRepository();
 const teamService = new TeamService(teamRepository, userRepository);
 const teamController = new TeamController(teamService);
 
-// Rate limiter específico para verificación de email
-const verifyEmailLimiter = rateLimit({ windowMs: 60_000, max: 5 });
+// Rate limiter para endpoints críticos de autenticación
+const authLimiter = rateLimit({
+  windowMs: config.rateLimit.auth.windowMs,
+  max: config.rateLimit.auth.max,
+  handler: (req, res) => {
+    return res.apiError(
+      429,
+      API_ERROR_CODES.AUTH_RATE_LIMIT,
+      'Too many authentication attempts. Please try again later.',
+      {
+        type: 'business',
+        details: [
+          {
+            field: 'auth',
+            code: API_ERROR_CODES.AUTH_RATE_LIMIT,
+            message: 'Too many authentication attempts. Please try again later.',
+          },
+        ],
+      }
+    );
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // API root route
 router.get(
@@ -90,7 +120,7 @@ router.get(
   })
 );
 
-// API dev route (only in development)
+// API dev route (only in development environment)
 if (config.env === 'development') {
   router.get(
     `${API_ROUTES.BASE}/dev`,
@@ -143,6 +173,36 @@ if (config.env === 'development') {
       });
     })
   );
+
+  // Development endpoint to reset rate limit (only in development)
+  router.post(
+    `${API_ROUTES.BASE}/dev/reset-rate-limit`,
+    asyncHandler(async (req, res) => {
+      // This endpoint allows developers to reset their own rate limit
+      const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+
+      // Simple approach: return success and let the developer know to restart
+      return res.status(HTTP_STATUS.OK).apiSuccess(
+        {
+          message: 'Rate limit reset requested',
+          ip: clientIp,
+          timestamp: new Date().toISOString(),
+          instructions: [
+            '1. Use npm run dev:rate-limit:reset to reset configuration',
+            '2. Use npm run docker:restart to apply changes',
+            '3. Or wait for the current window to expire (1 minute)',
+          ],
+          currentConfig: {
+            authWindowMs: config.rateLimit.auth.windowMs,
+            authMax: config.rateLimit.auth.max,
+            generalWindowMs: config.rateLimit.windowMs,
+            generalMax: config.rateLimit.max,
+          },
+        },
+        'Rate limit reset instructions for development'
+      );
+    })
+  );
 }
 
 // Health check route
@@ -174,12 +234,12 @@ router.get(
       },
     };
 
-    // Verificar conexión a base de datos
+    // Check database connection
     try {
       const { PrismaClient } = await import('@prisma/client');
       const prisma = new PrismaClient();
 
-      // Test de conexión simple
+      // Simple connection test
       await prisma.$queryRaw`SELECT 1`;
       await prisma.$disconnect();
 
@@ -191,7 +251,7 @@ router.get(
       healthCheck.message = 'Servidor con problemas de conectividad';
     }
 
-    // Determinar status general
+    // Determine overall status
     const allChecksHealthy = Object.values(healthCheck.data.checks).every(
       (check) => check.status === 'healthy'
     );
@@ -208,42 +268,71 @@ router.get(
 // Authentication routes
 router.post(
   API_ROUTES.AUTH.LOGIN,
+  authLimiter,
+  timeoutMiddleware(15000), // 15 second timeout for login
   loginValidation,
   asyncHandler(authController.login.bind(authController))
 );
 router.post(
   API_ROUTES.AUTH.REGISTER,
+  authLimiter,
+  timeoutMiddleware(30000), // 30 second timeout for registration
   registerValidation,
   asyncHandler(authController.register.bind(authController))
 );
 router.post(
   API_ROUTES.AUTH.REFRESH_TOKEN,
-  validateRequest,
+  timeoutMiddleware(10000), // 10 second timeout for token refresh
+  refreshTokenValidation,
   asyncHandler(authController.refreshToken.bind(authController))
 );
 router.post(
   API_ROUTES.AUTH.LOGOUT,
+  timeoutMiddleware(5000), // 5 second timeout for logout
   logoutValidation,
   asyncHandler(authController.logout.bind(authController))
 );
 router.post(
   API_ROUTES.AUTH.VERIFY_EMAIL,
+  authLimiter,
+  timeoutMiddleware(10000), // 10 second timeout for email verification
   verifyEmailValidation,
   asyncHandler(authController.verifyEmail.bind(authController))
 );
 router.post(
-  API_ROUTES.AUTH.RESEND_VERIFICATION,
-  validateRequest,
+  API_ROUTES.AUTH.VERIFY_EMAIL_RESEND,
+  authLimiter,
+  timeoutMiddleware(20000), // 20 second timeout for resend (email sending can take time)
+  resendVerificationValidation,
   asyncHandler(authController.resendVerification.bind(authController))
+);
+router.get(
+  '/api/auth/verify-email-sent',
+  asyncHandler(authController.verifyEmailSent.bind(authController))
+);
+router.get(
+  '/api/auth/verify-email-success',
+  asyncHandler(authController.verifyEmailSuccess.bind(authController))
+);
+router.get(
+  '/api/auth/verify-email-expired',
+  asyncHandler(authController.verifyEmailExpired.bind(authController))
+);
+router.get(
+  '/api/auth/verify-email-already-verified',
+  asyncHandler(authController.verifyEmailAlreadyVerified.bind(authController))
 );
 router.post(
   API_ROUTES.AUTH.FORGOT_PASSWORD,
-  validateRequest,
+  authLimiter,
+  timeoutMiddleware(10000),
+  forgotPasswordValidation,
   asyncHandler(authController.forgotPassword.bind(authController))
 );
 router.post(
   API_ROUTES.AUTH.RESET_PASSWORD,
-  validateRequest,
+  authLimiter,
+  resetPasswordValidation,
   asyncHandler(authController.resetPassword.bind(authController))
 );
 router.get(
@@ -313,7 +402,7 @@ router.delete(
   asyncHandler(teamController.deleteTeam.bind(teamController))
 );
 
-// TODO: Fix admin routes - commented out temporarily to run compliance tests
+// TODO: Fix admin routes - commented out temporarily to run compliance tests (TODO: Fix admin routes)
 // router.get(
 //   API_ROUTES.ADMIN.STATS,
 //   authMiddleware,

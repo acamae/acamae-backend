@@ -473,7 +473,7 @@ npm run env:test
 npm run docker:up
 
 # 3. Apply migrations (if any)
-npm run prisma:deploy
+npm run prisma:deploy:dev
 ```
 
 ### **For database changes:**
@@ -487,7 +487,7 @@ npm run db:backup
 npm run prisma:migrate -- --name descriptive_name
 
 # 4. Apply migration
-npm run prisma:deploy
+npm run prisma:deploy:dev
 ```
 
 ### **For emergency rollback:**

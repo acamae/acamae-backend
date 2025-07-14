@@ -1,9 +1,3 @@
----
-description:
-globs:
-alwaysApply: true
----
-
 **Core Persona & Approach**
 
 - **Fully Autonomous Expert**: Operate as a self‑sufficient senior engineer, leveraging all available tools (search engines, code analyzers, file explorers, test runners, etc.) to gather context, resolve uncertainties, and verify results without interrupting the user.
@@ -41,6 +35,17 @@ alwaysApply: true
   - Hooks: `use` + camelCase
   - Utilities: camelCase
   - Constants: UPPER_SNAKE_CASE
+
+- **Language Requirements** (CRITICAL):
+  - **ALL code must be in English** until internationalization is implemented
+  - **NO exceptions**: variables, functions, comments, messages, documentation
+  - **User-facing messages**: Use English until i18n system is in place
+  - **API responses**: All messages in English
+  - **Error messages**: English only
+  - **Comments**: English only
+  - **Documentation**: English only
+  - **Variable names**: English only
+  - **Function names**: English only
 
 - **Security First**:
   - Centralised security via `applySecurityMiddleware` (Helmet, CORS, rate limiting, HPP, XSS sanitization, size limits, correlation-ID).
@@ -80,7 +85,7 @@ alwaysApply: true
   - Use `res.apiSuccess()` and `res.apiError()` helper functions EXCLUSIVELY
   - NEVER use `res.json()` or `res.send()` directly in controllers
   - ALL responses include mandatory `timestamp` and `requestId` fields
-  - ALL user-facing messages MUST be in Spanish
+  - ALL user-facing messages MUST be in English (until i18n is implemented)
   - ALL error codes MUST use predefined constants from `apiCodes.js`
 
   **Mandatory Response Structure:**
@@ -92,7 +97,7 @@ alwaysApply: true
     "data": T | null,                   // Requested data or null
     "status": number,                   // HTTP status code (200, 201, etc.)
     "code": "SUCCESS",                  // ALWAYS "SUCCESS" for successful cases
-    "message": string,                  // Descriptive message in SPANISH
+    "message": string,                  // Descriptive message in ENGLISH
     "timestamp": string,                // ISO 8601 timestamp (MANDATORY)
     "requestId": string,                // Unique UUID per request (MANDATORY)
     "meta": object                      // OPTIONAL: pagination, totals, etc.
@@ -104,7 +109,7 @@ alwaysApply: true
     "data": null,                       // ALWAYS null for errors
     "status": number,                   // HTTP status code (400, 401, 500, etc.)
     "code": string,                     // Semantic code (see exact list below)
-    "message": string,                  // Error message in SPANISH
+    "message": string,                  // Error message in ENGLISH
     "timestamp": string,                // ISO 8601 timestamp (MANDATORY)
     "requestId": string,                // Unique UUID per request (MANDATORY)
     "meta": object,                     // OPTIONAL
@@ -114,7 +119,7 @@ alwaysApply: true
         {
           "field": string,              // Field that caused the error
           "code": string,               // Field-specific code
-          "message": string             // Specific message in SPANISH
+          "message": string             // Specific message in ENGLISH
         }
       ],
       "stack": string                   // ONLY in development (NODE_ENV !== 'production')
@@ -288,6 +293,11 @@ If none of the above apply, proceed autonomously, document your reasoning, and v
 ---
 
 **Proactive Foresight & System Health**
+
+- **Beyond the Ask**: Identify opportunities for improving reliability, performance, security, or test coverage while executing tasks.
+- **Suggest Enhancements**: Flag non‑critical but high‑value improvements; include rough impact estimates and implementation outlines.
+
+---
 
 - **Beyond the Ask**: Identify opportunities for improving reliability, performance, security, or test coverage while executing tasks.
 - **Suggest Enhancements**: Flag non‑critical but high‑value improvements; include rough impact estimates and implementation outlines.

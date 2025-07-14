@@ -1,52 +1,53 @@
 import express from 'express';
-import request from 'supertest';
 
-jest.mock('winston', () => {
-  const logs = [];
-  const mockWinston = {
-    createLogger: () => ({
-      info: (...args) => logs.push({ level: 'info', args }),
-      error: (...args) => logs.push({ level: 'error', args }),
-      add: () => {},
-      log: () => {},
-    }),
-    format: {
-      combine: () => {},
-      timestamp: () => {},
-      errors: () => {},
-      json: () => {},
-      colorize: () => {},
-      simple: () => {},
-    },
-    transports: { Console: function () {}, File: function () {} },
-  };
+import { applyLoggingMiddleware } from '../../../src/infrastructure/middleware/logging.js';
 
-  // Expose both default and named exports to satisfy ESM/CJS interop
-  return {
-    __esModule: true,
-    ...mockWinston,
-    default: mockWinston,
-  };
-});
+describe('Logging Middleware', () => {
+  let app;
 
-import { errorLogger, requestLogger } from '../../../src/infrastructure/middleware/logging.js';
-
-const buildApp = () => {
-  const app = express();
-  app.use(requestLogger);
-  app.get('/ok', (_req, res) => res.send('ok'));
-  app.get('/fail', () => {
-    throw new Error('boom');
+  beforeEach(() => {
+    app = express();
   });
-  app.use(errorLogger);
-  return app;
-};
 
-describe('logging middlewares', () => {
-  const app = buildApp();
+  it('should apply logging middleware without errors', () => {
+    expect(() => {
+      applyLoggingMiddleware(app);
+    }).not.toThrow();
+  });
 
-  it('logs request and error', async () => {
-    await request(app).get('/ok').expect(200);
-    await request(app).get('/fail').expect(500);
+  it('should add morgan logging to the app', () => {
+    const originalUse = app.use;
+    const usedMiddleware = [];
+
+    app.use = (middleware) => {
+      usedMiddleware.push(middleware);
+      return app;
+    };
+
+    applyLoggingMiddleware(app);
+
+    expect(usedMiddleware.length).toBeGreaterThan(0);
+    app.use = originalUse;
+  });
+
+  it('should handle request timing correctly', () => {
+    applyLoggingMiddleware(app);
+
+    const req = {
+      method: 'GET',
+      url: '/test',
+    };
+    const res = {
+      on: jest.fn(),
+    };
+
+    // Simulate a request
+    const middleware = app._router.stack.find((layer) => layer.name === 'bound dispatch');
+    if (middleware) {
+      middleware.handle(req, res, () => {});
+    }
+
+    expect(res.on).toHaveBeenCalledWith('finish', expect.any(Function));
+    expect(res.on).toHaveBeenCalledWith('close', expect.any(Function));
   });
 });

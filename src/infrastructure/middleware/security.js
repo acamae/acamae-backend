@@ -5,7 +5,6 @@ import helmet from 'helmet';
 import { v4 as uuidv4 } from 'uuid';
 
 import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
-import { API_ROUTES } from '../../shared/constants/apiRoutes.js';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
 import { sanitizeRequest } from '../../shared/utils/sanitize.js';
@@ -42,11 +41,21 @@ const hppProtection = () => {
       next();
     } catch (error) {
       next(
-        createError(
-          'Error processing request parameters',
-          API_ERROR_CODES.INVALID_REQUEST,
-          HTTP_STATUS.BAD_REQUEST
-        )
+        createError({
+          message: 'Error processing request parameters',
+          code: API_ERROR_CODES.INVALID_REQUEST,
+          status: HTTP_STATUS.BAD_REQUEST,
+          errorDetails: {
+            type: 'business',
+            details: [
+              {
+                field: 'request',
+                code: 'INVALID_REQUEST',
+                message: error.message,
+              },
+            ],
+          },
+        })
       );
     }
   };
@@ -65,11 +74,21 @@ const xssProtection = () => {
       next();
     } catch (error) {
       next(
-        createError(
-          'Error sanitizing request data',
-          API_ERROR_CODES.INVALID_REQUEST,
-          HTTP_STATUS.BAD_REQUEST
-        )
+        createError({
+          message: 'Error sanitizing request data',
+          code: API_ERROR_CODES.INVALID_REQUEST,
+          status: HTTP_STATUS.BAD_REQUEST,
+          errorDetails: {
+            type: 'business',
+            details: [
+              {
+                field: 'request',
+                code: 'INVALID_REQUEST',
+                message: error.message,
+              },
+            ],
+          },
+        })
       );
     }
   };
@@ -102,44 +121,32 @@ export const applySecurityMiddleware = (app) => {
   // Trust proxy
   app.set('trust proxy', 1);
 
-  // Rate limiting configuration
-  const limiter = rateLimiter({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again later',
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  });
-
-  // Apply rate limiting to all routes
-  app.use(limiter);
-
-  // Límite de tasa para rutas de autenticación
-  const authLimiter = rateLimiter({
-    windowMs: config.RATE_LIMIT_AUTH_WINDOW_MS,
-    max: config.RATE_LIMIT_AUTH_MAX,
-    message: {
-      status: 'error',
-      code: 'AUTH_RATE_LIMIT',
-      message: 'Too many requests. Please try again later.',
-    },
-  });
-
-  // Límite de tasa general
+  // General rate limiting (less restrictive)
   const generalLimiter = rateLimiter({
-    windowMs: config.RATE_LIMIT_WINDOW_MS,
-    max: config.RATE_LIMIT_MAX,
-    message: {
-      status: 'error',
-      code: 'AUTH_RATE_LIMIT',
-      message: 'Too many requests. Please try again later.',
+    windowMs: config.rateLimit.windowMs,
+    max: config.rateLimit.max,
+    handler: (req, res) => {
+      return res.apiError(
+        429,
+        API_ERROR_CODES.TOO_MANY_REQUESTS,
+        'Too many requests. Please try again later.',
+        {
+          type: 'business',
+          details: [
+            {
+              field: 'general',
+              code: API_ERROR_CODES.TOO_MANY_REQUESTS,
+              message: 'Too many requests. Please try again later.',
+            },
+          ],
+        }
+      );
     },
+    standardHeaders: true,
+    legacyHeaders: false,
   });
 
-  // Apply rate limiting to auth routes
-  app.use(API_ROUTES.AUTH.BASE, authLimiter);
-
-  // Apply rate limiting to general routes
+  // Apply general rate limiting to all other routes
   app.use(generalLimiter);
 
   // Correlation ID middleware
@@ -196,9 +203,9 @@ export const applySecurityMiddleware = (app) => {
 
   // Block suspicious requests
   app.use((req, res, next) => {
-    // --- Cabeceras sospechosas ---
-    // Las cabeceras X-Forwarded-* son legítimas detrás de proxies (Nginx, Cloudflare, etc.).
-    // Sólo las bloquearemos cuando la app NO confíe en el proxy.
+    // --- Suspicious headers ---
+    // The X-Forwarded-* headers are legitimate behind proxies (Nginx, Cloudflare, etc.).
+    // We will only block them when the app does not trust the proxy.
     const forwardedHeaders = [
       'x-forwarded-for',
       'x-forwarded-host',
@@ -206,10 +213,10 @@ export const applySecurityMiddleware = (app) => {
       'x-forwarded-port',
     ];
 
-    // Si trust proxy está deshabilitado, consideramos sospechoso que lleguen estas cabeceras.
+    // If trust proxy is disabled, we consider suspicious if these headers arrive.
     if (!req.app.get('trust proxy')) {
       for (const header of forwardedHeaders) {
-        if (Object.prototype.hasOwnProperty.call(req.headers, header)) {
+        if (Object.hasOwn(req.headers, header)) {
           return res
             .status(HTTP_STATUS.AUTH_FORBIDDEN)
             .json({ message: 'Suspicious request detected' });
@@ -217,7 +224,7 @@ export const applySecurityMiddleware = (app) => {
       }
     }
 
-    // --- Agentes de usuario maliciosos ---
+    // --- Suspicious user agents ---
     const suspiciousUserAgents = ['sqlmap', 'nikto', 'nmap', 'metasploit', 'burp', 'zap'];
     const userAgent = (req.headers['user-agent'] || '').toLowerCase();
 

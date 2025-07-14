@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
 
 /**
@@ -47,10 +48,18 @@ export class PrismaUserRepository {
 
   /**
    * Find all users
+   * @param {Object} [options]
+   * @param {number} [options.page=1]
+   * @param {number} [options.limit=10]
+   * @param {Object} [options.filters={}]
    * @returns {Promise<import('../../domain/entities/User').User[]>}
    */
-  async findAll() {
-    const users = await this.#prisma.user.findMany();
+  async findAll({ page = 1, limit = 10, filters = {} } = {}) {
+    const users = await this.#prisma.user.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
+      where: filters,
+    });
     return users.map((user) => this.#toDomainModel(user)).filter(Boolean);
   }
 
@@ -122,10 +131,26 @@ export class PrismaUserRepository {
     } catch (error) {
       if (error.code === 'P2002') {
         if (error.meta?.target?.includes('email')) {
-          throw createError('Email already exists', API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS);
+          throw createError({
+            message: 'Email already exists',
+            code: API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS,
+            status: HTTP_STATUS.CONFLICT,
+            errorDetails: {
+              type: 'business',
+              details: [{ field: 'email', code: 'P2002', message: 'Email already exists' }],
+            },
+          });
         }
         if (error.meta?.target?.includes('username')) {
-          throw createError('Username already exists', API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS);
+          throw createError({
+            message: 'Username already exists',
+            code: API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS,
+            status: HTTP_STATUS.CONFLICT,
+            errorDetails: {
+              type: 'business',
+              details: [{ field: 'username', code: 'P2002', message: 'Username already exists' }],
+            },
+          });
         }
       }
       throw error;
@@ -220,17 +245,32 @@ export class PrismaUserRepository {
   /**
    * Set the reset token for a user
    * @param {string} id
-   * @param {string} token
-   * @param {Date} expiresAt
+   * @param {string} resetToken
+   * @param {Date} resetExpiresAt
    * @returns {Promise<import('../../domain/entities/User').User>}
    */
-  async setResetToken(id, token, expiresAt) {
+  async setResetToken(id, resetToken, resetExpiresAt) {
     const user = await this.#prisma.user.update({
       where: { id: parseInt(id) },
       data: {
-        reset_token: token,
-        reset_expires_at: expiresAt,
+        reset_token: resetToken,
+        reset_expires_at: resetExpiresAt,
       },
+    });
+
+    return this.#toDomainModel(user);
+  }
+
+  /**
+   * Set a new password for a user
+   * @param {string} id
+   * @param {string} newPassword
+   * @returns {Promise<import('../../domain/entities/User').User>}
+   */
+  async setNewPassword(id, newPassword) {
+    const user = await this.#prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { password_hash: newPassword, reset_token: null, reset_expires_at: null },
     });
 
     return this.#toDomainModel(user);

@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">84.61% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>11/13</span>
+                <span class='fraction'>0/13</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">50% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>2/4</span>
+                <span class='fraction'>0/4</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">84.61% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>11/13</span>
+                <span class='fraction'>0/13</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -128,41 +128,41 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import express from 'express';
@@ -179,41 +179,41 @@ import {
 import { errorLogger, requestLogger } from './middleware/logging.js';
 import router from './routes/index.js';
 &nbsp;
-const app = express();
+const app = <span class="cstat-no" title="statement not covered" >express();</span>
 &nbsp;
 // Trust proxy
-app.set('trust proxy', 1);
+<span class="cstat-no" title="statement not covered" >app.set('trust proxy', 1);</span>
 &nbsp;
 // 1. RequestId middleware - MUST be first for tracking
-app.use(requestIdMiddleware);
+<span class="cstat-no" title="statement not covered" >app.use(requestIdMiddleware);</span>
 &nbsp;
 // 2. Response helpers - Add apiSuccess/apiError to all responses
-app.use(responseHelpersMiddleware);
+<span class="cstat-no" title="statement not covered" >app.use(responseHelpersMiddleware);</span>
 &nbsp;
 // 3. Security (helmet, cors, rate-limits, xss, etc.)
-applySecurityMiddleware(app);
+<span class="cstat-no" title="statement not covered" >applySecurityMiddleware(app);</span>
 &nbsp;
 // 4. Compression
-applyCompression(app);
+<span class="cstat-no" title="statement not covered" >applyCompression(app);</span>
 &nbsp;
 // 5. Request logging (Winston) - After requestId is available
-<span class="missing-if-branch" title="if path not taken" >I</span>if (config.env !== 'test') {
+<span class="cstat-no" title="statement not covered" >if (config.env !== 'test') {</span>
 <span class="cstat-no" title="statement not covered" >  app.use(requestLogger);</span>
 }
 &nbsp;
 // 6. Apply routes
-app.use(router);
+<span class="cstat-no" title="statement not covered" >app.use(router);</span>
 &nbsp;
 // 7. Error logging - Before error handlers
-<span class="missing-if-branch" title="if path not taken" >I</span>if (config.env !== 'test') {
+<span class="cstat-no" title="statement not covered" >if (config.env !== 'test') {</span>
 <span class="cstat-no" title="statement not covered" >  app.use(errorLogger);</span>
 }
 &nbsp;
 // 8. 404 handler - Must be before error handler
-app.use(notFoundHandler);
+<span class="cstat-no" title="statement not covered" >app.use(notFoundHandler);</span>
 &nbsp;
 // 9. Global error handler - MUST be last
-app.use(errorHandler);
+<span class="cstat-no" title="statement not covered" >app.use(errorHandler);</span>
 &nbsp;
 export default app;
 &nbsp;</pre></td></tr></table></pre>
@@ -223,7 +223,7 @@ export default app;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-10T17:44:13.173Z
+                at 2025-07-13T14:48:11.351Z
             </div>
         <script src="../prettify.js"></script>
         <script>

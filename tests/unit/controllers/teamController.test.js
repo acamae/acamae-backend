@@ -38,7 +38,7 @@ describe('TeamController (unit)', () => {
     await controller.getAllTeams({}, res, next);
     expect(service.getAllTeams).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.apiSuccess).toHaveBeenCalledWith(teams, 'Equipos obtenidos exitosamente');
+    expect(res.apiSuccess).toHaveBeenCalledWith(teams, 'Teams retrieved successfully');
   });
 
   describe('getTeamById', () => {
@@ -47,15 +47,15 @@ describe('TeamController (unit)', () => {
       service.getTeamById.mockResolvedValue(team);
       await controller.getTeamById({ params: { id: '2' } }, res, next);
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.apiSuccess).toHaveBeenCalledWith(team, 'Equipo obtenido exitosamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(team, 'Team retrieved successfully');
     });
 
     it('not found -> next(err)', async () => {
-      service.getTeamById.mockResolvedValue(null);
+      const error = new Error('Team not found');
+      service.getTeamById.mockRejectedValue(error);
       await controller.getTeamById({ params: { id: 'x' } }, res, next);
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({ code: API_ERROR_CODES.RESOURCE_NOT_FOUND, status: 404 })
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 
@@ -65,7 +65,7 @@ describe('TeamController (unit)', () => {
     await controller.createTeam({ body: { name: 'N' } }, res, next);
     expect(service.createTeam).toHaveBeenCalledWith({ name: 'N' });
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.apiSuccess).toHaveBeenCalledWith(newTeam, 'Equipo creado exitosamente');
+    expect(res.apiSuccess).toHaveBeenCalledWith(newTeam, 'Team created successfully');
   });
 
   describe('updateTeam', () => {
@@ -74,15 +74,15 @@ describe('TeamController (unit)', () => {
       service.updateTeam.mockResolvedValue(updatedTeam);
       await controller.updateTeam({ params: { id: '4' }, body: {} }, res, next);
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.apiSuccess).toHaveBeenCalledWith(updatedTeam, 'Equipo actualizado exitosamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(updatedTeam, 'Team updated successfully');
     });
 
     it('not found -> next(err)', async () => {
-      service.updateTeam.mockResolvedValue(null);
+      const error = new Error('Team not found');
+      service.updateTeam.mockRejectedValue(error);
       await controller.updateTeam({ params: { id: 'nf' }, body: {} }, res, next);
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({ code: API_ERROR_CODES.RESOURCE_NOT_FOUND, status: 404 })
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 
@@ -91,15 +91,15 @@ describe('TeamController (unit)', () => {
       service.deleteTeam.mockResolvedValue(true);
       await controller.deleteTeam({ params: { id: '5' } }, res, next);
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.apiSuccess).toHaveBeenCalledWith(null, 'Equipo eliminado exitosamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(true, 'Team deleted successfully');
     });
 
     it('not found -> next(err)', async () => {
-      service.deleteTeam.mockResolvedValue(false);
+      const error = new Error('Team not found');
+      service.deleteTeam.mockRejectedValue(error);
       await controller.deleteTeam({ params: { id: 'nf' } }, res, next);
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({ code: API_ERROR_CODES.RESOURCE_NOT_FOUND, status: 404 })
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 
@@ -109,15 +109,15 @@ describe('TeamController (unit)', () => {
       service.addMember.mockResolvedValue(updated);
       await controller.addMember({ params: { id: '6' }, body: { userId: 'u1' } }, res, next);
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.apiSuccess).toHaveBeenCalledWith(updated, 'Miembro agregado exitosamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(updated, 'Member added successfully');
     });
 
     it('team not found', async () => {
-      service.addMember.mockResolvedValue(null);
+      const error = new Error('Team not found');
+      service.addMember.mockRejectedValue(error);
       await controller.addMember({ params: { id: 'x' }, body: { userId: 'u' } }, res, next);
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({ code: API_ERROR_CODES.RESOURCE_NOT_FOUND, status: 404 })
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 
@@ -127,15 +127,15 @@ describe('TeamController (unit)', () => {
       service.removeMember.mockResolvedValue(updated);
       await controller.removeMember({ params: { id: '7' }, body: { userId: 'u1' } }, res, next);
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.apiSuccess).toHaveBeenCalledWith(updated, 'Miembro removido exitosamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(updated, 'Member removed successfully');
     });
 
     it('team not found', async () => {
-      service.removeMember.mockResolvedValue(null);
+      const error = new Error('Team not found');
+      service.removeMember.mockRejectedValue(error);
       await controller.removeMember({ params: { id: 'x' }, body: { userId: 'u' } }, res, next);
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({ code: API_ERROR_CODES.RESOURCE_NOT_FOUND, status: 404 })
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 });

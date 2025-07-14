@@ -42,7 +42,7 @@ npm run db:init
 npm run prisma:reset
 
 # Solo ejecutar migraciones
-npm run prisma:deploy
+npm run prisma:deploy:dev
 
 # Solo ejecutar seed
 npm run prisma:seed
@@ -197,7 +197,7 @@ npm run docker:restart
 npm run prisma:reset
 
 # O solo aplicar migraciones
-npm run prisma:deploy
+npm run prisma:deploy:dev
 ```
 
 ### Volumen corrupto

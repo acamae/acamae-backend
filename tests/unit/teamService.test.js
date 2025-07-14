@@ -164,7 +164,7 @@ describe('TeamService', () => {
       const team = makeTeam();
       const teamRepo = makeTeamRepo();
       teamRepo.findById.mockResolvedValue(team);
-      teamRepo.delete.mockResolvedValue();
+      teamRepo.delete.mockResolvedValue(true); // Debe devolver un valor truthy
       const service = new TeamService(teamRepo, makeUserRepo());
 
       const result = await service.deleteTeam(team.id);

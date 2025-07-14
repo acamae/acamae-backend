@@ -1,9 +1,3 @@
----
-description: To be used when fixing errors or implementing refresh token functionality
-globs:
-alwaysApply: false
----
-
 Diagnose and resolve the issue described above using a systematic, validation-driven approach:
 
 **API Error Response Requirements** (CRITICAL):
@@ -12,23 +6,23 @@ Diagnose and resolve the issue described above using a systematic, validation-dr
   - ALWAYS use `res.apiError()` for all error scenarios
   - NEVER use `res.json()`, `res.send()`, or `res.status().json()` directly
   - ALL error responses must include `timestamp` and `requestId`
-  - ALL error messages must be in Spanish
+  - ALL error messages must be in English (until i18n is implemented)
   - Use exact error codes from `apiCodes.js`
 
 - **Error Response Structure**:
 
   ```javascript
   // Authentication error
-  return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_EXPIRED, 'Token de acceso expirado');
+  return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_EXPIRED, 'Access token expired');
 
   // Validation error with details
-  return res.apiError(422, API_ERROR_CODES.VALIDATION_ERROR, 'Los datos enviados no son válidos', {
+  return res.apiError(422, API_ERROR_CODES.VALIDATION_ERROR, 'The submitted data is not valid', {
     type: 'validation',
-    details: [{ field: 'token', code: 'INVALID', message: 'El token no es válido' }],
+    details: [{ field: 'token', code: 'INVALID', message: 'The token is not valid' }],
   });
 
   // Server error (no stack trace in production)
-  return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Error interno del servidor', {
+  return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Internal server error', {
     type: 'server',
     ...(process.env.NODE_ENV !== 'production' && { stack: error.stack }),
   });
@@ -66,19 +60,19 @@ Diagnose and resolve the issue described above using a systematic, validation-dr
   // Specific token error responses using exact API codes
   switch (tokenError.type) {
     case 'EXPIRED':
-      return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_EXPIRED, 'El token ha expirado');
+      return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_EXPIRED, 'The token has expired');
     case 'INVALID':
-      return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_INVALID, 'El token no es válido');
+      return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_INVALID, 'The token is not valid');
     case 'REVOKED':
-      return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_REVOKED, 'El token ha sido revocado');
+      return res.apiError(401, API_ERROR_CODES.AUTH_TOKEN_REVOKED, 'The token has been revoked');
     case 'ALREADY_USED':
       return res.apiError(
         401,
         API_ERROR_CODES.AUTH_TOKEN_ALREADY_USED,
-        'El token ya ha sido utilizado'
+        'The token has already been used'
       );
     default:
-      return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Error interno del servidor');
+      return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Internal server error');
   }
   ```
 
@@ -92,7 +86,7 @@ Diagnose and resolve the issue described above using a systematic, validation-dr
       accessToken: newAccessToken,
       refreshToken: newRefreshToken, // Optional: rotate refresh token
     },
-    'Token renovado exitosamente'
+    'Token refreshed successfully'
   );
   ```
 
@@ -103,7 +97,7 @@ Diagnose and resolve the issue described above using a systematic, validation-dr
   return res.apiError(
     429,
     API_ERROR_CODES.AUTH_RATE_LIMIT,
-    'Demasiados intentos. Intenta de nuevo en 15 minutos'
+    'Too many attempts. Try again in 15 minutes'
   );
   ```
 
@@ -118,14 +112,31 @@ Diagnose and resolve the issue described above using a systematic, validation-dr
 - **Fix Implementation**:
   - Address root cause, not just symptoms
   - Ensure fix maintains API response consistency
-  - Update error messages to be user-friendly in Spanish
+  - Update error messages to be user-friendly in English
   - Test both success and error scenarios
 
 - **Validation & Testing**:
   - Verify response structure matches API standards
   - Test error scenarios with proper HTTP codes
   - Ensure timestamps and requestIds are included
-  - Validate Spanish error messages
+  - Validate English error messages
   - Run full test suite to prevent regressions
+
+**Language Requirements** (CRITICAL):
+
+- **ALL code must be in English** until internationalization is implemented
+- **NO exceptions**: variables, functions, comments, messages, documentation
+- **User-facing messages**: Use English until i18n system is in place
+- **API responses**: All messages in English
+- **Error messages**: English only
+- **Comments**: English only
+- **Documentation**: English only
+- **Variable names**: English only
+- **Function names**: English only
+
+This process ensures a thorough, efficient resolution that strengthens the codebase while directly addressing the reported issue and maintaining API consistency.
+
+- Validate Spanish error messages
+- Run full test suite to prevent regressions
 
 This process ensures a thorough, efficient resolution that strengthens the codebase while directly addressing the reported issue and maintaining API consistency.

@@ -46,7 +46,7 @@ describe('UserController (unit)', () => {
 
     expect(service.getAllUsers).toHaveBeenCalledWith({ page: 1, limit: 10 });
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.apiSuccess).toHaveBeenCalledWith(result.users, 'Usuarios obtenidos exitosamente', {
+    expect(res.apiSuccess).toHaveBeenCalledWith(result.users, 'Users retrieved successfully', {
       pagination: {
         page: 1,
         limit: 10,
@@ -69,19 +69,19 @@ describe('UserController (unit)', () => {
 
       expect(service.getUserById).toHaveBeenCalledWith('2');
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.apiSuccess).toHaveBeenCalledWith(user, 'Usuario obtenido exitosamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(user, 'User retrieved successfully');
       expect(next).not.toHaveBeenCalled();
     });
 
     it('calls next with NOT_FOUND when user missing', async () => {
-      service.getUserById.mockResolvedValue(null);
+      const error = new Error('User not found');
+      service.getUserById.mockRejectedValue(error);
       const req = { params: { id: '3' } };
 
       await controller.getUserById(req, res, next);
 
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({ code: API_ERROR_CODES.RESOURCE_NOT_FOUND, status: 404 })
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 
@@ -95,16 +95,16 @@ describe('UserController (unit)', () => {
 
       expect(service.updateUser).toHaveBeenCalledWith('4', { name: 'n' });
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.apiSuccess).toHaveBeenCalledWith(updated, 'Usuario actualizado exitosamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(updated, 'User updated successfully');
     });
 
     it('calls next with NOT_FOUND when user missing', async () => {
-      service.updateUser.mockResolvedValue(null);
+      const error = new Error('User not found');
+      service.updateUser.mockRejectedValue(error);
       const req = { params: { id: '5' }, body: {} };
       await controller.updateUser(req, res, next);
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({ code: API_ERROR_CODES.RESOURCE_NOT_FOUND, status: 404 })
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 
@@ -115,16 +115,16 @@ describe('UserController (unit)', () => {
       await controller.deleteUser(req, res, next);
       expect(service.deleteUser).toHaveBeenCalledWith('6');
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.apiSuccess).toHaveBeenCalledWith(null, 'Usuario eliminado exitosamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(null, 'User deleted successfully');
     });
 
     it('calls next with NOT_FOUND when user missing', async () => {
-      service.deleteUser.mockResolvedValue(false);
+      const error = new Error('User not found');
+      service.deleteUser.mockRejectedValue(error);
       const req = { params: { id: '7' } };
       await controller.deleteUser(req, res, next);
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({ code: API_ERROR_CODES.RESOURCE_NOT_FOUND, status: 404 })
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 });

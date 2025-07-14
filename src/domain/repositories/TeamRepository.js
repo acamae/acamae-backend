@@ -6,11 +6,12 @@
  * @property {function(string, CreateTeamDto): Promise<Team>} create - Create a new team
  * @property {function(string, UpdateTeamDto): Promise<Team>} update - Update a team
  * @property {function(string): Promise<void>} delete - Delete a team
+ * @property {function(string, string): Promise<Team>} addMember - Add a member to a team
+ * @property {function(string, string): Promise<Team>} removeMember - Remove a member from a team
  */
 
 export class TeamRepository {
   /**
-   * @TODO: Implement this method
    * Get all teams
    * @returns {Promise<Team[]>}
    */
@@ -19,7 +20,6 @@ export class TeamRepository {
   }
 
   /**
-   * @TODO: Implement this method
    * Get a team by its ID
    * @param {string} id
    * @returns {Promise<Team|null>}
@@ -30,7 +30,6 @@ export class TeamRepository {
   }
 
   /**
-   * @TODO: Implement this method
    * Get teams by user ID
    * @param {string} userId
    * @returns {Promise<Team[]>}
@@ -41,7 +40,16 @@ export class TeamRepository {
   }
 
   /**
-   * @TODO: Implement this method
+   * Get a team by its name
+   * @param {string} teamName
+   * @returns {Promise<Team|null>}
+   */
+  // eslint-disable-next-line
+  async findByTeamName(teamName) {
+    throw new Error('Method not implemented');
+  }
+
+  /**
    * Create a new team
    * @param {string} userId
    * @param {CreateTeamDto} data
@@ -53,7 +61,6 @@ export class TeamRepository {
   }
 
   /**
-   * @TODO: Implement this method
    * Update a team
    * @param {string} id
    * @param {UpdateTeamDto} data
@@ -65,13 +72,34 @@ export class TeamRepository {
   }
 
   /**
-   * @TODO: Implement this method
    * Delete a team
    * @param {string} id
    * @returns {Promise<void>}
    */
   // eslint-disable-next-line
   async delete(id) {
+    throw new Error('Method not implemented');
+  }
+
+  /**
+   * Add a member to a team
+   * @param {string} teamId
+   * @param {string} userId
+   * @returns {Promise<Team>}
+   */
+  // eslint-disable-next-line
+  async addMember(teamId, userId) {
+    throw new Error('Method not implemented');
+  }
+
+  /**
+   * Remove a member from a team
+   * @param {string} teamId
+   * @param {string} userId
+   * @returns {Promise<Team>}
+   */
+  // eslint-disable-next-line
+  async removeMember(teamId, userId) {
     throw new Error('Method not implemented');
   }
 }

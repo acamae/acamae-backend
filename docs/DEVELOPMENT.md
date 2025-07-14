@@ -76,7 +76,7 @@ git pull origin main
 npm run docker:up
 
 # 4. Apply migrations (if any)
-docker compose -f docker/docker-compose.yml exec backend npm run prisma:deploy
+docker compose -f docker/docker-compose.yml exec backend npm run prisma:deploy:dev
 ```
 
 ### Useful commands during development:

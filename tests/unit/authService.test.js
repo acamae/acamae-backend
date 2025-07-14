@@ -97,6 +97,7 @@ const mockUserRepo = () => ({
   update: jest.fn(),
   updateLoginTracking: jest.fn(),
   cleanExpiredVerificationTokens: jest.fn(),
+  setNewPassword: jest.fn(),
 });
 
 const mockSessionRepo = () => ({
@@ -148,10 +149,8 @@ describe('AuthService', () => {
         verificationToken: '12345678-1234-4abc-8def-123456789012',
         verificationExpiresAt: expect.any(Date),
       });
-      expect(result.user.email).toBe(newUser.email);
-      expect(result.user).not.toHaveProperty('passwordHash');
-      expect(result.emailSent).toBe(true);
-      expect(result.emailError).toBeNull();
+      expect(result.email).toBe(newUser.email);
+      expect(result).not.toHaveProperty('passwordHash');
     });
 
     it('should throw if email already exists', async () => {
@@ -159,7 +158,7 @@ describe('AuthService', () => {
       userRepo.findByUsername.mockResolvedValue(null);
 
       await expect(authService.register(makeRegisterDto())).rejects.toMatchObject({
-        code: API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS,
+        code: API_ERROR_CODES.AUTH_EMAIL_ALREADY_EXISTS,
       });
     });
 
@@ -172,21 +171,24 @@ describe('AuthService', () => {
       });
     });
 
-    it('should handle email sending failure gracefully', async () => {
+    it('should throw error when email sending fails and not create user', async () => {
       userRepo.findByEmail.mockResolvedValue(null);
       userRepo.findByUsername.mockResolvedValue(null);
-      const newUser = makeUser({ isVerified: false });
-      userRepo.create.mockResolvedValue(newUser);
 
       // Mock sendVerificationEmail to throw
       jest.spyOn(authService, 'sendVerificationEmail').mockRejectedValue(new Error('Email failed'));
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      const result = await authService.register(makeRegisterDto());
+      await expect(authService.register(makeRegisterDto())).rejects.toMatchObject({
+        code: API_ERROR_CODES.SERVICE_UNAVAILABLE,
+      });
 
-      expect(result.emailSent).toBe(false);
-      expect(result.emailError).toBe('Email failed');
-      expect(consoleSpy).toHaveBeenCalled();
+      // Verify user was NOT created when email fails
+      expect(userRepo.create).not.toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Error sending verification email:',
+        expect.any(Error)
+      );
 
       consoleSpy.mockRestore();
     });
@@ -257,9 +259,7 @@ describe('AuthService', () => {
 
       const result = await authService.verifyEmail(token);
 
-      expect(result.status).toBe('SUCCESS');
-      expect(result.message).toBe('Email verified successfully');
-      expect(result.resendRequired).toBe(false);
+      expect(result.email).toBe(user.email);
       expect(userRepo.setVerified).toHaveBeenCalledWith(user.id, true);
     });
   });
@@ -319,7 +319,7 @@ describe('AuthService', () => {
       bcrypt.compare.mockResolvedValue(false);
 
       await expect(authService.login(user.email, 'wrongpass')).rejects.toMatchObject({
-        code: API_ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+        code: API_ERROR_CODES.AUTH_FORBIDDEN,
       });
     });
 
@@ -414,7 +414,7 @@ describe('AuthService', () => {
       });
 
       sessionRepo.findByToken.mockResolvedValue(sessionToken);
-      sessionRepo.update.mockResolvedValue();
+      sessionRepo.update.mockResolvedValue(sessionToken); // Debe devolver un valor truthy
       userRepo.findById.mockResolvedValue(user);
 
       const result = await authService.refreshToken('refresh.token');
@@ -507,8 +507,10 @@ describe('AuthService', () => {
     it('should initiate password reset', async () => {
       const user = makeUser();
       userRepo.findByEmail.mockResolvedValue(user);
-      userRepo.setResetToken.mockResolvedValue();
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      userRepo.setResetToken.mockResolvedValue(user); // Debe devolver un valor truthy
+
+      // Mock del método de envío de email
+      jest.spyOn(authService, 'sendResetPasswordEmail').mockResolvedValue();
 
       await authService.forgotPassword(user.email);
 
@@ -517,12 +519,11 @@ describe('AuthService', () => {
         '12345678-1234-4abc-8def-123456789012',
         expect.any(Date)
       );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Reset token:',
+      expect(authService.sendResetPasswordEmail).toHaveBeenCalledWith(
+        user.email,
+        user.username,
         '12345678-1234-4abc-8def-123456789012'
       );
-
-      consoleSpy.mockRestore();
     });
 
     it('should throw when user not found', async () => {
@@ -538,15 +539,11 @@ describe('AuthService', () => {
     it('should reset password successfully', async () => {
       const user = makeUser();
       userRepo.findByResetToken.mockResolvedValue(user);
-      userRepo.update.mockResolvedValue();
+      userRepo.setNewPassword.mockResolvedValue(user);
 
       const result = await authService.resetPassword('reset-token', 'newPassword123!');
 
-      expect(userRepo.update).toHaveBeenCalledWith(user.id, {
-        password: 'newPassword123!',
-        resetToken: null,
-        resetExpiresAt: null,
-      });
+      expect(userRepo.setNewPassword).toHaveBeenCalledWith(user.id, 'newPassword123!');
       expect(result).toBe(true);
     });
 

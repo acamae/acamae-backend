@@ -1,7 +1,3 @@
----
-description: To be used when implementing new features or code improvements
----
-
 Design and implement the request described above using a systematic, validation-driven approach:
 
 **API Response Requirements** (CRITICAL):
@@ -11,7 +7,7 @@ Design and implement the request described above using a systematic, validation-
   - ALWAYS use `res.apiError()` for error responses
   - NEVER use `res.json()`, `res.send()`, or `res.status().json()` directly
   - ALL responses must include `timestamp` and `requestId`
-  - ALL user messages must be in Spanish
+  - ALL user messages must be in English (until i18n is implemented)
 
 - **API Codes Compliance**:
   - Import exact codes from `src/shared/constants/apiCodes.js`
@@ -23,22 +19,20 @@ Design and implement the request described above using a systematic, validation-
 
   ```javascript
   // Success response
-  return res.apiSuccess(userData, 'Usuario obtenido exitosamente');
+  return res.apiSuccess(userData, 'User retrieved successfully');
 
   // Success with pagination meta
-  return res.apiSuccess(users, 'Usuarios obtenidos exitosamente', {
+  return res.apiSuccess(users, 'Users retrieved successfully', {
     pagination: { page, limit, total, totalPages, hasNext, hasPrev },
   });
 
   // Error response
-  return res.apiError(404, API_ERROR_CODES.RESOURCE_NOT_FOUND, 'El usuario solicitado no existe');
+  return res.apiError(404, API_ERROR_CODES.RESOURCE_NOT_FOUND, 'The requested user does not exist');
 
   // Validation error with details
-  return res.apiError(422, API_ERROR_CODES.VALIDATION_ERROR, 'Los datos enviados no son válidos', {
+  return res.apiError(422, API_ERROR_CODES.VALIDATION_ERROR, 'The submitted data is not valid', {
     type: 'validation',
-    details: [
-      { field: 'email', code: 'INVALID_FORMAT', message: 'El formato del email no es válido' },
-    ],
+    details: [{ field: 'email', code: 'INVALID_FORMAT', message: 'The email format is not valid' }],
   });
   ```
 
@@ -76,6 +70,17 @@ Design and implement the request described above using a systematic, validation-
   - Implement pagination for list endpoints
   - Optimize response payloads
   - Monitor response times
+
+- **Language Requirements** (CRITICAL):
+  - **ALL code must be in English** until internationalization is implemented
+  - **NO exceptions**: variables, functions, comments, messages, documentation
+  - **User-facing messages**: Use English until i18n system is in place
+  - **API responses**: All messages in English
+  - **Error messages**: English only
+  - **Comments**: English only
+  - **Documentation**: English only
+  - **Variable names**: English only
+  - **Function names**: English only
 
 - **Analyze Context**:
   - Identify relevant patterns, conventions, or domain models using `codebase_search`
@@ -120,8 +125,10 @@ Design and implement the request described above using a systematic, validation-
 
 - Test both success and error response structures
 - Verify timestamp and requestId are present
-- Validate Spanish error messages
+- Validate English error messages
 - Test rate limiting and security headers
 - Ensure proper HTTP status codes
+
+This process delivers a well-integrated, reliable solution that enhances the codebase while meeting the request's goals and API consistency requirements.
 
 This process delivers a well-integrated, reliable solution that enhances the codebase while meeting the request's goals and API consistency requirements.

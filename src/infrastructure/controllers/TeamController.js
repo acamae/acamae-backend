@@ -1,8 +1,6 @@
-/** @typedef {import('express').Response} Response */
-
-import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
-import { createError } from '../../shared/utils/error.js';
+
+/** @typedef {import('express').Response} Response */
 
 export class TeamController {
   constructor(teamService) {
@@ -18,9 +16,7 @@ export class TeamController {
   async getAllTeams(_req, res, next) {
     try {
       const teams = await this.teamService.getAllTeams();
-
-      // Structure according to new API
-      return res.status(HTTP_STATUS.OK).apiSuccess(teams, 'Equipos obtenidos exitosamente');
+      return res.status(HTTP_STATUS.OK).apiSuccess(teams, 'Teams retrieved successfully');
     } catch (error) {
       next(error);
     }
@@ -36,19 +32,7 @@ export class TeamController {
     try {
       const { id } = req.params;
       const team = await this.teamService.getTeamById(id);
-
-      if (!team) {
-        // Use RESOURCE_NOT_FOUND according to Swagger pattern
-        const notFoundError = createError(
-          'El equipo solicitado no existe',
-          API_ERROR_CODES.RESOURCE_NOT_FOUND,
-          HTTP_STATUS.NOT_FOUND
-        );
-        return next(notFoundError);
-      }
-
-      // Structure according to new API
-      return res.status(HTTP_STATUS.OK).apiSuccess(team, 'Equipo obtenido exitosamente');
+      return res.status(HTTP_STATUS.OK).apiSuccess(team, 'Team retrieved successfully');
     } catch (error) {
       next(error);
     }
@@ -64,9 +48,7 @@ export class TeamController {
     try {
       const teamData = req.body;
       const newTeam = await this.teamService.createTeam(teamData);
-
-      // Structure according to new API
-      return res.status(HTTP_STATUS.CREATED).apiSuccess(newTeam, 'Equipo creado exitosamente');
+      return res.status(HTTP_STATUS.CREATED).apiSuccess(newTeam, 'Team created successfully');
     } catch (error) {
       next(error);
     }
@@ -82,21 +64,8 @@ export class TeamController {
     try {
       const { id } = req.params;
       const teamData = req.body;
-
       const updatedTeam = await this.teamService.updateTeam(id, teamData);
-
-      if (!updatedTeam) {
-        // Use RESOURCE_NOT_FOUND according to Swagger pattern
-        const notFoundError = createError(
-          'El equipo solicitado no existe',
-          API_ERROR_CODES.RESOURCE_NOT_FOUND,
-          HTTP_STATUS.NOT_FOUND
-        );
-        return next(notFoundError);
-      }
-
-      // Structure according to new API
-      return res.status(HTTP_STATUS.OK).apiSuccess(updatedTeam, 'Equipo actualizado exitosamente');
+      return res.status(HTTP_STATUS.OK).apiSuccess(updatedTeam, 'Team updated successfully');
     } catch (error) {
       next(error);
     }
@@ -111,20 +80,8 @@ export class TeamController {
   async deleteTeam(req, res, next) {
     try {
       const { id } = req.params;
-      const deleted = await this.teamService.deleteTeam(id);
-
-      if (!deleted) {
-        // Use RESOURCE_NOT_FOUND according to Swagger pattern
-        const notFoundError = createError(
-          'El equipo solicitado no existe',
-          API_ERROR_CODES.RESOURCE_NOT_FOUND,
-          HTTP_STATUS.NOT_FOUND
-        );
-        return next(notFoundError);
-      }
-
-      // Structure according to new API: data null
-      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Equipo eliminado exitosamente');
+      const deletedTeam = await this.teamService.deleteTeam(id);
+      return res.status(HTTP_STATUS.OK).apiSuccess(deletedTeam, 'Team deleted successfully');
     } catch (error) {
       next(error);
     }
@@ -140,21 +97,8 @@ export class TeamController {
     try {
       const { id } = req.params;
       const { userId } = req.body;
-
       const updatedTeam = await this.teamService.addMember(id, userId);
-
-      if (!updatedTeam) {
-        // Use RESOURCE_NOT_FOUND according to Swagger pattern
-        const notFoundError = createError(
-          'El equipo solicitado no existe',
-          API_ERROR_CODES.RESOURCE_NOT_FOUND,
-          HTTP_STATUS.NOT_FOUND
-        );
-        return next(notFoundError);
-      }
-
-      // Structure according to new API
-      return res.status(HTTP_STATUS.OK).apiSuccess(updatedTeam, 'Miembro agregado exitosamente');
+      return res.status(HTTP_STATUS.OK).apiSuccess(updatedTeam, 'Member added successfully');
     } catch (error) {
       next(error);
     }
@@ -170,21 +114,8 @@ export class TeamController {
     try {
       const { id } = req.params;
       const { userId } = req.body;
-
       const updatedTeam = await this.teamService.removeMember(id, userId);
-
-      if (!updatedTeam) {
-        // Use RESOURCE_NOT_FOUND according to Swagger pattern
-        const notFoundError = createError(
-          'El equipo solicitado no existe',
-          API_ERROR_CODES.RESOURCE_NOT_FOUND,
-          HTTP_STATUS.NOT_FOUND
-        );
-        return next(notFoundError);
-      }
-
-      // Structure according to new API
-      return res.status(HTTP_STATUS.OK).apiSuccess(updatedTeam, 'Miembro removido exitosamente');
+      return res.status(HTTP_STATUS.OK).apiSuccess(updatedTeam, 'Member removed successfully');
     } catch (error) {
       next(error);
     }

@@ -1,51 +1,54 @@
 import express from 'express';
 
+import { API_ROUTES } from '../shared/constants/apiRoutes.js';
+
 import { config } from './config/environment.js';
-import {
-  applyCompression,
-  applySecurityMiddleware,
-  errorHandler,
-  notFoundHandler,
-  requestIdMiddleware,
-  responseHelpersMiddleware,
-} from './middleware/index.js';
-import { errorLogger, requestLogger } from './middleware/logging.js';
+import { applyCompression } from './middleware/compression.js';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { applyLoggingMiddleware } from './middleware/logging.js';
+import { responseHelpersMiddleware } from './middleware/responseHelpers.js';
+import { applySecurityMiddleware } from './middleware/security.js';
 import router from './routes/index.js';
 
 const app = express();
 
-// Trust proxy
-app.set('trust proxy', 1);
-
-// 1. RequestId middleware - MUST be first for tracking
-app.use(requestIdMiddleware);
-
-// 2. Response helpers - Add apiSuccess/apiError to all responses
+// Apply response helpers middleware first (needed by other middlewares)
 app.use(responseHelpersMiddleware);
 
-// 3. Security (helmet, cors, rate-limits, xss, etc.)
+// Apply security middleware
 applySecurityMiddleware(app);
 
-// 4. Compression
+// Apply logging middleware
+applyLoggingMiddleware(app);
+
+// Apply compression middleware
 applyCompression(app);
 
-// 5. Request logging (Winston) - After requestId is available
-if (config.env !== 'test') {
-  app.use(requestLogger);
-}
+// Parse JSON bodies
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 6. Apply routes
+// Routes
 app.use(router);
 
-// 7. Error logging - Before error handlers
-if (config.env !== 'test') {
-  app.use(errorLogger);
-}
+// Health check route
+app.get(API_ROUTES.HEALTH, (req, res) => {
+  res.json({
+    status: 'SUCCESS',
+    message: 'Servidor funcionando correctamente',
+    data: {
+      environment: config.env,
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: process.env.npm_package_version,
+    },
+  });
+});
 
-// 8. 404 handler - Must be before error handler
+// 404 handler
 app.use(notFoundHandler);
 
-// 9. Global error handler - MUST be last
+// Error handler (must be last)
 app.use(errorHandler);
 
 export default app;

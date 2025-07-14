@@ -1,8 +1,6 @@
 // Desactivar el mock global de validation.js
 jest.unmock(require.resolve('../../../src/infrastructure/middleware/validation.js'));
 
-import { z } from 'zod';
-
 import {
   idValidation,
   loginValidation,
@@ -17,9 +15,6 @@ import {
   validationSchemas,
   verifyEmailValidation,
 } from '../../../src/infrastructure/middleware/validation.js';
-import { API_ERROR_CODES } from '../../../src/shared/constants/apiCodes.js';
-import { HTTP_STATUS } from '../../../src/shared/constants/httpStatus.js';
-
 // Mock the throwError function
 jest.mock('../../../src/infrastructure/middleware/errorHandler.js', () => ({
   throwError: jest.fn((message, code, status, details) => {
@@ -335,6 +330,99 @@ describe('Validation Middleware', () => {
     });
   });
 
+  describe('validateRequest error handling', () => {
+    it('should handle invalid schema name', () => {
+      const middleware = validateRequest(null);
+      const req = { body: { email: 'test@example.com' } };
+      const res = {};
+      const next = jest.fn();
+
+      middleware(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: API_ERROR_CODES.INVALID_SCHEMA,
+          message: 'Invalid schema name provided',
+        })
+      );
+    });
+
+    it('should handle missing request body', () => {
+      const middleware = validateRequest('login');
+      const req = {}; // No body
+      const res = {};
+      const next = jest.fn();
+
+      middleware(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: API_ERROR_CODES.VALIDATION_ERROR,
+          message: 'Request body is required',
+        })
+      );
+    });
+
+    it('should handle non-object request body', () => {
+      const middleware = validateRequest('login');
+      const req = { body: 'not an object' };
+      const res = {};
+      const next = jest.fn();
+
+      middleware(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: API_ERROR_CODES.VALIDATION_ERROR,
+          message: 'Request body is required',
+        })
+      );
+    });
+
+    it('should handle schema not found', () => {
+      const middleware = validateRequest('nonexistentSchema');
+      const req = { body: { email: 'test@example.com' } };
+      const res = {};
+      const next = jest.fn();
+
+      middleware(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: API_ERROR_CODES.INVALID_SCHEMA,
+          message: "Validation schema 'nonexistentSchema' not found",
+        })
+      );
+    });
+
+    it('should handle unexpected validation errors', () => {
+      // Mock a schema that throws a non-ZodError
+      const originalSchemas = { ...validationSchemas };
+      validationSchemas.testSchema = {
+        parse: () => {
+          throw new Error('Unexpected error');
+        },
+      };
+
+      const middleware = validateRequest('testSchema');
+      const req = { body: { email: 'test@example.com' } };
+      const res = {};
+      const next = jest.fn();
+
+      middleware(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: API_ERROR_CODES.VALIDATION_ERROR,
+          message: 'Unexpected validation error occurred',
+        })
+      );
+
+      // Restore original schemas
+      Object.assign(validationSchemas, originalSchemas);
+    });
+  });
+
   describe('specific validation middlewares', () => {
     describe('registerValidation', () => {
       it('should validate correct registration data', () => {
@@ -419,9 +507,7 @@ describe('Validation Middleware', () => {
         const req = buildReq({}, {});
         const next = buildNext();
 
-        verifyEmailValidation(req, noopRes, next);
-
-        expect(next).toHaveBeenCalledWith(expect.any(Error));
+        expect(() => verifyEmailValidation(req, noopRes, next)).toThrow();
       });
 
       it('should reject invalid token format', () => {

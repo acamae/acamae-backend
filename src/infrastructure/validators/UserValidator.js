@@ -1,4 +1,6 @@
+import { nameModerationService } from '../../application/services/NameModerationService.js';
 import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
 import { validationSchemas } from '../middleware/validation.js';
 
@@ -13,13 +15,17 @@ export class UserValidator {
    * @param {import('../../application/dtos/UserDto').CreateUserDto} data - User data
    * @throws {Error} If validation fails
    */
-  static validateCreate(data) {
+  static async validateCreate(data) {
     // First validate basic structure with Zod schema
     validationSchemas.register.parse(data);
 
+    if (data.username) {
+      await this._validateUsername(data.username);
+    }
+
     // Then apply business-specific validations
     if (data.firstName && data.lastName) {
-      this._validateNameCombination(data.firstName, data.lastName);
+      await this._validateNameCombination(data.firstName, data.lastName);
     }
 
     if (data.role) {
@@ -32,13 +38,13 @@ export class UserValidator {
    * @param {import('../../application/dtos/UserDto').UpdateUserDto} data - User data
    * @throws {Error} If validation fails
    */
-  static validateUpdate(data) {
+  static async validateUpdate(data) {
     // First validate basic structure with Zod schema
     validationSchemas.updateUser.parse(data);
 
     // Then apply business-specific validations
     if (data.firstName && data.lastName) {
-      this._validateNameCombination(data.firstName, data.lastName);
+      await this._validateNameCombination(data.firstName, data.lastName);
     }
 
     if (data.role) {
@@ -66,7 +72,17 @@ export class UserValidator {
    */
   static validateVerification(data) {
     if (!data.token) {
-      throw createError('Verification token is required', API_ERROR_CODES.VALIDATION_ERROR);
+      throw createError({
+        message: 'Verification token is required',
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            { field: 'token', code: 'REQUIRED', message: 'Verification token is required' },
+          ],
+        },
+      });
     }
     this._validateTokenExpiration(data.token);
   }
@@ -91,11 +107,29 @@ export class UserValidator {
    */
   static validatePasswordReset(data) {
     if (!data.token) {
-      throw createError('Reset token is required', API_ERROR_CODES.VALIDATION_ERROR);
+      throw createError({
+        message: 'Reset token is required',
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [{ field: 'token', code: 'REQUIRED', message: 'Reset token is required' }],
+        },
+      });
     }
 
     if (!data.newPassword) {
-      throw createError('New password is required', API_ERROR_CODES.VALIDATION_ERROR);
+      throw createError({
+        message: 'New password is required',
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            { field: 'newPassword', code: 'REQUIRED', message: 'New password is required' },
+          ],
+        },
+      });
     }
 
     // First validate basic structure with Zod schema
@@ -126,85 +160,187 @@ export class UserValidator {
   }
 
   // Private helper methods for business-specific validations
-  // @TODO: Verifica si el nombre completo está en una lista negra
-  static isBlacklistedName(fullName) {
-    // Implementar lógica de blacklist de nombres
-    throw new Error('Not implemented');
+
+  /**
+   * Check if a name is in the blacklist using AI moderation
+   * @param {string} fullName - Full name to check
+   * @returns {Promise<boolean>} - True if name is blacklisted
+   */
+  static async isBlacklistedName(fullName) {
+    return await nameModerationService.isInappropriateName(fullName);
   }
 
-  // @TODO: Verifica si el usuario tiene privilegios de admin
+  // @TODO: Verify if the user has admin privileges
   static hasAdminPrivileges() {
-    // Implementar verificación de privilegios admin
+    // Implement admin privileges verification
     throw new Error('Not implemented');
   }
 
-  // @TODO: Verifica si hay demasiados intentos fallidos de login
+  // @TODO: Verify if there are too many failed login attempts
   static hasTooManyFailedAttempts(email) {
-    // Implementar control de intentos fallidos
+    // Implement failed login attempts control
     throw new Error('Not implemented');
   }
 
-  // @TODO: Verifica si hay demasiados intentos de reseteo de contraseña
+  // @TODO: Verify if there are too many password reset attempts
   static hasTooManyResetAttempts(email) {
-    // Implementar control de reseteos de contraseña
+    // Implement password reset attempts control
     throw new Error('Not implemented');
   }
 
-  // @TODO: Verifica si la contraseña ya fue usada recientemente
+  // @TODO: Verify if the password has been used recently
   static isPasswordInHistory(newPassword) {
-    // Implementar historial de contraseñas
+    // Implement password history
     throw new Error('Not implemented');
   }
 
-  // @TODO: Verifica si el usuario puede filtrar por el rol dado
+  // @TODO: Verify if the user can filter by the given role
   static canFilterByRole(role) {
-    // Implementar control de permisos de filtrado por rol
+    // Implement role filter permissions control
     throw new Error('Not implemented');
   }
 
-  // @TODO: Wrapper - valida combinación de nombres usando blacklist
-  static _validateNameCombination(firstName, lastName) {
-    const fullName = `${firstName} ${lastName}`.toLowerCase();
-    if (this.isBlacklistedName(fullName)) {
-      throw createError('This name combination is not allowed', API_ERROR_CODES.VALIDATION_ERROR);
+  /**
+   * Wrapper - validate name combination using AI moderation
+   * @param {string} firstName - First name
+   * @param {string} lastName - Last name
+   * @throws {Error} If name combination is inappropriate
+   */
+  static async _validateUsername(username) {
+    const isInappropriate = await this.isBlacklistedName(username);
+
+    if (isInappropriate) {
+      throw createError({
+        message: 'This username is not allowed',
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            { field: 'username', code: 'INVALID', message: 'This username is not allowed' },
+          ],
+        },
+      });
     }
   }
 
-  // @TODO: Wrapper - valida asignación de rol admin
+  /**
+   * Wrapper - validate name combination using AI moderation
+   * @param {string} firstName - First name
+   * @param {string} lastName - Last name
+   * @throws {Error} If name combination is inappropriate
+   */
+  static async _validateNameCombination(firstName, lastName) {
+    const fullName = `${firstName} ${lastName}`.toLowerCase();
+    const isInappropriate = await this.isBlacklistedName(fullName);
+
+    if (isInappropriate) {
+      throw createError({
+        message: 'This name combination is not allowed',
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            { field: 'name', code: 'INVALID', message: 'This name combination is not allowed' },
+          ],
+        },
+      });
+    }
+  }
+
+  // @TODO: Wrapper - validate admin role assignment
   static _validateRoleAssignment(role) {
     if (role === 'admin' && !this.hasAdminPrivileges()) {
-      throw createError(
-        'Insufficient privileges to assign admin role',
-        API_ERROR_CODES.AUTH_FORBIDDEN
-      );
+      throw createError({
+        message: 'Insufficient privileges to assign admin role',
+        code: API_ERROR_CODES.AUTH_FORBIDDEN,
+        status: HTTP_STATUS.FORBIDDEN,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'role',
+              code: 'INVALID',
+              message: 'Insufficient privileges to assign admin role',
+            },
+          ],
+        },
+      });
     }
   }
 
-  // @TODO: Wrapper - valida intentos fallidos de login
+  // @TODO: Wrapper - validate failed login attempts
   static _validateLoginAttempts(email) {
     if (this.hasTooManyFailedAttempts(email)) {
-      throw createError('Too many failed login attempts', API_ERROR_CODES.TOO_MANY_REQUESTS);
+      throw createError({
+        message: 'Too many failed login attempts',
+        code: API_ERROR_CODES.TOO_MANY_REQUESTS,
+        status: HTTP_STATUS.TOO_MANY_REQUESTS,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'login',
+              code: 'TOO_MANY_REQUESTS',
+              message: 'Too many failed login attempts',
+            },
+          ],
+        },
+      });
     }
   }
 
-  // @TODO: Wrapper - valida intentos de reseteo de contraseña
+  // @TODO: Wrapper - validate password reset attempts
   static _validatePasswordResetAttempts(email) {
     if (this.hasTooManyResetAttempts(email)) {
-      throw createError('Too many password reset attempts', API_ERROR_CODES.TOO_MANY_REQUESTS);
+      throw createError({
+        message: 'Too many password reset attempts',
+        code: API_ERROR_CODES.TOO_MANY_REQUESTS,
+        status: HTTP_STATUS.TOO_MANY_REQUESTS,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'reset',
+              code: 'TOO_MANY_REQUESTS',
+              message: 'Too many password reset attempts',
+            },
+          ],
+        },
+      });
     }
   }
 
-  // @TODO: Wrapper - valida historial de contraseñas
+  // @TODO: Wrapper - validate password history
   static _validatePasswordHistory(newPassword) {
     if (this.isPasswordInHistory(newPassword)) {
-      throw createError('Password has been used recently', API_ERROR_CODES.VALIDATION_ERROR);
+      throw createError({
+        message: 'Password has been used recently',
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            { field: 'password', code: 'INVALID', message: 'Password has been used recently' },
+          ],
+        },
+      });
     }
   }
 
-  // @TODO: Wrapper - valida permisos de filtrado por rol
+  // @TODO: Wrapper - validate role filter
   static _validateRoleFilter(role) {
     if (!this.canFilterByRole(role)) {
-      throw createError('Invalid role filter', API_ERROR_CODES.AUTH_FORBIDDEN);
+      throw createError({
+        message: 'Invalid role filter',
+        code: API_ERROR_CODES.AUTH_FORBIDDEN,
+        status: HTTP_STATUS.FORBIDDEN,
+        errorDetails: {
+          type: 'business',
+          details: [{ field: 'role', code: 'INVALID', message: 'Invalid role filter' }],
+        },
+      });
     }
   }
 }

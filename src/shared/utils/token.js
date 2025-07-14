@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 
 import { config } from '../../infrastructure/config/environment.js';
 import { API_ERROR_CODES, ERROR_MESSAGES } from '../constants/apiCodes.js';
+import { HTTP_STATUS } from '../constants/httpStatus.js';
 
 import { createError } from './error.js';
 
@@ -32,11 +33,16 @@ export class TokenService {
         expiresIn: this.accessExpiresIn,
         algorithm: 'HS256',
       });
-    } catch (_err) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
-        API_ERROR_CODES.AUTH_TOKEN_INVALID
-      );
+    } catch (err) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [{ field: 'access_token', code: 'INVALID', message: err.message }],
+        },
+      });
     }
   }
 
@@ -51,11 +57,16 @@ export class TokenService {
         expiresIn: this.refreshExpiresIn,
         algorithm: 'HS256',
       });
-    } catch (_err) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
-        API_ERROR_CODES.AUTH_TOKEN_INVALID
-      );
+    } catch (err) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [{ field: 'refresh_token', code: 'INVALID', message: err.message }],
+        },
+      });
     }
   }
 
@@ -79,11 +90,16 @@ export class TokenService {
   verifyAccessToken(token) {
     try {
       return jwt.verify(token, this.secret);
-    } catch (_err) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
-        API_ERROR_CODES.AUTH_TOKEN_INVALID
-      );
+    } catch (err) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [{ field: 'access_token', code: 'INVALID', message: err.message }],
+        },
+      });
     }
   }
 
@@ -95,11 +111,16 @@ export class TokenService {
   verifyRefreshToken(token) {
     try {
       return jwt.verify(token, this.refreshSecret);
-    } catch (_err) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
-        API_ERROR_CODES.INVALID_REFRESH_TOKEN
-      );
+    } catch (err) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
+        code: API_ERROR_CODES.INVALID_REFRESH_TOKEN,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [{ field: 'refresh_token', code: 'INVALID', message: err.message }],
+        },
+      });
     }
   }
 }

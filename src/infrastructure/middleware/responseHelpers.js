@@ -32,20 +32,26 @@ export const apiSuccess = (res, data = null, message = 'Operación exitosa', met
 };
 
 /**
+ * @typedef {Object} ErrorDetails
+ * @property {string} type - Tipo de error
+ * @property {Array<Object>} details - Detalles adicionales del error
+ */
+
+/**
  * Helper para respuestas de error
  * @param {import('express').Response} res - Express response object
- * @param {number} statusCode - Código HTTP de estado
+ * @param {number} status - Código HTTP de estado
  * @param {string} code - Código semántico de error
  * @param {string} message - Mensaje de error en español
- * @param {object} errorDetails - Detalles adicionales del error
+ * @param {ErrorDetails} errorDetails - Detalles adicionales del error
  * @param {object} meta - Metadatos opcionales
  * @returns {import('express').Response} Response object
  */
-export const apiError = (res, statusCode, code, message, errorDetails = null, meta = null) => {
+export const apiError = (res, status, code, message, errorDetails = null, meta = null) => {
   const response = {
     success: false,
     data: null,
-    status: statusCode,
+    status,
     code,
     message,
     timestamp: new Date().toISOString(),
@@ -60,7 +66,7 @@ export const apiError = (res, statusCode, code, message, errorDetails = null, me
     response.meta = meta;
   }
 
-  return res.status(statusCode).json(response);
+  return res.status(status).json(response);
 };
 
 /**

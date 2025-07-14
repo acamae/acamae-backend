@@ -288,6 +288,7 @@ const API_ERROR_CODES = {
   // Authentication & Authorization
   AUTH_INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
   AUTH_USER_ALREADY_EXISTS: 'AUTH_USER_ALREADY_EXISTS',
+  AUTH_EMAIL_ALREADY_EXISTS: 'AUTH_EMAIL_ALREADY_EXISTS',
   AUTH_USER_ALREADY_VERIFIED: 'AUTH_USER_ALREADY_VERIFIED',
   AUTH_NO_ACTIVE_SESSION: 'AUTH_NO_ACTIVE_SESSION',
   AUTH_TOKEN_EXPIRED: 'AUTH_TOKEN_EXPIRED',
@@ -298,27 +299,32 @@ const API_ERROR_CODES = {
   AUTH_TOKEN_OTHER_FLOW: 'AUTH_TOKEN_OTHER_FLOW',
   AUTH_FORBIDDEN: 'AUTH_FORBIDDEN',
   AUTH_UPDATE_FAILED: 'AUTH_UPDATE_FAILED',
+  AUTH_RATE_LIMIT: 'AUTH_RATE_LIMIT',
+  AUTH_USER_NOT_FOUND: 'AUTH_USER_NOT_FOUND',
+  AUTH_USER_BLOCKED: 'AUTH_USER_BLOCKED',
 
-  // Validation
+  // Token & Session Management
+  INVALID_REFRESH_TOKEN: 'INVALID_REFRESH_TOKEN',
+  INVALID_RESET_TOKEN: 'INVALID_RESET_TOKEN',
+  EMAIL_NOT_VERIFIED: 'EMAIL_NOT_VERIFIED',
+  EMAIL_ALREADY_VERIFIED: 'EMAIL_ALREADY_VERIFIED',
+
+  // Validation & Resources
   VALIDATION_ERROR: 'VALIDATION_ERROR',
-
-  // Resource related
   RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
 
-  // Network errors (don't change these codes, they are Axios-specific)
+  // Database & Server
+  DATABASE_ERROR: 'DATABASE_ERROR',
+
+  // Network errors (do not change - Axios specific)
   ERR_NETWORK: 'ERR_NETWORK',
   ERR_CANCELED: 'ERR_CANCELED',
   ECONNABORTED: 'ECONNABORTED',
   ETIMEDOUT: 'ETIMEDOUT',
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
 
-  // Rate limit & availability
-  AUTH_RATE_LIMIT: 'AUTH_RATE_LIMIT',
+  // System
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
-
-  // User related
-  AUTH_USER_NOT_FOUND: 'AUTH_USER_NOT_FOUND',
-  AUTH_USER_BLOCKED: 'AUTH_USER_BLOCKED',
 };
 ```
 
@@ -510,14 +516,14 @@ app.post('/auth/register', async (req, res) => {
     const user = await createUser(req.body);
 
     return res.apiSuccess(
-      null,
+      user,
       'User registered successfully. Check your email to verify your account.'
     );
   } catch (error) {
     if (error.code === 'USER_EXISTS') {
       return res.apiError(
         409,
-        API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS,
+        API_ERROR_CODES.AUTH_EMAIL_ALREADY_EXISTS,
         'Email is already registered'
       );
     }
@@ -527,10 +533,10 @@ app.post('/auth/register', async (req, res) => {
 });
 ```
 
-### **POST /auth/verify-email/:token - Token Error**
+### **GET /auth/verify-email/:token - Token Error**
 
 ```javascript
-app.post('/auth/verify-email/:token', async (req, res) => {
+app.get('/auth/verify-email/:token', async (req, res) => {
   try {
     const { token } = req.params;
 
@@ -552,7 +558,7 @@ app.post('/auth/verify-email/:token', async (req, res) => {
       });
     }
 
-    return res.apiSuccess(null, 'Email verified successfully');
+    return res.apiSuccess(verificationResult.user, 'Email verified successfully');
   } catch (error) {
     return res.apiError(500, API_ERROR_CODES.UNKNOWN_ERROR, 'Internal server error');
   }
@@ -690,7 +696,7 @@ app.delete('/users/:id', async (req, res) => {
 
 ### **3. ALWAYS use the exact codes from the list**
 
-### **4. ALL messages in ENGLISH**
+### **4. ALL messages in ENGLISH (until i18n is implemented)**
 
 ### **5. NEVER use console.log in production, use Morgan**
 
@@ -699,6 +705,8 @@ app.delete('/users/:id', async (req, res) => {
 ### **7. NEVER expose stack traces in production**
 
 ### **8. ALWAYS use res.apiSuccess() and res.apiError()**
+
+### **9. ALL code must be in English until internationalization is implemented**
 
 ## 🧪 **Testing**
 
@@ -838,7 +846,7 @@ After this implementation:
 2. **Predictability**: Frontend always knows what to expect
 3. **Traceability**: requestId for complete tracking
 4. **Debugging**: Rich information to diagnose problems
-5. **Localization**: Appropriate messages in English
+5. **Localization**: Appropriate messages in English (until i18n is implemented)
 6. **Strong Typing**: Complete TypeScript for better DX
 7. **Maintainability**: Clean and easy-to-maintain code
 

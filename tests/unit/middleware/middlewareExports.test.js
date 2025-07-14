@@ -1,4 +1,27 @@
 describe('Middleware Exports Validation', () => {
+  const EXPECTED_EXPORTS = [
+    'requestIdMiddleware',
+    'responseHelpersMiddleware',
+    'apiSuccess',
+    'apiError',
+    'errorHandler',
+    'notFoundHandler',
+    'asyncHandler',
+    'applySecurityMiddleware',
+    'applyAllSecurityMiddleware',
+    'validateRequest',
+    'validateParams',
+    'sanitizeQueryParams',
+    'sanitizeInput',
+    'timeoutMiddleware',
+    'authenticate',
+    'authorize',
+    'isAdmin',
+    'isManagerOrAdmin',
+    'applyCompression',
+    'applyLoggingMiddleware',
+  ];
+
   it('should export all functions without import errors', async () => {
     // This test ensures that all exports in middleware/index.js are valid
     // and prevents runtime import errors in production
@@ -6,26 +29,7 @@ describe('Middleware Exports Validation', () => {
     const middlewareExports = await import('../../../src/infrastructure/middleware/index.js');
 
     // Verify that all expected exports exist and are functions
-    const expectedExports = [
-      'requestIdMiddleware',
-      'responseHelpersMiddleware',
-      'errorHandler',
-      'notFoundHandler',
-      'applySecurityMiddleware',
-      'validateRequest',
-      'registerValidation',
-      'loginValidation',
-      'logoutValidation',
-      'authenticate',
-      'authorize',
-      'isAdmin',
-      'isManagerOrAdmin',
-      'applyCompression',
-      'requestLogger',
-      'errorLogger',
-    ];
-
-    expectedExports.forEach((exportName) => {
+    EXPECTED_EXPORTS.forEach((exportName) => {
       expect(middlewareExports).toHaveProperty(exportName);
       expect(typeof middlewareExports[exportName]).toBe('function');
     });

@@ -88,7 +88,22 @@ const CONFIG = {
  */
 function getEnvironmentConfig() {
   const nodeEnv = process.env.NODE_ENV || CONFIG.defaultEnv;
-  const envFile = nodeEnv === 'production' ? '.env.production' : '.env.development';
+
+  // Determine the correct environment file based on NODE_ENV
+  let envFile;
+  switch (nodeEnv) {
+    case 'production':
+      envFile = '.env.production';
+      break;
+    case 'test':
+      envFile = '.env.test';
+      break;
+    case 'development':
+    default:
+      envFile = '.env.development';
+      break;
+  }
+
   const envPath = path.join(__dirname, '..', envFile);
   const targetPath = path.join(__dirname, '..', '.env');
 

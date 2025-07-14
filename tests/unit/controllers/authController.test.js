@@ -37,12 +37,9 @@ describe('AuthController (unit)', () => {
   });
 
   describe('register', () => {
-    it('should register user successfully with email sent', async () => {
-      service.register.mockResolvedValue({
-        user: { id: 1, email: 'test@example.com', username: 'testuser' },
-        emailSent: true,
-        emailError: null,
-      });
+    it('should register user successfully when email is sent', async () => {
+      const createdUser = { id: 1, email: 'test@example.com', username: 'testuser' };
+      service.register.mockResolvedValue(createdUser);
       const req = {
         body: { email: 'test@example.com', password: 'Password123!', username: 'testuser' },
       };
@@ -56,29 +53,38 @@ describe('AuthController (unit)', () => {
       });
       expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.CREATED);
       expect(res.apiSuccess).toHaveBeenCalledWith(
-        null,
-        'Usuario registrado exitosamente. Revisa tu correo para verificar tu cuenta.'
+        createdUser,
+        'User registered successfully. Check your email to verify your account.'
       );
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('should register user successfully with email failed', async () => {
-      service.register.mockResolvedValue({
-        user: { id: 1, email: 'test@example.com', username: 'testuser' },
-        emailSent: false,
-        emailError: 'SMTP Error',
-      });
+    it('should handle email service failure during registration', async () => {
+      const emailError = new Error('Email service failed');
+      emailError.status = HTTP_STATUS.SERVICE_UNAVAILABLE;
+      emailError.code = API_ERROR_CODES.SERVICE_UNAVAILABLE;
+      emailError.message =
+        'Registration failed: Unable to send verification email. Please try again later.';
+      emailError.error = {
+        type: 'server',
+        details: [
+          {
+            field: 'email_service',
+            code: 'EMAIL_SERVICE_FAILED',
+            message: 'Email service is temporarily unavailable',
+          },
+        ],
+      };
+      service.register.mockRejectedValue(emailError);
+
       const req = {
         body: { email: 'test@example.com', password: 'Password123!', username: 'testuser' },
       };
 
       await controller.register(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.CREATED);
-      expect(res.apiSuccess).toHaveBeenCalledWith(
-        null,
-        'Usuario registrado exitosamente. Sin embargo, no se pudo enviar el email de verificación.'
-      );
+      expect(next).toHaveBeenCalledWith(emailError);
+      expect(res.apiError).not.toHaveBeenCalled();
     });
 
     it('should call next on service error', async () => {
@@ -91,7 +97,7 @@ describe('AuthController (unit)', () => {
       await controller.register(req, res, next);
 
       expect(next).toHaveBeenCalledWith(error);
-      expect(res.status).not.toHaveBeenCalled();
+      expect(res.apiError).not.toHaveBeenCalled();
     });
   });
 
@@ -106,18 +112,20 @@ describe('AuthController (unit)', () => {
     });
 
     it('should verify email when token in query', async () => {
-      service.verifyEmail.mockResolvedValue();
+      const verifiedUser = { id: '1', email: 'test@example.com', isVerified: true };
+      service.verifyEmail.mockResolvedValue(verifiedUser);
       const req = { query: { token: 'test-token' }, params: {} };
 
       await controller.verifyEmail(req, res, next);
 
       expect(service.verifyEmail).toHaveBeenCalledWith('test-token');
       expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
-      expect(res.apiSuccess).toHaveBeenCalledWith(null, 'Email verificado correctamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(verifiedUser, 'Email verified successfully');
     });
 
     it('should verify email when token in params', async () => {
-      service.verifyEmail.mockResolvedValue();
+      const verifiedUser = { id: '1', email: 'test@example.com', isVerified: true };
+      service.verifyEmail.mockResolvedValue(verifiedUser);
       const req = { query: {}, params: { token: 'test-token' } };
 
       await controller.verifyEmail(req, res, next);
@@ -128,135 +136,68 @@ describe('AuthController (unit)', () => {
 
     it('should handle invalid_token custom response', async () => {
       const error = new Error('Invalid token');
-      error.customResponse = { status: 'invalid_token' };
       service.verifyEmail.mockRejectedValue(error);
       const req = { query: { token: 'invalid-token' }, params: {} };
 
       await controller.verifyEmail(req, res, next);
 
-      expect(res.apiError).toHaveBeenCalledWith(
-        HTTP_STATUS.BAD_REQUEST,
-        API_ERROR_CODES.AUTH_TOKEN_INVALID,
-        'El enlace de verificación no es válido',
-        {
-          type: 'authentication',
-          details: [{ field: 'token', code: 'INVALID', message: 'El token no es válido' }],
-        }
-      );
-      expect(next).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.apiError).not.toHaveBeenCalled();
     });
 
     it('should handle expired_token custom response', async () => {
       const error = new Error('Expired token');
-      error.customResponse = { status: 'expired_token' };
       service.verifyEmail.mockRejectedValue(error);
       const req = { query: { token: 'expired-token' }, params: {} };
 
       await controller.verifyEmail(req, res, next);
 
-      expect(res.apiError).toHaveBeenCalledWith(
-        HTTP_STATUS.BAD_REQUEST,
-        API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-        'El enlace de verificación ha expirado',
-        {
-          type: 'authentication',
-          details: [{ field: 'token', code: 'EXPIRED', message: 'El token ha expirado' }],
-        }
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.apiError).not.toHaveBeenCalled();
     });
 
     it('should handle already_verified custom response', async () => {
       const error = new Error('Already verified');
-      error.customResponse = { status: 'already_verified' };
       service.verifyEmail.mockRejectedValue(error);
       const req = { query: { token: 'valid-token' }, params: {} };
 
       await controller.verifyEmail(req, res, next);
 
-      expect(res.apiError).toHaveBeenCalledWith(
-        HTTP_STATUS.CONFLICT,
-        API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED,
-        'Esta cuenta ya ha sido verificada',
-        {
-          type: 'business',
-          details: [
-            {
-              field: 'user',
-              code: 'ALREADY_VERIFIED',
-              message: 'El usuario ya está verificado',
-            },
-          ],
-        }
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.apiError).not.toHaveBeenCalled();
     });
 
     it('should handle AUTH_USER_ALREADY_VERIFIED custom response', async () => {
       const error = new Error('Already verified');
-      error.customResponse = { status: 'AUTH_USER_ALREADY_VERIFIED' };
       service.verifyEmail.mockRejectedValue(error);
       const req = { query: { token: 'valid-token' }, params: {} };
 
       await controller.verifyEmail(req, res, next);
 
-      expect(res.apiError).toHaveBeenCalledWith(
-        HTTP_STATUS.CONFLICT,
-        API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED,
-        'Esta cuenta ya ha sido verificada',
-        {
-          type: 'business',
-          details: [
-            {
-              field: 'user',
-              code: 'ALREADY_VERIFIED',
-              message: 'El usuario ya está verificado',
-            },
-          ],
-        }
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.apiError).not.toHaveBeenCalled();
     });
 
     it('should handle update_failed custom response', async () => {
       const error = new Error('Update failed');
-      error.customResponse = { status: 'update_failed' };
       service.verifyEmail.mockRejectedValue(error);
       const req = { query: { token: 'valid-token' }, params: {} };
 
       await controller.verifyEmail(req, res, next);
 
-      expect(res.apiError).toHaveBeenCalledWith(
-        HTTP_STATUS.INTERNAL_SERVER_ERROR,
-        API_ERROR_CODES.AUTH_UPDATE_FAILED,
-        'Error al actualizar el estado de verificación',
-        {
-          type: 'server',
-          details: [
-            {
-              field: 'database',
-              code: 'UPDATE_FAILED',
-              message: 'No se pudo actualizar la base de datos',
-            },
-          ],
-        }
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.apiError).not.toHaveBeenCalled();
     });
 
     it('should handle unknown custom response status', async () => {
       const error = new Error('Unknown error');
-      error.customResponse = { status: 'unknown_status' };
       service.verifyEmail.mockRejectedValue(error);
       const req = { query: { token: 'valid-token' }, params: {} };
 
       await controller.verifyEmail(req, res, next);
 
-      expect(res.apiError).toHaveBeenCalledWith(
-        HTTP_STATUS.INTERNAL_SERVER_ERROR,
-        API_ERROR_CODES.UNKNOWN_ERROR,
-        'Error interno del servidor',
-        {
-          type: 'server',
-          details: [{ field: 'server', code: 'UNKNOWN', message: 'Error desconocido' }],
-        }
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.apiError).not.toHaveBeenCalled();
     });
 
     it('should call next for generic errors without customResponse', async () => {
@@ -273,31 +214,61 @@ describe('AuthController (unit)', () => {
 
   describe('login', () => {
     it('should login successfully', async () => {
-      const loginResult = {
-        user: { id: '1', email: 'test@example.com' },
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
-      };
+      const loginResult = { user: { id: '1', email: 'test@example.com' }, accessToken: 'token' };
       service.login.mockResolvedValue(loginResult);
-      const req = { body: { email: 'test@example.com', password: 'Password123!' } };
+      const req = {
+        body: { email: 'test@example.com', password: 'password123' },
+        ip: '192.168.1.1',
+      };
 
       await controller.login(req, res, next);
 
-      expect(service.login).toHaveBeenCalledWith('test@example.com', 'Password123!');
+      expect(service.login).toHaveBeenCalledWith('test@example.com', 'password123', '192.168.1.1');
       expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
-      expect(res.apiSuccess).toHaveBeenCalledWith(loginResult, 'Login exitoso');
-      expect(next).not.toHaveBeenCalled();
+      expect(res.apiSuccess).toHaveBeenCalledWith(loginResult, 'Login successful');
+    });
+
+    it('should extract IP from various sources', async () => {
+      const loginResult = { user: { id: '1', email: 'test@example.com' }, accessToken: 'token' };
+      service.login.mockResolvedValue(loginResult);
+
+      // Test x-forwarded-for header
+      const req1 = {
+        body: { email: 'test@example.com', password: 'password123' },
+        headers: { 'x-forwarded-for': '203.0.113.1, 192.168.1.1' },
+      };
+      await controller.login(req1, res, next);
+      expect(service.login).toHaveBeenCalledWith('test@example.com', 'password123', '203.0.113.1');
+
+      // Test x-real-ip header
+      const req2 = {
+        body: { email: 'test@example.com', password: 'password123' },
+        headers: { 'x-real-ip': '203.0.113.2' },
+      };
+      await controller.login(req2, res, next);
+      expect(service.login).toHaveBeenCalledWith('test@example.com', 'password123', '203.0.113.2');
+
+      // Test fallback to 'unknown'
+      const req3 = {
+        body: { email: 'test@example.com', password: 'password123' },
+        headers: {},
+      };
+      await controller.login(req3, res, next);
+      expect(service.login).toHaveBeenCalledWith('test@example.com', 'password123', 'unknown');
     });
 
     it('should call next on service error', async () => {
       const error = new Error('Login failed');
       service.login.mockRejectedValue(error);
-      const req = { body: { email: 'test@example.com', password: 'wrongpass' } };
+      const req = {
+        body: { email: 'test@example.com', password: 'password123' },
+        ip: '192.168.1.1',
+      };
 
       await controller.login(req, res, next);
 
       expect(next).toHaveBeenCalledWith(error);
-      expect(res.status).not.toHaveBeenCalled();
+      expect(res.apiError).not.toHaveBeenCalled();
     });
   });
 
@@ -311,7 +282,7 @@ describe('AuthController (unit)', () => {
 
       expect(service.getMe).toHaveBeenCalledWith('1');
       expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
-      expect(res.apiSuccess).toHaveBeenCalledWith(user, 'Usuario obtenido exitosamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(user, 'User retrieved successfully');
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -328,20 +299,6 @@ describe('AuthController (unit)', () => {
   });
 
   describe('refreshToken', () => {
-    it('should throw error when no refresh token provided', async () => {
-      const req = { body: {} };
-
-      await controller.refreshToken(req, res, next);
-
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({
-          code: API_ERROR_CODES.INVALID_REFRESH_TOKEN,
-          status: HTTP_STATUS.BAD_REQUEST,
-        })
-      );
-      expect(service.refreshToken).not.toHaveBeenCalled();
-    });
-
     it('should refresh token successfully', async () => {
       const tokens = { accessToken: 'new-access', refreshToken: 'new-refresh' };
       service.refreshToken.mockResolvedValue(tokens);
@@ -351,7 +308,7 @@ describe('AuthController (unit)', () => {
 
       expect(service.refreshToken).toHaveBeenCalledWith('old-refresh-token');
       expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
-      expect(res.apiSuccess).toHaveBeenCalledWith(tokens, 'Token renovado exitosamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(tokens, 'Token refreshed successfully');
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -376,7 +333,7 @@ describe('AuthController (unit)', () => {
 
       expect(service.logout).toHaveBeenCalledWith('refresh-token');
       expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
-      expect(res.apiSuccess).toHaveBeenCalledWith(null, 'Sesión cerrada exitosamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(null, 'Session closed successfully');
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -403,7 +360,7 @@ describe('AuthController (unit)', () => {
       expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
       expect(res.apiSuccess).toHaveBeenCalledWith(
         null,
-        'Te hemos enviado un enlace para restablecer tu contraseña'
+        'We have sent you a link to reset your password'
       );
       expect(next).not.toHaveBeenCalled();
     });
@@ -432,7 +389,7 @@ describe('AuthController (unit)', () => {
 
       expect(service.resetPassword).toHaveBeenCalledWith('reset-token', 'NewPassword123!');
       expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
-      expect(res.apiSuccess).toHaveBeenCalledWith(null, 'Contraseña restablecida exitosamente');
+      expect(res.apiSuccess).toHaveBeenCalledWith(null, 'Password reset successfully');
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -460,10 +417,7 @@ describe('AuthController (unit)', () => {
 
       expect(service.resendVerification).toHaveBeenCalledWith('test@example.com');
       expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
-      expect(res.apiSuccess).toHaveBeenCalledWith(
-        null,
-        'Nuevo enlace enviado. Revisa tu bandeja de entrada.'
-      );
+      expect(res.apiSuccess).toHaveBeenCalledWith(null, 'New link sent. Check your inbox.');
       expect(next).not.toHaveBeenCalled();
     });
 
