@@ -40,7 +40,7 @@ describe('UserService', () => {
       const service = new UserService(repo);
 
       await expect(service.getUserById('123')).rejects.toMatchObject({
-        code: API_ERROR_CODES.AUTH_USER_NOT_FOUND,
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
       });
     });
 
@@ -95,14 +95,14 @@ describe('UserService', () => {
       repo.findById.mockResolvedValue(null);
       const service = new UserService(repo);
       await expect(service.deleteUser('999')).rejects.toMatchObject({
-        code: API_ERROR_CODES.AUTH_USER_NOT_FOUND,
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
       });
     });
 
     it('should delete user and return true', async () => {
       const repo = makeRepo();
       repo.findById.mockResolvedValue(makeUser());
-      repo.delete.mockResolvedValue();
+      repo.delete.mockResolvedValue(true); // Debe devolver un valor truthy
       const service = new UserService(repo);
       const result = await service.deleteUser('1');
       expect(repo.delete).toHaveBeenCalledWith('1');

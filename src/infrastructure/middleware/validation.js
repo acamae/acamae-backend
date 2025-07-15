@@ -19,9 +19,8 @@ import {
   REGEX,
   USER_ROLES,
 } from '../../shared/constants/validation.js';
+import { createError } from '../../shared/utils/error.js';
 import { sanitizeEmail, sanitizeNumber, sanitizeString } from '../../shared/utils/sanitize.js';
-
-import { throwError } from './errorHandler.js';
 
 /**
  * Validation schemas for different routes
@@ -74,8 +73,22 @@ export const validationSchemas = {
       .optional(),
   }),
 
+  resendVerification: z.object({
+    identifier: z
+      .string()
+      .min(MIN_EMAIL_LENGTH, ERROR_MESSAGES.EMAIL_LENGTH)
+      .max(MAX_EMAIL_LENGTH, ERROR_MESSAGES.EMAIL_LENGTH)
+      .email(ERROR_MESSAGES.INVALID_EMAIL)
+      .transform(sanitizeEmail),
+  }),
+
   logout: z.object({
     refreshToken: z.string().min(1, ERROR_MESSAGES.AUTH_TOKEN_INVALID),
+  }),
+
+  // Email verification token validation
+  verifyEmail: z.object({
+    token: z.string().uuid('Invalid email verification token format'),
   }),
 
   // User routes
@@ -135,6 +148,27 @@ export const validationSchemas = {
   id: z.object({
     id: z.string().uuid('Invalid ID format'),
   }),
+
+  forgotPassword: z.object({
+    email: z
+      .string()
+      .min(MIN_EMAIL_LENGTH, ERROR_MESSAGES.EMAIL_LENGTH)
+      .max(MAX_EMAIL_LENGTH, ERROR_MESSAGES.EMAIL_LENGTH)
+      .email(ERROR_MESSAGES.INVALID_EMAIL)
+      .transform(sanitizeEmail),
+  }),
+
+  resetPassword: z.object({
+    password: z
+      .string()
+      .min(MIN_PASSWORD_LENGTH, ERROR_MESSAGES.PASSWORD_LENGTH)
+      .max(MAX_PASSWORD_LENGTH, ERROR_MESSAGES.PASSWORD_LENGTH)
+      .regex(REGEX.PASSWORD, ERROR_MESSAGES.INVALID_PASSWORD),
+  }),
+
+  refreshToken: z.object({
+    refreshToken: z.string().min(1, ERROR_MESSAGES.INVALID_REFRESH_TOKEN),
+  }),
 };
 
 /**
@@ -148,36 +182,170 @@ export const validationSchemas = {
 export const validateRequest = (schemaName) => {
   return (req, _res, next) => {
     try {
-      const schema = validationSchemas[schemaName];
-      if (!schema) {
-        throwError(
-          ERROR_MESSAGES[API_ERROR_CODES.INVALID_SCHEMA],
-          API_ERROR_CODES.INVALID_SCHEMA,
-          HTTP_STATUS.BAD_REQUEST
-        );
+      // Validate schema name exists
+      if (!schemaName || typeof schemaName !== 'string') {
+        throw createError({
+          message: 'Invalid schema name provided',
+          code: API_ERROR_CODES.INVALID_SCHEMA,
+          status: HTTP_STATUS.BAD_REQUEST,
+          errorDetails: {
+            type: 'validation',
+            details: [
+              {
+                field: 'schema',
+                code: 'INVALID_SCHEMA_NAME',
+                message: 'Schema name must be a valid string',
+              },
+            ],
+          },
+        });
       }
 
-      // Validate and sanitize request body
-      const validatedData = schema.parse(req.body);
+      const schema = validationSchemas[schemaName];
+      if (!schema) {
+        throw createError({
+          message: `Validation schema '${schemaName}' not found`,
+          code: API_ERROR_CODES.INVALID_SCHEMA,
+          status: HTTP_STATUS.BAD_REQUEST,
+          errorDetails: {
+            type: 'validation',
+            details: [
+              {
+                field: 'schema',
+                code: 'SCHEMA_NOT_FOUND',
+                message: `Schema '${schemaName}' is not defined in validationSchemas`,
+              },
+            ],
+          },
+        });
+      }
+
+      // Validate request body exists
+      if (!req.body || typeof req.body !== 'object') {
+        throw createError({
+          message: 'Request body is required',
+          code: API_ERROR_CODES.VALIDATION_ERROR,
+          status: HTTP_STATUS.BAD_REQUEST,
+          errorDetails: {
+            type: 'validation',
+            details: [
+              {
+                field: 'body',
+                code: 'MISSING_BODY',
+                message: 'Request body is required for validation',
+              },
+            ],
+          },
+        });
+      }
+
+      // Validate and sanitize request body with timeout protection
+      let validatedData;
+      try {
+        validatedData = schema.parse(req.body);
+      } catch (parseError) {
+        if (parseError instanceof z.ZodError) {
+          let errorDetails = null;
+
+          if (parseError.errors.length > 0) {
+            errorDetails = {
+              type: 'validation',
+              details: parseError.errors.map((err) => ({
+                field: err.path.join('.'),
+                code: 'VALIDATION_FAILED',
+                message: err.message,
+              })),
+            };
+          }
+
+          throw createError({
+            message: ERROR_MESSAGES[API_ERROR_CODES.VALIDATION_ERROR],
+            code: API_ERROR_CODES.VALIDATION_ERROR,
+            status: HTTP_STATUS.BAD_REQUEST,
+            errorDetails,
+          });
+        } else {
+          // Handle unexpected validation errors
+          throw createError({
+            message: 'Unexpected validation error occurred',
+            code: API_ERROR_CODES.VALIDATION_ERROR,
+            status: HTTP_STATUS.BAD_REQUEST,
+            errorDetails: {
+              type: 'validation',
+              details: [
+                {
+                  field: 'validation',
+                  code: 'UNEXPECTED_ERROR',
+                  message: 'An unexpected error occurred during validation',
+                },
+              ],
+            },
+          });
+        }
+      }
 
       // Replace request body with validated and sanitized data
       req.body = validatedData;
 
       next();
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        // Format validation errors in a clear way
-        const validationErrors = error.errors.map((err) => ({
-          field: err.path.join('.'),
-          message: err.message,
-        }));
+      // Ensure we always call next with the error
+      next(error);
+    }
+  };
+};
 
-        throwError(
-          ERROR_MESSAGES[API_ERROR_CODES.VALIDATION_ERROR],
-          API_ERROR_CODES.VALIDATION_ERROR,
-          HTTP_STATUS.BAD_REQUEST,
-          validationErrors
-        );
+/**
+ * Validation middleware for URL parameters
+ * This middleware validates URL parameters using Zod schemas
+ * @param {string} schemaName - The name of the schema to validate
+ * @param {import('express').Request} req - Express request
+ * @param {import('express').Response} _res - Express response
+ * @param {import('express').NextFunction} next - Express next function
+ */
+export const validateParams = (schemaName) => {
+  return (req, _res, next) => {
+    try {
+      const schema = validationSchemas[schemaName];
+      if (!schema) {
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.INVALID_SCHEMA],
+          code: API_ERROR_CODES.INVALID_SCHEMA,
+          status: HTTP_STATUS.BAD_REQUEST,
+          errorDetails: {
+            type: 'business',
+            details: [{ field: 'schema', code: 'INVALID', message: 'Invalid schema' }],
+          },
+        });
+      }
+
+      // Validate URL parameters
+      const validatedData = schema.parse(req.params);
+
+      // Replace request params with validated data
+      req.params = validatedData;
+
+      next();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        let errorDetails = null;
+
+        if (error.errors.length > 0) {
+          errorDetails = {
+            type: 'validation',
+            details: error.errors.map((err) => ({
+              field: err.path.join('.'),
+              message: err.message,
+            })),
+          };
+        }
+
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.VALIDATION_ERROR],
+          code: API_ERROR_CODES.VALIDATION_ERROR,
+          status: HTTP_STATUS.BAD_REQUEST,
+          errorDetails,
+        });
       }
       next(error);
     }
@@ -200,37 +368,9 @@ export const loginValidation = validateRequest('login');
 export const logoutValidation = validateRequest('logout');
 
 /**
- * Validation middleware for email verification
- * Validates the token parameter in the URL
+ * Validation rules for email verification
  */
-export const verifyEmailValidation = (req, _res, next) => {
-  try {
-    const { token } = req.params;
-
-    if (!token) {
-      throwError(
-        'Email verification token is required',
-        API_ERROR_CODES.VALIDATION_ERROR,
-        HTTP_STATUS.BAD_REQUEST
-      );
-    }
-
-    // Validate token format (UUID)
-    const tokenSchema = z.string().uuid('Invalid token format');
-    tokenSchema.parse(token);
-
-    next();
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      throwError(
-        'Invalid email verification token format',
-        API_ERROR_CODES.VALIDATION_ERROR,
-        HTTP_STATUS.BAD_REQUEST
-      );
-    }
-    next(error);
-  }
-};
+export const verifyEmailValidation = validateParams('verifyEmail');
 
 /**
  * Validation rules for team creation
@@ -251,6 +391,26 @@ export const paginationValidation = validateRequest('pagination');
  * Validation rules for ID parameters
  */
 export const idValidation = validateRequest('id');
+
+/**
+ * Validation rules for resending verification email
+ */
+export const resendVerificationValidation = validateRequest('resendVerification');
+
+/**
+ * Validation rules for forgot password
+ */
+export const forgotPasswordValidation = validateRequest('forgotPassword');
+
+/**
+ * Validation rules for resetting password
+ */
+export const resetPasswordValidation = validateRequest('resetPassword');
+
+/**
+ * Validation rules for refreshing token
+ */
+export const refreshTokenValidation = validateRequest('refreshToken');
 
 /**
  * Sanitization middleware for query parameters

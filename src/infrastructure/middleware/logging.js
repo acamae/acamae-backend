@@ -1,160 +1,109 @@
+import morgan from 'morgan';
 import { v4 as uuidv4 } from 'uuid';
-import winston from 'winston';
-const { format, transports } = winston;
-
-import { config } from '../config/environment.js';
 
 /**
- * Create a logger instance
- * @returns {winston.Logger} Logger instance
+ * Custom token for requestId
  */
-const createLogger = () => {
-  if (config.env === 'test') {
-    return winston.createLogger({
-      level: 'error',
-      transports: [new transports.Console({ silent: true })],
+morgan.token('requestId', (req) => req.requestId || uuidv4());
+
+/**
+ * Custom token for error details
+ */
+morgan.token('errorDetails', (req) => {
+  if (req.log && req.log.error) {
+    return JSON.stringify({
+      error: req.log.error,
+      stack: req.log.stack,
+      requestId: req.requestId,
     });
   }
+  return '';
+});
 
-  const logger = winston.createLogger({
-    level: config.logs?.level || 'info',
-    format: format.combine(format.timestamp(), format.errors({ stack: true }), format.json()),
-    defaultMeta: { service: 'api' },
-    transports: [
-      new transports.File({
-        filename: 'logs/error.log',
-        level: 'error',
-        maxsize: 5242880, // 5MB
-        maxFiles: 5,
-      }),
-      new transports.File({
-        filename: 'logs/combined.log',
-        maxsize: 5242880, // 5MB
-        maxFiles: 5,
-      }),
-    ],
-  });
+/**
+ * Custom token for response time with timeout detection
+ */
+morgan.token('responseTimeWithTimeout', (req, res) => {
+  const responseTime = morgan['response-time'](req, res);
+  const timeout = req.timeout || 30000; // Default 30s timeout
 
-  if (config.env !== 'production') {
-    logger.add(
-      new transports.Console({
-        format: format.combine(format.colorize(), format.simple()),
-      })
-    );
+  if (responseTime && parseInt(responseTime) > timeout) {
+    return `${responseTime}ms (TIMEOUT WARNING)`;
   }
-
-  return logger;
-};
-
-const logger = createLogger();
+  return responseTime;
+});
 
 /**
- * Request logging middleware
- * @param {import('express').Request} req - Express request
- * @param {import('express').Response} res - Express response
- * @param {import('express').NextFunction} next - Express next function
+ * Custom log format for development
  */
-export const requestLogger = (req, res, next) => {
-  const requestId = uuidv4();
-  req.requestId = requestId;
+const devFormat =
+  ':method :url :status :responseTimeWithTimeout ms - :res[content-length] :requestId :errorDetails';
 
-  const start = Date.now();
+/**
+ * Custom log format for production
+ */
+const prodFormat =
+  ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :requestId :errorDetails';
 
-  res.on('finish', () => {
-    const duration = Date.now() - start;
+/**
+ * Apply logging middleware
+ * @param {import('express').Application} app - Express application
+ */
+export const applyLoggingMiddleware = (app) => {
+  // Set log format based on environment
+  const logFormat = process.env.NODE_ENV === 'production' ? prodFormat : devFormat;
 
-    logger.info('Request completed', {
-      requestId,
-      method: req.method,
-      url: req.originalUrl,
-      status: res.statusCode,
-      duration,
-      ip: req.ip,
-      userAgent: req.get('user-agent'),
+  // Apply Morgan logging
+  app.use(morgan(logFormat));
+
+  // Add request timing middleware
+  app.use((req, res, next) => {
+    const startTime = Date.now();
+
+    // Add timing to response
+    res.on('finish', () => {
+      const duration = Date.now() - startTime;
+      const timeout = req.timeout || 30000;
+
+      // Log slow requests
+      if (duration > timeout * 0.8) {
+        // 80% of timeout
+        console.warn(
+          `⚠️  Slow request detected: ${req.method} ${req.url} took ${duration}ms (timeout: ${timeout}ms)`
+        );
+      }
+
+      // Log timeout requests
+      if (duration > timeout) {
+        console.error(
+          `🚨 Timeout request: ${req.method} ${req.url} took ${duration}ms (exceeded ${timeout}ms timeout)`
+        );
+      }
     });
+
+    next();
   });
 
-  next();
-};
-
-/**
- * Error logging middleware
- * @param {Error} error - Error object
- * @param {import('express').Request} req - Express request
- * @param {import('express').Response} res - Express response
- * @param {import('express').NextFunction} next - Express next function
- */
-export const errorLogger = (error, req, res, next) => {
-  logger.error('Error occurred', {
-    requestId: req.requestId,
-    error: {
-      message: error.message,
+  // Add error logging middleware
+  app.use((error, req, res, next) => {
+    // Log error details
+    console.error('🚨 Error occurred:', {
+      error: error.message,
       stack: error.stack,
-      code: error.code,
-    },
-    request: {
+      requestId: req.requestId,
+      url: req.url,
       method: req.method,
-      url: req.originalUrl,
       body: req.body,
-      query: req.query,
-      params: req.params,
       headers: req.headers,
-    },
-  });
+    });
 
-  next(error);
-};
-
-/**
- * Log a message
- * @param {string} level - Log level
- * @param {string} message - Log message
- * @param {Object} meta - Additional metadata
- */
-export const log = (level, message, meta = {}) => {
-  logger.log(level, message, meta);
-};
-
-/**
- * Log an error
- * @param {string} message - Error message
- * @param {Error} error - Error object
- * @param {Object} meta - Additional metadata
- */
-export const logError = (message, error, meta = {}) => {
-  logger.error(message, {
-    error: {
-      message: error.message,
+    // Add error to request for Morgan
+    req.log = {
+      error: error.message,
       stack: error.stack,
-      code: error.code,
-    },
-    ...meta,
+      requestId: req.requestId,
+    };
+
+    next(error);
   });
-};
-
-/**
- * Log a warning
- * @param {string} message - Warning message
- * @param {Object} meta - Additional metadata
- */
-export const logWarning = (message, meta = {}) => {
-  logger.warn(message, meta);
-};
-
-/**
- * Log an info message
- * @param {string} message - Info message
- * @param {Object} meta - Additional metadata
- */
-export const logInfo = (message, meta = {}) => {
-  logger.info(message, meta);
-};
-
-/**
- * Log a debug message
- * @param {string} message - Debug message
- * @param {Object} meta - Additional metadata
- */
-export const logDebug = (message, meta = {}) => {
-  logger.debug(message, meta);
 };

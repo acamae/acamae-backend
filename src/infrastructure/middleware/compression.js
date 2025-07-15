@@ -36,11 +36,15 @@ export const applyCompression = (app) => {
 export const compressionErrorHandler = (error, _req, _res, next) => {
   if (error.type === 'entity.too.large') {
     next(
-      createError(
-        ERROR_MESSAGES[API_ERROR_CODES.REQUEST_TOO_LARGE],
-        API_ERROR_CODES.REQUEST_TOO_LARGE,
-        HTTP_STATUS.PAYLOAD_TOO_LARGE
-      )
+      createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.REQUEST_TOO_LARGE],
+        code: API_ERROR_CODES.REQUEST_TOO_LARGE,
+        status: HTTP_STATUS.PAYLOAD_TOO_LARGE,
+        errorDetails: {
+          type: 'business',
+          details: [{ field: 'request', code: 'TOO_LARGE', message: 'Request too large' }],
+        },
+      })
     );
   } else {
     next(error);

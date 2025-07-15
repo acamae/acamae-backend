@@ -1,5 +1,4 @@
-import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
-import { createError } from '../../shared/utils/error.js';
+import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 
 export class UserController {
   constructor(userService) {
@@ -7,19 +6,38 @@ export class UserController {
   }
 
   /**
-   * Get all users
+   * Get all users with pagination
    * @param {import('express').Request} req
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  getAllUsers = async (req, res, next) => {
+  async getAllUsers(req, res, next) {
     try {
-      const users = await this.userService.getAllUsers();
-      res.status(200).json({ status: 'success', data: users });
+      // Extract pagination parameters according to Swagger
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+
+      const result = await this.userService.getAllUsers({ page, limit });
+
+      // Structure according to Swagger with pagination
+      const meta = {
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasNext: result.hasNext,
+          hasPrev: result.hasPrev,
+        },
+      };
+
+      return res
+        .status(HTTP_STATUS.OK)
+        .apiSuccess(result.users, 'Users retrieved successfully', meta);
     } catch (error) {
       next(error);
     }
-  };
+  }
 
   /**
    * Get a user by ID
@@ -27,25 +45,15 @@ export class UserController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  getUserById = async (req, res, next) => {
+  async getUserById(req, res, next) {
     try {
       const { id } = req.params;
       const user = await this.userService.getUserById(id);
-
-      if (!user) {
-        const notFoundError = createError(
-          ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
-          API_ERROR_CODES.AUTH_USER_NOT_FOUND,
-          404
-        );
-        return next(notFoundError);
-      }
-
-      res.status(200).json({ status: 'success', data: user });
+      return res.status(HTTP_STATUS.OK).apiSuccess(user, 'User retrieved successfully');
     } catch (error) {
       next(error);
     }
-  };
+  }
 
   /**
    * Update a user
@@ -53,29 +61,16 @@ export class UserController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  updateUser = async (req, res, next) => {
+  async updateUser(req, res, next) {
     try {
       const { id } = req.params;
       const userData = req.body;
-
       const updatedUser = await this.userService.updateUser(id, userData);
-
-      if (!updatedUser) {
-        const notFoundError = createError(
-          ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
-          API_ERROR_CODES.AUTH_USER_NOT_FOUND,
-          404
-        );
-        return next(notFoundError);
-      }
-
-      res
-        .status(200)
-        .json({ status: 'success', message: 'User updated successfully', data: updatedUser });
+      return res.status(HTTP_STATUS.OK).apiSuccess(updatedUser, 'User updated successfully');
     } catch (error) {
       next(error);
     }
-  };
+  }
 
   /**
    * Delete a user
@@ -83,23 +78,13 @@ export class UserController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  deleteUser = async (req, res, next) => {
+  async deleteUser(req, res, next) {
     try {
       const { id } = req.params;
-      const deleted = await this.userService.deleteUser(id);
-
-      if (!deleted) {
-        const notFoundError = createError(
-          ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
-          API_ERROR_CODES.AUTH_USER_NOT_FOUND,
-          404
-        );
-        return next(notFoundError);
-      }
-
-      res.status(200).json({ status: 'success', message: 'User deleted successfully', data: null });
+      await this.userService.deleteUser(id);
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'User deleted successfully');
     } catch (error) {
       next(error);
     }
-  };
+  }
 }

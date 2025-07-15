@@ -16,11 +16,15 @@ const verifyAccessToken = (token) => {
   try {
     return tokenService.verifyAccessToken(token);
   } catch (error) {
-    throw createError(
-      ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
-      error.code || API_ERROR_CODES.AUTH_TOKEN_INVALID,
-      HTTP_STATUS.UNAUTHORIZED
-    );
+    throw createError({
+      message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+      code: error.code || API_ERROR_CODES.AUTH_TOKEN_INVALID,
+      status: HTTP_STATUS.UNAUTHORIZED,
+      errorDetails: {
+        type: 'business',
+        details: [{ field: 'token', code: 'INVALID', message: 'Invalid token' }],
+      },
+    });
   }
 };
 
@@ -35,21 +39,29 @@ export const authenticate = async (req, _res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.UNAUTHORIZED],
-        API_ERROR_CODES.UNAUTHORIZED,
-        HTTP_STATUS.UNAUTHORIZED
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.UNAUTHORIZED],
+        code: API_ERROR_CODES.UNAUTHORIZED,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [{ field: 'token', code: 'UNAUTHORIZED', message: 'Unauthorized' }],
+        },
+      });
     }
 
     const [bearer, token] = authHeader.split(' ');
 
     if (bearer !== 'Bearer' || !token) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
-        API_ERROR_CODES.AUTH_TOKEN_INVALID,
-        HTTP_STATUS.UNAUTHORIZED
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [{ field: 'token', code: 'INVALID', message: 'Invalid token' }],
+        },
+      });
     }
 
     const decoded = verifyAccessToken(token);
@@ -63,19 +75,27 @@ export const authenticate = async (req, _res, next) => {
     ]);
 
     if (!user) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
-        API_ERROR_CODES.AUTH_USER_NOT_FOUND,
-        HTTP_STATUS.UNAUTHORIZED
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+        code: API_ERROR_CODES.AUTH_USER_NOT_FOUND,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [{ field: 'user', code: 'NOT_FOUND', message: 'User not found' }],
+        },
+      });
     }
 
     if (!user.isVerified) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.UNAUTHORIZED],
-        API_ERROR_CODES.UNAUTHORIZED,
-        HTTP_STATUS.UNAUTHORIZED
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.UNAUTHORIZED],
+        code: API_ERROR_CODES.UNAUTHORIZED,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [{ field: 'user', code: 'UNAUTHORIZED', message: 'Unauthorized' }],
+        },
+      });
     }
 
     req.user = user;
@@ -94,19 +114,27 @@ export const authorize = (roles = []) => {
   return (req, _res, next) => {
     try {
       if (!req.user) {
-        throw createError(
-          ERROR_MESSAGES[API_ERROR_CODES.UNAUTHORIZED],
-          API_ERROR_CODES.UNAUTHORIZED,
-          HTTP_STATUS.UNAUTHORIZED
-        );
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.UNAUTHORIZED],
+          code: API_ERROR_CODES.UNAUTHORIZED,
+          status: HTTP_STATUS.UNAUTHORIZED,
+          errorDetails: {
+            type: 'business',
+            details: [{ field: 'user', code: 'UNAUTHORIZED', message: 'Unauthorized' }],
+          },
+        });
       }
 
       if (roles.length && !roles.includes(req.user.role)) {
-        throw createError(
-          ERROR_MESSAGES[API_ERROR_CODES.AUTH_FORBIDDEN],
-          API_ERROR_CODES.AUTH_FORBIDDEN,
-          HTTP_STATUS.AUTH_FORBIDDEN
-        );
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_FORBIDDEN],
+          code: API_ERROR_CODES.AUTH_FORBIDDEN,
+          status: HTTP_STATUS.FORBIDDEN,
+          errorDetails: {
+            type: 'business',
+            details: [{ field: 'user', code: 'FORBIDDEN', message: 'Forbidden' }],
+          },
+        });
       }
 
       next();

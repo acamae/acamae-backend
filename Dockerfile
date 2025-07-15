@@ -2,6 +2,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+# Definir argumento para NODE_ENV
+ARG NODE_ENV=development
+
 # Instalar curl para health checks
 RUN apk add --no-cache curl
 
@@ -9,7 +12,8 @@ RUN apk add --no-cache curl
 COPY package*.json ./
 COPY prisma ./prisma/
 COPY ./src /app/src
-COPY .env.${NODE_ENV:-development} /app/.env.${NODE_ENV:-development}
+# Copiar solo el archivo de entorno específico, excluyendo .env.local
+COPY .env.${NODE_ENV} /app/.env.${NODE_ENV}
 
 # Crear directorio para logs
 RUN mkdir -p logs \

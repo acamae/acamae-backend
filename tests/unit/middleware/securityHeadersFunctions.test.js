@@ -1,14 +1,14 @@
 // Desactivar el mock global para security.js definido en jest.setup.js
-jest.unmock(require.resolve('../../../src/infrastructure/middleware/security.js'));
+jest.unmock('../../../src/infrastructure/middleware/security.js');
 
-const {
+import {
   cspMiddleware,
+  noCache,
   preventClickjacking,
+  preventIEOpen,
   preventMimeSniffing,
   preventXSS,
-  preventIEOpen,
-  noCache,
-} = require('../../../src/infrastructure/middleware/security.js');
+} from '../../../src/infrastructure/middleware/security.js';
 
 describe('security header helper middlewares', () => {
   const buildRes = () => {

@@ -5,5 +5,5 @@ import { config } from './infrastructure/config/environment.js';
 const PORT = config.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`Ambiente: ${config.NODE_ENV || 'development'}`);
+  console.log(`Ambiente: ${config.env || 'development'}`);
 });

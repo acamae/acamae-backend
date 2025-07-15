@@ -1,12 +1,9 @@
 // Desactivar el mock global definido en jest.setup.js
-jest.unmock(require.resolve('../../../src/infrastructure/middleware/compression.js'));
+jest.unmock('../../../src/infrastructure/middleware/compression.js');
 
+import { compressionErrorHandler } from '../../../src/infrastructure/middleware/compression.js';
 import { API_ERROR_CODES } from '../../../src/shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../../src/shared/constants/httpStatus.js';
-
-const {
-  compressionErrorHandler,
-} = require('../../../src/infrastructure/middleware/compression.js');
 
 describe('compressionErrorHandler middleware', () => {
   it('transforms entity.too.large error', () => {

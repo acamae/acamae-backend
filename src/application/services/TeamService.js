@@ -1,8 +1,13 @@
-import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
+import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
 
 /**
  * Team service
+ * Handles team-related business logic
+ *
+ * @param {TeamRepository} teamRepository
+ * @param {import('../../domain/repositories/UserRepository').UserRepository} userRepository
  */
 export class TeamService {
   /**
@@ -20,6 +25,19 @@ export class TeamService {
    */
   async getAllTeams() {
     const teams = await this.teamRepository.findAll();
+
+    if (!teams) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+        code: API_ERROR_CODES.DATABASE_ERROR,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        errorDetails: {
+          type: 'server',
+          details: [{ field: 'team', code: 'DATABASE_ERROR', message: 'Error getting teams' }],
+        },
+      });
+    }
+
     return teams;
   }
 
@@ -32,7 +50,21 @@ export class TeamService {
     const team = await this.teamRepository.findById(id);
 
     if (!team) {
-      throw createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND);
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.TEAM_NOT_FOUND],
+        code: API_ERROR_CODES.TEAM_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'team',
+              code: 'NOT_FOUND',
+              message: 'Team not found',
+            },
+          ],
+        },
+      });
     }
 
     return team;
@@ -51,16 +83,56 @@ export class TeamService {
 
     if (existingTeam) {
       if (existingTeam.name === name) {
-        throw createError('The team name already exists', API_ERROR_CODES.TEAM_NAME_ALREADY_EXISTS);
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.TEAM_NAME_ALREADY_EXISTS],
+          code: API_ERROR_CODES.TEAM_NAME_ALREADY_EXISTS,
+          status: HTTP_STATUS.CONFLICT,
+          errorDetails: {
+            type: 'business',
+            details: [
+              {
+                field: 'team',
+                code: 'NAME_ALREADY_EXISTS',
+                message: 'The team name already exists',
+              },
+            ],
+          },
+        });
       }
       if (existingTeam.tag === tag) {
-        throw createError('The team tag already exists', API_ERROR_CODES.TEAM_TAG_ALREADY_EXISTS);
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.TEAM_TAG_ALREADY_EXISTS],
+          code: API_ERROR_CODES.TEAM_TAG_ALREADY_EXISTS,
+          status: HTTP_STATUS.CONFLICT,
+          errorDetails: {
+            type: 'business',
+            details: [
+              {
+                field: 'team',
+                code: 'TAG_ALREADY_EXISTS',
+                message: 'The team tag already exists',
+              },
+            ],
+          },
+        });
       }
     }
 
-    const team = await this.teamRepository.create(ownerId, { name, tag });
+    const createdTeam = await this.teamRepository.create(ownerId, { name, tag });
 
-    return team;
+    if (!createdTeam) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+        code: API_ERROR_CODES.DATABASE_ERROR,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        errorDetails: {
+          type: 'server',
+          details: [{ field: 'team', code: 'DATABASE_ERROR', message: 'Error creating team' }],
+        },
+      });
+    }
+
+    return createdTeam;
   }
 
   /**
@@ -77,16 +149,56 @@ export class TeamService {
 
     if (existingTeam) {
       if (existingTeam.name === name) {
-        throw createError('The team name already exists', API_ERROR_CODES.TEAM_NAME_ALREADY_EXISTS);
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.TEAM_NAME_ALREADY_EXISTS],
+          code: API_ERROR_CODES.TEAM_NAME_ALREADY_EXISTS,
+          status: HTTP_STATUS.CONFLICT,
+          errorDetails: {
+            type: 'business',
+            details: [
+              {
+                field: 'team',
+                code: 'NAME_ALREADY_EXISTS',
+                message: 'The team name already exists',
+              },
+            ],
+          },
+        });
       }
       if (existingTeam.tag === tag) {
-        throw createError('The team tag already exists', API_ERROR_CODES.TEAM_TAG_ALREADY_EXISTS);
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.TEAM_TAG_ALREADY_EXISTS],
+          code: API_ERROR_CODES.TEAM_TAG_ALREADY_EXISTS,
+          status: HTTP_STATUS.CONFLICT,
+          errorDetails: {
+            type: 'business',
+            details: [
+              {
+                field: 'team',
+                code: 'TAG_ALREADY_EXISTS',
+                message: 'The team tag already exists',
+              },
+            ],
+          },
+        });
       }
     }
 
-    const team = await this.teamRepository.update(id, teamData);
+    const updatedTeam = await this.teamRepository.update(id, teamData);
 
-    return team;
+    if (!updatedTeam) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+        code: API_ERROR_CODES.DATABASE_ERROR,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        errorDetails: {
+          type: 'server',
+          details: [{ field: 'team', code: 'DATABASE_ERROR', message: 'Error updating team' }],
+        },
+      });
+    }
+
+    return updatedTeam;
   }
 
   /**
@@ -98,10 +210,36 @@ export class TeamService {
     const team = await this.teamRepository.findById(id);
 
     if (!team) {
-      throw createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND);
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.TEAM_NOT_FOUND],
+        code: API_ERROR_CODES.TEAM_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'team',
+              code: 'NOT_FOUND',
+              message: 'Team not found',
+            },
+          ],
+        },
+      });
     }
 
-    await this.teamRepository.delete(id);
+    const deleted = await this.teamRepository.delete(id);
+
+    if (!deleted) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+        code: API_ERROR_CODES.DATABASE_ERROR,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        errorDetails: {
+          type: 'server',
+          details: [{ field: 'team', code: 'DATABASE_ERROR', message: 'Error deleting team' }],
+        },
+      });
+    }
 
     return true;
   }
@@ -110,24 +248,77 @@ export class TeamService {
     const team = await this.teamRepository.findById(teamId);
 
     if (!team) {
-      throw createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND);
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.TEAM_NOT_FOUND],
+        code: API_ERROR_CODES.TEAM_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'team',
+              code: 'NOT_FOUND',
+              message: 'Team not found',
+            },
+          ],
+        },
+      });
     }
 
-    const user = await this.userRepository.findById(userId);
+    const member = await this.userRepository.findById(userId);
 
-    if (!user) {
-      throw createError('User not found', API_ERROR_CODES.AUTH_USER_NOT_FOUND);
+    if (!member) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+        code: API_ERROR_CODES.AUTH_USER_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'member',
+              code: 'NOT_FOUND',
+              message: 'Member not found',
+            },
+          ],
+        },
+      });
     }
 
-    // Verificar si el usuario ya es miembro
+    // Check if the user is already a member
     if (team.members.some((member) => member.id === userId)) {
-      throw createError(
-        'The user is already a member of the team',
-        API_ERROR_CODES.USER_ALREADY_IN_TEAM
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.USER_ALREADY_IN_TEAM],
+        code: API_ERROR_CODES.USER_ALREADY_IN_TEAM,
+        status: HTTP_STATUS.CONFLICT,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'member',
+              code: 'ALREADY_IN_TEAM',
+              message: 'The user is already a member of the team',
+            },
+          ],
+        },
+      });
     }
 
     const updatedTeam = await this.teamRepository.addMember(teamId, userId);
+
+    if (!updatedTeam) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+        code: API_ERROR_CODES.DATABASE_ERROR,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        errorDetails: {
+          type: 'server',
+          details: [
+            { field: 'team', code: 'DATABASE_ERROR', message: 'Error adding member to team' },
+          ],
+        },
+      });
+    }
 
     return updatedTeam;
   }
@@ -136,20 +327,76 @@ export class TeamService {
     const team = await this.teamRepository.findById(teamId);
 
     if (!team) {
-      throw createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND);
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.TEAM_NOT_FOUND],
+        code: API_ERROR_CODES.TEAM_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'team',
+              code: 'NOT_FOUND',
+              message: 'Team not found',
+            },
+          ],
+        },
+      });
     }
 
-    // Verificar si el usuario es miembro
+    // Check if the user is a member
     if (!team.members.some((member) => member.id === userId)) {
-      throw createError('The user is not a member of the team', API_ERROR_CODES.USER_NOT_IN_TEAM);
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.USER_NOT_IN_TEAM],
+        code: API_ERROR_CODES.USER_NOT_IN_TEAM,
+        status: HTTP_STATUS.CONFLICT,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'member',
+              code: 'NOT_IN_TEAM',
+              message: 'The user is not a member of the team',
+            },
+          ],
+        },
+      });
     }
 
-    // No permitir eliminar al dueño del equipo
+    // Do not allow removing the team owner
     if (team.ownerId === userId) {
-      throw createError('Cannot remove the team owner', API_ERROR_CODES.CANNOT_REMOVE_OWNER);
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.CANNOT_REMOVE_OWNER],
+        code: API_ERROR_CODES.CANNOT_REMOVE_OWNER,
+        status: HTTP_STATUS.CONFLICT,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'team',
+              code: 'OWNER',
+              message: 'Cannot remove the team owner',
+            },
+          ],
+        },
+      });
     }
 
     const updatedTeam = await this.teamRepository.removeMember(teamId, userId);
+
+    if (!updatedTeam) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+        code: API_ERROR_CODES.DATABASE_ERROR,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        errorDetails: {
+          type: 'server',
+          details: [
+            { field: 'team', code: 'DATABASE_ERROR', message: 'Error removing member from team' },
+          ],
+        },
+      });
+    }
 
     return updatedTeam;
   }

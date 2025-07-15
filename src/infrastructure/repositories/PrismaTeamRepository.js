@@ -82,6 +82,19 @@ export class PrismaTeamRepository {
   }
 
   /**
+   * Find a team by its name
+   * @param {string} teamName
+   * @returns {Promise<import('../../domain/entities/Team').Team|null>}
+   */
+  async findByTeamName(teamName) {
+    const team = await this.#prisma.team.findUnique({
+      where: { name: teamName },
+      include: { user: true },
+    });
+    return team ? this.#toDomainModel(team) : null;
+  }
+
+  /**
    * Create a new team
    * @param {string} userId
    * @param {CreateTeamDto} data

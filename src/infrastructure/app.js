@@ -1,39 +1,58 @@
 import express from 'express';
 
+import { API_ROUTES } from '../shared/constants/apiRoutes.js';
+
 import { config } from './config/environment.js';
 import { applyCompression } from './middleware/compression.js';
-import { errorHandler } from './middleware/errorHandler.js';
-import { errorLogger, requestLogger } from './middleware/logging.js';
-import { notFoundHandler } from './middleware/notFoundHandler.js';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { applyLoggingMiddleware } from './middleware/logging.js';
+import { requestIdMiddleware } from './middleware/requestId.js';
+import { responseHelpersMiddleware } from './middleware/responseHelpers.js';
 import { applySecurityMiddleware } from './middleware/security.js';
 import router from './routes/index.js';
 
 const app = express();
 
-// Trust proxy
-app.set('trust proxy', 1);
+// Apply request ID middleware first (needed by other middlewares)
+app.use(requestIdMiddleware);
 
-// Security (helmet, cors, rate-limits, xss, etc.)
+// Apply response helpers middleware (needed by other middlewares)
+app.use(responseHelpersMiddleware);
+
+// Apply security middleware
 applySecurityMiddleware(app);
 
-// Compression
+// Apply logging middleware
+applyLoggingMiddleware(app);
+
+// Apply compression middleware
 applyCompression(app);
 
-// Request logging (Winston)
-if (config.env !== 'test') {
-  app.use(requestLogger);
-}
+// Parse JSON bodies
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Apply routes
+// Routes
 app.use(router);
 
-// Error logging
-if (config.env !== 'test') {
-  app.use(errorLogger);
-}
+// Health check route
+app.get(API_ROUTES.HEALTH, (req, res) => {
+  res.json({
+    status: 'SUCCESS',
+    message: 'Servidor funcionando correctamente',
+    data: {
+      environment: config.env,
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: process.env.npm_package_version,
+    },
+  });
+});
 
-// Error handlers
+// 404 handler
 app.use(notFoundHandler);
+
+// Error handler (must be last)
 app.use(errorHandler);
 
 export default app;

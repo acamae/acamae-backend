@@ -1,17 +1,44 @@
----
-description:
-globs:
-alwaysApply: false
----
----
-description: To be used when implementing new features or code improvements
----
-
 Design and implement the request described above using a systematic, validation-driven approach:
+
+**API Response Requirements** (CRITICAL):
+
+- **Consistent Response Structure**:
+  - ALWAYS use `res.apiSuccess()` for successful responses
+  - ALWAYS use `res.apiError()` for error responses
+  - NEVER use `res.json()`, `res.send()`, or `res.status().json()` directly
+  - ALL responses must include `timestamp` and `requestId`
+  - ALL user messages must be in English (until i18n is implemented)
+
+- **API Codes Compliance**:
+  - Import exact codes from `src/shared/constants/apiCodes.js`
+  - Use `SUCCESS` for all successful operations
+  - Use specific error codes: `AUTH_INVALID_CREDENTIALS`, `VALIDATION_ERROR`, `RESOURCE_NOT_FOUND`, etc.
+  - Never create custom/ad-hoc error codes
+
+- **Response Examples**:
+
+  ```javascript
+  // Success response
+  return res.apiSuccess(userData, 'User retrieved successfully');
+
+  // Success with pagination meta
+  return res.apiSuccess(users, 'Users retrieved successfully', {
+    pagination: { page, limit, total, totalPages, hasNext, hasPrev },
+  });
+
+  // Error response
+  return res.apiError(404, API_ERROR_CODES.RESOURCE_NOT_FOUND, 'The requested user does not exist');
+
+  // Validation error with details
+  return res.apiError(422, API_ERROR_CODES.VALIDATION_ERROR, 'The submitted data is not valid', {
+    type: 'validation',
+    details: [{ field: 'email', code: 'INVALID_FORMAT', message: 'The email format is not valid' }],
+  });
+  ```
 
 **Request Handling Guidelines**
 
-* **Input Validation**:
+- **Input Validation**:
   - Use Zod for validation
   - Sanitize all inputs
   - Validate data types
@@ -20,60 +47,88 @@ Design and implement the request described above using a systematic, validation-
   - Sanitize strings
   - Reuse regex patterns and length limits from `src/shared/constants/validation.js`; DO NOT hard-code new patterns in feature code.
 
-* **Error Handling**:
+- **Error Handling**:
   - Use error middleware
-  - Log errors
-  - Sanitize messages
+  - Log errors with requestId context
+  - Sanitize messages (no sensitive data)
   - Use appropriate HTTP codes
-  - Implement retry logic
-  - Handle timeouts
+  - Implement retry logic for critical operations
+  - Handle timeouts gracefully
 
-* **Security**:
-  - Rely on `applySecurityMiddleware` for CORS, Helmet, rate-limiting and size-limits.
-  - Validate JWT.
-  - Sanitize headers.
-  - Validate content-type.
+- **Security**:
+  - Rely on `applySecurityMiddleware` for CORS, Helmet, rate-limiting and size-limits
+  - Validate JWT tokens
+  - Sanitize headers
+  - Validate content-type
   - Verify payload size
+  - Never expose sensitive data in responses
 
-* **Performance**:
-  - Implement caching
-  - Optimize queries
-  - Use compression
-  - Implement pagination
-  - Optimize responses
-  - Monitor times
+- **Performance**:
+  - Implement caching where appropriate
+  - Optimize database queries
+  - Use compression middleware
+  - Implement pagination for list endpoints
+  - Optimize response payloads
+  - Monitor response times
 
-* **Analyze Context**:
-   - Identify relevant patterns, conventions, or domain models using `codebase_search`.
-   - Pinpoint integration points—e.g., data layers, or APIs.
-   - Verify alignment with Hexagonal Architecture principles.
-   - Check existing test patterns and coverage requirements.
+- **Language Requirements** (CRITICAL):
+  - **ALL code must be in English** until internationalization is implemented
+  - **NO exceptions**: variables, functions, comments, messages, documentation
+  - **User-facing messages**: Use English until i18n system is in place
+  - **API responses**: All messages in English
+  - **Error messages**: English only
+  - **Comments**: English only
+  - **Documentation**: English only
+  - **Variable names**: English only
+  - **Function names**: English only
 
-* **Specify Requirements**:
-   - Break the request into clear, testable criteria.
-   - Define use cases (normal and edge) and constraints.
-   - Set scope boundaries to keep the implementation focused.
+- **Analyze Context**:
+  - Identify relevant patterns, conventions, or domain models using `codebase_search`
+  - Pinpoint integration points—e.g., data layers, or APIs
+  - Verify alignment with Hexagonal Architecture principles
+  - Check existing test patterns and coverage requirements
+  - Review Swagger documentation for API contracts
 
-* **Leverage Reusability**:
-   - Search for existing components or utilities with `codebase_search`.
-   - Use `grep_search` to confirm similar implementations.
-   - Evaluate if the feature could be abstracted for future reuse.
-   - Check `shared/` directory for common utilities and patterns.
+- **Specify Requirements**:
+  - Break the request into clear, testable criteria
+  - Define use cases (normal and edge) and constraints
+  - Set scope boundaries to keep the implementation focused
+  - Ensure API endpoints follow RESTful conventions
+  - Plan error scenarios and appropriate responses
 
-* **Plan Targeted Changes**:
-   - List all files requiring edits, dependencies to update, and new files.
-   - Assess impacts on cross-cutting concerns.
-   - Balance immediate needs with long-term code health.
-   - Ensure API routes are defined in `shared/constants/apiRoutes.js`.
-   - **Schema Alignment**: before touching DB queries, confirm each field exists in `prisma/schema.prisma` (or equivalent) and respect any `@map` directives.
-   - **Post-Edit Validation**: execute `npx prisma validate` and the full test suite; fixes must pass lint, tests, and schema validation before considering the task done.
+- **Leverage Reusability**:
+  - Search for existing components or utilities with `codebase_search`
+  - Use `grep_search` to confirm similar implementations
+  - Evaluate if the feature could be abstracted for future reuse
+  - Check `shared/` directory for common utilities and patterns
+  - Reuse existing service methods and repository patterns
 
-* **Implement with Precision**:
-   - Provide a step-by-step plan with specific code changes.
-   - Adhere to project conventions:
-     * Utilities: camelCase
-     * Constants: UPPER_SNAKE_CASE
-   - Follow Prettier and ESLint rules.
-   - Highlight enhancements to organization or clarity.
+- **Plan Targeted Changes**:
+  - List all files requiring edits, dependencies to update, and new files
+  - Assess impacts on cross-cutting concerns
+  - Balance immediate needs with long-term code health
+  - Ensure API routes are defined in `shared/constants/apiRoutes.js`
+  - **Schema Alignment**: before touching DB queries, confirm each field exists in `prisma/schema.prisma` (or equivalent) and respect any `@map` directives
+  - **Post-Edit Validation**: execute `npx prisma validate` and the full test suite; fixes must pass lint, tests, and schema validation before considering the task done
 
-This process delivers a well-integrated, reliable solution that enhances the codebase while meeting the request's goals.
+- **Implement with Precision**:
+  - Provide a step-by-step plan with specific code changes
+  - Adhere to project conventions:
+    - Utilities: camelCase
+    - Constants: UPPER_SNAKE_CASE
+    - API responses: Use helper functions exclusively
+  - Follow Prettier and ESLint rules
+  - Highlight enhancements to organization or clarity
+  - Ensure all endpoints return consistent response structure
+
+**Testing Requirements**:
+
+- Test both success and error response structures
+- Verify timestamp and requestId are present
+- Validate English error messages
+- Test rate limiting and security headers
+- Ensure proper HTTP status codes
+
+This process delivers a well-integrated, reliable solution that enhances the codebase while meeting the request's goals and API consistency requirements.
+
+This process delivers a well-integrated, reliable solution that enhances the codebase while meeting the request's goals and API consistency requirements.

@@ -1,7 +1,6 @@
-/** @typedef {import('express').Response} Response */
+import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 
-import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
-import { createError } from '../../shared/utils/error.js';
+/** @typedef {import('express').Response} Response */
 
 export class TeamController {
   constructor(teamService) {
@@ -10,18 +9,18 @@ export class TeamController {
 
   /**
    * Get all teams
-   * @param {import('express').Request} req
+   * @param {import('express').Request} _req
    * @param {Response} res
    * @param {import('express').NextFunction} next
    */
-  getAllTeams = async (_req, res, next) => {
+  async getAllTeams(_req, res, next) {
     try {
       const teams = await this.teamService.getAllTeams();
-      res.status(200).json({ status: 'success', data: teams });
+      return res.status(HTTP_STATUS.OK).apiSuccess(teams, 'Teams retrieved successfully');
     } catch (error) {
       next(error);
     }
-  };
+  }
 
   /**
    * Get a team by ID
@@ -29,21 +28,15 @@ export class TeamController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  getTeamById = async (req, res, next) => {
+  async getTeamById(req, res, next) {
     try {
       const { id } = req.params;
       const team = await this.teamService.getTeamById(id);
-
-      if (!team) {
-        const notFoundError = createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND, 404);
-        return next(notFoundError);
-      }
-
-      res.status(200).json({ status: 'success', data: team });
+      return res.status(HTTP_STATUS.OK).apiSuccess(team, 'Team retrieved successfully');
     } catch (error) {
       next(error);
     }
-  };
+  }
 
   /**
    * Create a team
@@ -51,17 +44,15 @@ export class TeamController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  createTeam = async (req, res, next) => {
+  async createTeam(req, res, next) {
     try {
       const teamData = req.body;
       const newTeam = await this.teamService.createTeam(teamData);
-      res
-        .status(201)
-        .json({ status: 'success', message: 'Team created successfully', data: newTeam });
+      return res.status(HTTP_STATUS.CREATED).apiSuccess(newTeam, 'Team created successfully');
     } catch (error) {
       next(error);
     }
-  };
+  }
 
   /**
    * Update a team
@@ -69,25 +60,16 @@ export class TeamController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  updateTeam = async (req, res, next) => {
+  async updateTeam(req, res, next) {
     try {
       const { id } = req.params;
       const teamData = req.body;
-
       const updatedTeam = await this.teamService.updateTeam(id, teamData);
-
-      if (!updatedTeam) {
-        const notFoundError = createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND, 404);
-        return next(notFoundError);
-      }
-
-      res
-        .status(200)
-        .json({ status: 'success', message: 'Team updated successfully', data: updatedTeam });
+      return res.status(HTTP_STATUS.OK).apiSuccess(updatedTeam, 'Team updated successfully');
     } catch (error) {
       next(error);
     }
-  };
+  }
 
   /**
    * Delete a team
@@ -95,21 +77,15 @@ export class TeamController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  deleteTeam = async (req, res, next) => {
+  async deleteTeam(req, res, next) {
     try {
       const { id } = req.params;
-      const deleted = await this.teamService.deleteTeam(id);
-
-      if (!deleted) {
-        const notFoundError = createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND, 404);
-        return next(notFoundError);
-      }
-
-      res.status(200).json({ status: 'success', message: 'Team deleted successfully', data: null });
+      const deletedTeam = await this.teamService.deleteTeam(id);
+      return res.status(HTTP_STATUS.OK).apiSuccess(deletedTeam, 'Team deleted successfully');
     } catch (error) {
       next(error);
     }
-  };
+  }
 
   /**
    * Add a member to a team
@@ -117,25 +93,16 @@ export class TeamController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  addMember = async (req, res, next) => {
+  async addMember(req, res, next) {
     try {
       const { id } = req.params;
       const { userId } = req.body;
-
       const updatedTeam = await this.teamService.addMember(id, userId);
-
-      if (!updatedTeam) {
-        const notFoundError = createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND, 404);
-        return next(notFoundError);
-      }
-
-      res
-        .status(200)
-        .json({ status: 'success', message: 'Member added successfully', data: updatedTeam });
+      return res.status(HTTP_STATUS.OK).apiSuccess(updatedTeam, 'Member added successfully');
     } catch (error) {
       next(error);
     }
-  };
+  }
 
   /**
    * Remove a member from a team
@@ -143,23 +110,14 @@ export class TeamController {
    * @param {import('express').Response} res
    * @param {import('express').NextFunction} next
    */
-  removeMember = async (req, res, next) => {
+  async removeMember(req, res, next) {
     try {
       const { id } = req.params;
       const { userId } = req.body;
-
       const updatedTeam = await this.teamService.removeMember(id, userId);
-
-      if (!updatedTeam) {
-        const notFoundError = createError('Team not found', API_ERROR_CODES.TEAM_NOT_FOUND, 404);
-        return next(notFoundError);
-      }
-
-      res
-        .status(200)
-        .json({ status: 'success', message: 'Member removed successfully', data: updatedTeam });
+      return res.status(HTTP_STATUS.OK).apiSuccess(updatedTeam, 'Member removed successfully');
     } catch (error) {
       next(error);
     }
-  };
+  }
 }

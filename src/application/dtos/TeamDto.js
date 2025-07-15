@@ -9,6 +9,7 @@
  * @property {string} [logoFilename] - Team logo filename
  * @property {string} [description] - Team description
  */
+export const CreateTeamDto = {};
 
 /**
  * @typedef {Object} UpdateTeamDto
@@ -17,3 +18,4 @@
  * @property {string} [logoFilename] - Team logo filename
  * @property {string} [description] - Team description
  */
+export const UpdateTeamDto = {};

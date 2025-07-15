@@ -10,6 +10,9 @@
  * @property {string} [firstName] - First name
  * @property {string} [lastName] - Last name
  * @property {string} [role='user'] - User role
+ * @property {boolean} [isActive] - Profile is active (default: true)
+ * @property {Date} [lastLoginAt] - Last login timestamp
+ * @property {string} [lastLoginIp] - Last login IP address
  */
 export const CreateUserDto = {};
 
@@ -22,6 +25,9 @@ export const CreateUserDto = {};
  * @property {string} [lastName] - Last name
  * @property {string} [role] - User role
  * @property {boolean} [isVerified] - Whether the user is verified
+ * @property {boolean} [isActive] - Profile is active and renewed
+ * @property {Date} [lastLoginAt] - Last login timestamp
+ * @property {string} [lastLoginIp] - Last login IP address
  */
 export const UpdateUserDto = {};
 
@@ -34,6 +40,9 @@ export const UpdateUserDto = {};
  * @property {string} [lastName] - Last name
  * @property {string} role - User role
  * @property {boolean} isVerified - Whether the user is verified
+ * @property {boolean} isActive - Profile is active and renewed
+ * @property {Date} [lastLoginAt] - Last login timestamp
+ * @property {string} [lastLoginIp] - Last login IP address (sensitive, only for admin)
  * @property {Date} createdAt - Creation date
  * @property {Date} updatedAt - Last update date
  */
