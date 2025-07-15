@@ -28,20 +28,24 @@ describe('additional validation middleware scenarios', () => {
   });
 
   it('registerValidation rejects weak password', () => {
-    const req = buildReq({ email: 'user@test.com', password: 'weak', username: 'user_1' });
-    expect(() => {
-      registerValidation(req, noopRes, jest.fn());
-    }).toThrow();
+    const req = buildReq({ email: 'test@example.com', password: 'weakpass', username: 'user_123' });
+    const next = jest.fn();
+    registerValidation(req, noopRes, next);
+    expect(next).toHaveBeenCalledWith(expect.any(Error));
   });
 
   it('teamValidation rejects invalid tag format', () => {
     const req = buildReq({ name: 'Dev Team', tag: 'dev', description: 'Team' });
-    expect(() => teamValidation(req, noopRes, jest.fn())).toThrow();
+    const next = jest.fn();
+    teamValidation(req, noopRes, next);
+    expect(next).toHaveBeenCalledWith(expect.any(Error));
   });
 
   it('updateUserValidation rejects invalid role', () => {
     const req = buildReq({ role: 'superadmin' });
-    expect(() => updateUserValidation(req, noopRes, jest.fn())).toThrow();
+    const next = jest.fn();
+    updateUserValidation(req, noopRes, next);
+    expect(next).toHaveBeenCalledWith(expect.any(Error));
   });
 
   it('paginationValidation converts strings to numbers', () => {

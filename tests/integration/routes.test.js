@@ -17,7 +17,7 @@ describe('API routes integration', () => {
   describe('GET /api', () => {
     it('should return welcome payload', async () => {
       const res = await request(app).get(API_ROUTES.BASE).expect(200);
-      expect(res.body).toHaveProperty('status', 'success');
+      expect(res.body).toHaveProperty('status', 'SUCCESS');
       expect(res.body).toHaveProperty('data.version');
       expect(res.body).toHaveProperty('data.endpoints');
     });

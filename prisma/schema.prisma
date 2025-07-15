@@ -19,17 +19,198 @@ model User {
   last_name            String?                 @db.VarChar(50)
   role                 String                  @default("user") @db.VarChar(20)
   is_verified          Boolean                 @default(false)
+  is_active            Boolean                 @default(true)  // NEW: Profile is active and renewed
+  last_login_at        DateTime?               // NEW: Last login timestamp
+  last_login_ip        String?                 @db.VarChar(45) // NEW: Last login IP (supports IPv6)
   verification_token   String?                 @db.VarChar(255)
   verification_expires_at DateTime?
   reset_token          String?                 @db.VarChar(255)
   reset_expires_at     DateTime?
   created_at           DateTime                @default(now()) @map("created_at")
   updated_at           DateTime                @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
   teams                Team[]
   emailVerificationTokens EmailVerificationToken[]
   sessionTokens        SessionToken[]
+  userProfile          UserProfile?            // NEW: One-to-one relation
+  gameProfiles         GameProfile[]           // NEW: User's game profiles
+  teamProfiles         TeamProfile[]           // NEW: User's team profiles
+  userLanguages        UserLanguage[]          // NEW: User's languages
 
   @@map("users")
+}
+
+// NEW: Games table
+model Game {
+  id               Int           @id @default(autoincrement()) @db.UnsignedInt
+  code             String        @unique @db.VarChar(20)      // e.g., "LoL", "VAL"
+  name_code        String        @db.VarChar(100)             // e.g., "game.lol"
+  image_url        String?       @db.VarChar(255)
+  description_code String?       @db.VarChar(100)             // e.g., "game.lol.description"
+  created_at       DateTime      @default(now()) @map("created_at")
+  updated_at       DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  positions        Position[]
+  gameProfiles     GameProfile[]
+  teamProfiles     TeamProfile[]
+  userProfiles     UserProfile[] @relation("PreferredGame")
+
+  @@map("games")
+}
+
+// NEW: Positions table
+model Position {
+  id              Int               @id @default(autoincrement()) @db.UnsignedInt
+  code            String            @db.VarChar(50)               // e.g., "position.top"
+  game_id         Int               @db.UnsignedInt
+  created_at      DateTime          @default(now()) @map("created_at")
+
+  // Relations
+  game            Game              @relation(fields: [game_id], references: [id], onDelete: Cascade)
+  playerPositions PlayerPosition[]
+
+  @@unique([code, game_id])
+  @@map("positions")
+}
+
+// NEW: Game profiles table
+model GameProfile {
+  id              Int               @id @default(autoincrement()) @db.UnsignedInt
+  user_id         Int               @db.UnsignedInt
+  game_id         Int               @db.UnsignedInt
+  created_at      DateTime          @default(now()) @map("created_at")
+  updated_at      DateTime          @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  user            User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  game            Game              @relation(fields: [game_id], references: [id], onDelete: Cascade)
+  playerPositions PlayerPosition[]
+  userPlaystyles  UserPlaystyle[]
+
+  @@unique([user_id, game_id])
+  @@map("game_profiles")
+}
+
+// NEW: Player positions (many-to-many between game_profiles and positions)
+model PlayerPosition {
+  game_profile_id Int         @db.UnsignedInt
+  position_id     Int         @db.UnsignedInt
+
+  // Relations
+  gameProfile     GameProfile @relation(fields: [game_profile_id], references: [id], onDelete: Cascade)
+  position        Position    @relation(fields: [position_id], references: [id], onDelete: Cascade)
+
+  @@id([game_profile_id, position_id])
+  @@map("player_positions")
+}
+
+// NEW: Team roles table
+model TeamRole {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  code       String   @unique @db.VarChar(50)      // e.g., "role.coach"
+  created_at DateTime @default(now()) @map("created_at")
+
+  @@map("team_roles")
+}
+
+// NEW: Team profiles table
+model TeamProfile {
+  id              Int      @id @default(autoincrement()) @db.UnsignedInt
+  user_id         Int      @db.UnsignedInt
+  game_id         Int      @db.UnsignedInt
+  name            String?  @db.VarChar(100)
+  region          String?  @db.VarChar(100)
+  timezone        String?  @db.VarChar(50)
+  description     String?  @db.Text
+  contact_discord String?  @db.VarChar(100)
+  logo_url        String?  @db.VarChar(255)
+  created_at      DateTime @default(now()) @map("created_at")
+  last_updated    DateTime? @map("last_updated")
+  expires_at      DateTime? @map("expires_at")
+
+  // Relations
+  user            User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  game            Game     @relation(fields: [game_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, game_id])
+  @@map("team_profiles")
+}
+
+// NEW: Languages table
+model Language {
+  id            Int            @id @default(autoincrement()) @db.UnsignedInt
+  code          String         @unique @db.VarChar(10)      // e.g., "en", "es", "fr"
+  name_code     String         @db.VarChar(100)             // e.g., "lang.english"
+  created_at    DateTime       @default(now()) @map("created_at")
+
+  // Relations
+  userLanguages UserLanguage[]
+
+  @@map("languages")
+}
+
+// NEW: User languages (many-to-many between users and languages)
+model UserLanguage {
+  user_id     Int      @db.UnsignedInt
+  language_id Int      @db.UnsignedInt
+
+  // Relations
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  language    Language @relation(fields: [language_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, language_id])
+  @@map("user_languages")
+}
+
+// NEW: Playstyles table
+model Playstyle {
+  id               Int             @id @default(autoincrement()) @db.UnsignedInt
+  code             String          @unique @db.VarChar(50)      // e.g., "playstyle.casual"
+  description_code String?         @db.VarChar(100)             // For multilingual frontend
+  created_at       DateTime        @default(now()) @map("created_at")
+
+  // Relations
+  userPlaystyles   UserPlaystyle[]
+
+  @@map("playstyles")
+}
+
+// NEW: User playstyles (many-to-many between game_profiles and playstyles)
+model UserPlaystyle {
+  game_profile_id Int         @db.UnsignedInt
+  playstyle_id    Int         @db.UnsignedInt
+
+  // Relations
+  gameProfile     GameProfile @relation(fields: [game_profile_id], references: [id], onDelete: Cascade)
+  playstyle       Playstyle   @relation(fields: [playstyle_id], references: [id], onDelete: Cascade)
+
+  @@id([game_profile_id, playstyle_id])
+  @@map("user_playstyles")
+}
+
+// NEW: User profiles table
+model UserProfile {
+  id                  Int      @id @default(autoincrement()) @db.UnsignedInt
+  user_id             Int      @unique @db.UnsignedInt
+  nickname            String?  @db.VarChar(50)              // Optional, can match in-game name
+  country_code        String?  @db.Char(2)                  // ISO 3166-1 alpha-2, e.g., 'ES'
+  timezone            String?  @db.VarChar(50)              // e.g., "Europe/Madrid"
+  bio                 String?  @db.Text
+  discord_id          String?  @db.VarChar(100)
+  riot_id             String?  @db.VarChar(100)             // For LoL and Valorant
+  profile_image_url   String?  @db.VarChar(255)
+  preferred_game_id   Int?     @db.UnsignedInt              // LoL or Valorant
+  expires_at          DateTime? @map("expires_at")
+  created_at          DateTime @default(now()) @map("created_at")
+  updated_at          DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  user                User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  preferredGame       Game?    @relation("PreferredGame", fields: [preferred_game_id], references: [id])
+
+  @@map("user_profiles")
 }
 
 model Team {
@@ -100,5 +281,3 @@ model TournamentTeam {
   @@unique([tournamentId, teamId])
   @@map("tournament_teams")
 }
-
-// You can add more models according to your application needs

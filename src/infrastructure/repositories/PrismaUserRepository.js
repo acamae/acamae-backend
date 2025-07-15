@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { createError } from '../../shared/utils/error.js';
 
 /**
@@ -33,6 +34,9 @@ export class PrismaUserRepository {
       lastName: prismaUser.last_name || undefined,
       role: prismaUser.role,
       isVerified: prismaUser.is_verified,
+      isActive: prismaUser.is_active, // NEW: Active status
+      lastLoginAt: prismaUser.last_login_at || undefined, // NEW: Last login timestamp
+      lastLoginIp: prismaUser.last_login_ip || undefined, // NEW: Last login IP
       verificationToken: prismaUser.verification_token || undefined,
       verificationExpiresAt: prismaUser.verification_expires_at || undefined,
       resetToken: prismaUser.reset_token || undefined,
@@ -44,10 +48,18 @@ export class PrismaUserRepository {
 
   /**
    * Find all users
+   * @param {Object} [options]
+   * @param {number} [options.page=1]
+   * @param {number} [options.limit=10]
+   * @param {Object} [options.filters={}]
    * @returns {Promise<import('../../domain/entities/User').User[]>}
    */
-  async findAll() {
-    const users = await this.#prisma.user.findMany();
+  async findAll({ page = 1, limit = 10, filters = {} } = {}) {
+    const users = await this.#prisma.user.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
+      where: filters,
+    });
     return users.map((user) => this.#toDomainModel(user)).filter(Boolean);
   }
 
@@ -105,6 +117,9 @@ export class PrismaUserRepository {
           last_name: userData.lastName,
           role: userData.role || 'user',
           is_verified: false,
+          is_active: userData.isActive !== undefined ? userData.isActive : true, // NEW: Default to active
+          last_login_at: userData.lastLoginAt, // NEW: Last login timestamp
+          last_login_ip: userData.lastLoginIp, // NEW: Last login IP
           verification_token: userData.verificationToken,
           verification_expires_at: userData.verificationExpiresAt,
           reset_token: userData.resetToken,
@@ -116,10 +131,26 @@ export class PrismaUserRepository {
     } catch (error) {
       if (error.code === 'P2002') {
         if (error.meta?.target?.includes('email')) {
-          throw createError('Email already exists', API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS);
+          throw createError({
+            message: 'Email already exists',
+            code: API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS,
+            status: HTTP_STATUS.CONFLICT,
+            errorDetails: {
+              type: 'business',
+              details: [{ field: 'email', code: 'P2002', message: 'Email already exists' }],
+            },
+          });
         }
         if (error.meta?.target?.includes('username')) {
-          throw createError('Username already exists', API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS);
+          throw createError({
+            message: 'Username already exists',
+            code: API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS,
+            status: HTTP_STATUS.CONFLICT,
+            errorDetails: {
+              type: 'business',
+              details: [{ field: 'username', code: 'P2002', message: 'Username already exists' }],
+            },
+          });
         }
       }
       throw error;
@@ -140,6 +171,9 @@ export class PrismaUserRepository {
       last_name: userData.lastName,
       role: userData.role,
       is_verified: userData.isVerified,
+      is_active: userData.isActive, // NEW: Active status
+      last_login_at: userData.lastLoginAt, // NEW: Last login timestamp
+      last_login_ip: userData.lastLoginIp, // NEW: Last login IP
       verification_token: userData.verificationToken,
       verification_expires_at: userData.verificationExpiresAt,
       reset_token: userData.resetToken,
@@ -211,17 +245,32 @@ export class PrismaUserRepository {
   /**
    * Set the reset token for a user
    * @param {string} id
-   * @param {string} token
-   * @param {Date} expiresAt
+   * @param {string} resetToken
+   * @param {Date} resetExpiresAt
    * @returns {Promise<import('../../domain/entities/User').User>}
    */
-  async setResetToken(id, token, expiresAt) {
+  async setResetToken(id, resetToken, resetExpiresAt) {
     const user = await this.#prisma.user.update({
       where: { id: parseInt(id) },
       data: {
-        reset_token: token,
-        reset_expires_at: expiresAt,
+        reset_token: resetToken,
+        reset_expires_at: resetExpiresAt,
       },
+    });
+
+    return this.#toDomainModel(user);
+  }
+
+  /**
+   * Set a new password for a user
+   * @param {string} id
+   * @param {string} newPassword
+   * @returns {Promise<import('../../domain/entities/User').User>}
+   */
+  async setNewPassword(id, newPassword) {
+    const user = await this.#prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { password_hash: newPassword, reset_token: null, reset_expires_at: null },
     });
 
     return this.#toDomainModel(user);
@@ -292,6 +341,9 @@ export class PrismaUserRepository {
       username: 'username',
       role: 'role',
       isVerified: 'is_verified',
+      isActive: 'is_active', // NEW: Active status mapping
+      lastLoginAt: 'last_login_at', // NEW: Last login timestamp mapping
+      lastLoginIp: 'last_login_ip', // NEW: Last login IP mapping
       firstName: 'first_name',
       lastName: 'last_name',
       createdAt: 'created_at',
@@ -313,6 +365,7 @@ export class PrismaUserRepository {
       select.username = true;
       select.role = true;
       select.is_verified = true;
+      select.is_active = true; // NEW: Include active status by default
     }
 
     const user = await this.#prisma.user.findUnique({
@@ -321,6 +374,23 @@ export class PrismaUserRepository {
     });
 
     return user ? this.#toDomainModel(user) : null;
+  }
+
+  /**
+   * Update user login tracking information
+   * @param {string} id - User ID
+   * @param {Date} loginAt - Login timestamp
+   * @param {string} [ipAddress] - Login IP address
+   * @returns {Promise<void>}
+   */
+  async updateLoginTracking(id, loginAt, ipAddress = null) {
+    await this.#prisma.user.update({
+      where: { id: parseInt(id) },
+      data: {
+        last_login_at: loginAt,
+        last_login_ip: ipAddress,
+      },
+    });
   }
 
   /**

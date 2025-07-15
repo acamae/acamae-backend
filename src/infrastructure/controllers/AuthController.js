@@ -1,6 +1,6 @@
-import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
+import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
 import { APP_ROUTES } from '../../shared/constants/appRoutes.js';
-import { createError } from '../../shared/utils/error.js';
+import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 
 export class AuthController {
   constructor(authService) {
@@ -16,32 +16,21 @@ export class AuthController {
   async register(req, res, next) {
     try {
       const { email, password, username } = req.body;
-      const { user, emailSent, emailError } = await this.authService.register({
+      const createdUser = await this.authService.register({
         email,
         password,
         username,
       });
 
-      const response = {
-        user,
-        emailSent,
-        redirect: APP_ROUTES.VERIFY_EMAIL_SENT,
-      };
-
-      if (!emailSent && emailError) {
-        response.emailError = emailError;
-      }
-
-      const message = emailSent
-        ? 'User registered successfully. Verification email sent.'
-        : 'User registered successfully. However, verification email could not be sent.';
-
-      res.status(201).json({
-        status: 'success',
-        message,
-        data: response,
-      });
+      // Registration successful - user created and email sent
+      return res
+        .status(HTTP_STATUS.CREATED)
+        .apiSuccess(
+          createdUser,
+          'User registered successfully. Check your email to verify your account.'
+        );
     } catch (error) {
+      // Delegate error handling to global error middleware for consistency
       next(error);
     }
   }
@@ -61,55 +50,9 @@ export class AuthController {
         return res.redirect(APP_ROUTES.VERIFY_EMAIL_RESEND);
       }
 
-      const result = await this.authService.verifyEmail(token);
-
-      // Respuesta exitosa
-      res.status(200).json({
-        success: true,
-        data: result,
-        status: 200,
-        code: 'SUCCESS',
-      });
+      const verifiedUser = await this.authService.verifyEmail(token);
+      return res.status(HTTP_STATUS.OK).apiSuccess(verifiedUser, 'Email verified successfully');
     } catch (error) {
-      // Manejar errores específicos con respuestas personalizadas
-      if (error.customResponse) {
-        const { status, message, resendRequired } = error.customResponse;
-
-        let httpStatus;
-        let errorCode;
-
-        switch (status) {
-          case 'invalid_token':
-            httpStatus = 400;
-            errorCode = 'AUTH_TOKEN_INVALID';
-            break;
-          case 'expired_token':
-            httpStatus = 410;
-            errorCode = 'AUTH_TOKEN_EXPIRED';
-            break;
-          case 'already_verified':
-            httpStatus = 409;
-            errorCode = 'AUTH_USER_ALREADY_VERIFIED';
-            break;
-          case 'update_failed':
-            httpStatus = 500;
-            errorCode = 'ERR_NETWORK';
-            break;
-        }
-
-        return res.status(httpStatus).json({
-          success: false,
-          data: {
-            status,
-            message,
-            resendRequired,
-          },
-          status: httpStatus,
-          code: errorCode,
-        });
-      }
-
-      // Error genérico
       next(error);
     }
   }
@@ -123,8 +66,18 @@ export class AuthController {
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
-      const result = await this.authService.login(email, password);
-      res.status(200).json({ status: 'success', message: 'Login successfully', data: result });
+
+      // Extract client IP address
+      const ipAddress =
+        req.ip ||
+        req.connection?.remoteAddress ||
+        req.socket?.remoteAddress ||
+        req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+        req.headers['x-real-ip'] ||
+        'unknown';
+
+      const result = await this.authService.login(email, password, ipAddress);
+      return res.status(HTTP_STATUS.OK).apiSuccess(result, 'Login successful');
     } catch (error) {
       next(error);
     }
@@ -139,7 +92,7 @@ export class AuthController {
   async getMe(req, res, next) {
     try {
       const user = await this.authService.getMe(req.user.id);
-      res.status(200).json({ status: 'success', data: user });
+      return res.status(HTTP_STATUS.OK).apiSuccess(user, 'User retrieved successfully');
     } catch (error) {
       next(error);
     }
@@ -154,16 +107,8 @@ export class AuthController {
   async refreshToken(req, res, next) {
     try {
       const { refreshToken } = req.body;
-      if (!refreshToken) {
-        throw createError(
-          ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
-          API_ERROR_CODES.INVALID_REFRESH_TOKEN
-        );
-      }
       const tokens = await this.authService.refreshToken(refreshToken);
-      res
-        .status(200)
-        .json({ status: 'success', message: 'Token successfully refreshed', data: tokens });
+      return res.status(HTTP_STATUS.OK).apiSuccess(tokens, 'Token refreshed successfully');
     } catch (error) {
       next(error);
     }
@@ -179,7 +124,7 @@ export class AuthController {
     try {
       const { refreshToken } = req.body;
       await this.authService.logout(refreshToken);
-      res.status(200).json({ status: 'success', message: 'Logout successfully', data: null });
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Session closed successfully');
     } catch (error) {
       next(error);
     }
@@ -195,11 +140,9 @@ export class AuthController {
     try {
       const { email } = req.body;
       await this.authService.forgotPassword(email);
-      res.status(200).json({
-        status: 'success',
-        message: 'If the email exists, you will receive instructions to recover your password',
-        data: null,
-      });
+      return res
+        .status(HTTP_STATUS.OK)
+        .apiSuccess(null, 'We have sent you a link to reset your password');
     } catch (error) {
       next(error);
     }
@@ -214,25 +157,122 @@ export class AuthController {
   async resetPassword(req, res, next) {
     try {
       const { token } = req.params;
-      const { newPassword } = req.body;
-      await this.authService.resetPassword(token, newPassword);
-      res
-        .status(200)
-        .json({ status: 'success', message: 'Password updated successfully', data: null });
+      const { password } = req.body; // Changed from newPassword to password according to Swagger
+      await this.authService.resetPassword(token, password);
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Password reset successfully');
     } catch (error) {
       next(error);
     }
   }
 
-  resendVerification = async (req, res) => {
+  /**
+   * Resend verification email
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
+  async resendVerification(req, res, next) {
     try {
-      const { email } = req.body;
-      await this.authService.resendVerification(email);
-      res
-        .status(200)
-        .json({ status: 'success', message: 'Verification email resent successfully', data: null });
+      const { identifier } = req.body; // Changed from email to identifier according to Swagger
+      await this.authService.resendVerification(identifier);
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'New link sent. Check your inbox.');
     } catch (error) {
       next(error);
     }
-  };
+  }
+
+  /**
+   * Handle verification email sent status
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
+  async verifyEmailSent(req, res, next) {
+    try {
+      return res
+        .status(HTTP_STATUS.OK)
+        .apiSuccess(
+          { message: 'Verification email has been sent' },
+          'Verification email sent successfully'
+        );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Handle verification email success status
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
+  async verifyEmailSuccess(req, res, next) {
+    try {
+      return res
+        .status(HTTP_STATUS.OK)
+        .apiSuccess({ message: 'Email verified successfully' }, 'Email verification completed');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Handle verification email expired status
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
+  async verifyEmailExpired(req, res, next) {
+    try {
+      return res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .apiError(
+          HTTP_STATUS.BAD_REQUEST,
+          API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+          'Verification link has expired',
+          {
+            type: 'business',
+            details: [
+              {
+                field: 'token',
+                code: 'EXPIRED',
+                message: 'Verification link has expired',
+              },
+            ],
+          }
+        );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Handle verification email already verified status
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
+  async verifyEmailAlreadyVerified(req, res, next) {
+    try {
+      return res
+        .status(HTTP_STATUS.CONFLICT)
+        .apiError(
+          HTTP_STATUS.CONFLICT,
+          API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED,
+          'Email is already verified',
+          {
+            type: 'business',
+            details: [
+              {
+                field: 'user',
+                code: 'ALREADY_VERIFIED',
+                message: 'Email is already verified',
+              },
+            ],
+          }
+        );
+    } catch (error) {
+      next(error);
+    }
+  }
 }

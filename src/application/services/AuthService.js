@@ -1,5 +1,4 @@
 import bcrypt from 'bcryptjs';
-import FormData from 'form-data';
 import { EmailParams, MailerSend, Recipient, Sender } from 'mailersend';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -12,10 +11,30 @@ import { createError } from '../../shared/utils/error.js';
 import { sanitizeString } from '../../shared/utils/sanitize.js';
 import { TokenService } from '../../shared/utils/token.js';
 
-// Removed direct Prisma usage; interactions go through repositories
-
 /**
  * Authentication service
+ * Handles user authentication, registration, and session management
+ *
+ * @typedef {import('../../domain/entities/User').User} User
+ * @typedef {import('../../domain/repositories/UserRepository').UserRepository} UserRepository
+ * @typedef {import('../../domain/entities/SessionToken').SessionToken} SessionToken
+ * @typedef {import('../../infrastructure/repositories/PrismaSessionTokenRepository').PrismaSessionTokenRepository} SessionTokenRepository
+ *
+ * @typedef {Object} LoginResult
+ * @property {User} user - The authenticated user
+ * @property {string} accessToken - JWT access token
+ * @property {string} refreshToken - JWT refresh token
+ *
+ * @typedef {Object} RegisterResult
+ * @property {User} user - The created user
+ *
+ * @typedef {Object} VerificationResult
+ * @property {boolean} isValid - Whether the token is valid
+ * @property {string} [reason] - Reason for invalidity
+ *
+ * @typedef {Object} ResetPasswordResult
+ * @property {boolean} isValid - Whether the token is valid
+ * @property {string} [reason] - Reason for invalidity
  */
 export class AuthService {
   /**
@@ -43,16 +62,69 @@ export class AuthService {
       this.userRepository.findByUsername(username),
     ]);
 
-    if (existingByEmail || existingByUsername) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS],
-        API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS
-      );
+    if (existingByEmail) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_EMAIL_ALREADY_EXISTS],
+        code: API_ERROR_CODES.AUTH_EMAIL_ALREADY_EXISTS,
+        status: HTTP_STATUS.CONFLICT,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'email',
+              code: 'DUPLICATE',
+              message: 'This email is already in use',
+            },
+          ],
+        },
+      });
+    }
+
+    if (existingByUsername) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS],
+        code: API_ERROR_CODES.AUTH_USER_ALREADY_EXISTS,
+        status: HTTP_STATUS.CONFLICT,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'username',
+              code: 'DUPLICATE',
+              message: 'This username is already in use',
+            },
+          ],
+        },
+      });
     }
 
     const verificationToken = uuidv4();
     const verificationExpiresAt = new Date(Date.now() + config.tokens.verificationExpiration);
 
+    try {
+      await this.sendVerificationEmail(email, username, verificationToken);
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+
+      // Email failed - throw specific error to prevent user creation
+      throw createError({
+        message: 'Registration failed: Unable to send verification email. Please try again later.',
+        code: API_ERROR_CODES.SERVICE_UNAVAILABLE,
+        status: HTTP_STATUS.SERVICE_UNAVAILABLE,
+        errorDetails: {
+          type: 'server',
+          details: [
+            {
+              field: 'email_service',
+              code: 'EMAIL_SERVICE_FAILED',
+              message: 'Email service is temporarily unavailable',
+            },
+          ],
+        },
+      });
+    }
+
+    // Email sent successfully - NOW create the user
     const createdUser = await this.userRepository.create({
       email,
       username,
@@ -62,26 +134,22 @@ export class AuthService {
       verificationExpiresAt,
     });
 
-    // Enviar email de verificación
-    let emailSent = false;
-    let emailError = null;
-
-    try {
-      await this.sendVerificationEmail(createdUser.email, createdUser.username, verificationToken);
-      emailSent = true;
-    } catch (error) {
-      emailError = error.message;
-      console.error('Error enviando email de verificación:', error);
+    if (!createdUser) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+        code: API_ERROR_CODES.DATABASE_ERROR,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        errorDetails: {
+          type: 'server',
+          details: [{ field: 'database', code: 'DATABASE_ERROR', message: 'Error creating user' }],
+        },
+      });
     }
 
     // Exclude passwordHash before return
     const { passwordHash, ...user } = createdUser;
 
-    return {
-      user,
-      emailSent,
-      emailError,
-    };
+    return user;
   }
 
   /**
@@ -93,73 +161,119 @@ export class AuthService {
     const sanitizedToken = sanitizeString(token);
 
     if (!REGEX.UUID_V4.test(sanitizedToken)) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
-        API_ERROR_CODES.AUTH_TOKEN_INVALID
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'token',
+              code: 'INVALID',
+              message: 'Invalid verification token',
+            },
+          ],
+        },
+      });
     }
 
     // Use sanitized token from now on
     const user = await this.userRepository.findByVerificationToken(sanitizedToken);
 
     if (!user) {
-      const error = createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
-        API_ERROR_CODES.AUTH_TOKEN_INVALID
-      );
-      error.customResponse = {
-        status: 'invalid_token',
-        message: 'Invalid verification token',
-        resendRequired: true,
-      };
-      throw error;
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_INVALID],
+        code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'token',
+              code: 'INVALID',
+              message: 'Invalid verification token',
+            },
+          ],
+        },
+      });
     }
 
     if (user.isVerified) {
-      const error = createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED],
-        API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED
-      );
-      error.customResponse = {
-        status: 'already_verified',
-        message: 'Email is already verified',
-        resendRequired: false,
-      };
-      throw error;
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED],
+        code: API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED,
+        status: HTTP_STATUS.CONFLICT,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'token',
+              code: 'INVALID',
+              message: 'Invalid verification token',
+            },
+          ],
+        },
+      });
     }
 
     // Check token expiration
     if (user.verificationExpiresAt && user.verificationExpiresAt < new Date()) {
-      const error = createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
-        API_ERROR_CODES.AUTH_TOKEN_EXPIRED
-      );
-      error.customResponse = {
-        status: 'expired_token',
-        message: 'Verification token has expired',
-        resendRequired: true,
-      };
-      throw error;
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
+        code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'token',
+              code: 'EXPIRED',
+              message: 'Verification token has expired',
+            },
+          ],
+        },
+      });
     }
     // Mark as verified
     try {
-      await this.userRepository.setVerified(user.id, true);
-      return {
-        status: 'success',
-        message: 'Email verified successfully',
-        resendRequired: false,
-      };
+      const verifiedUser = await this.userRepository.setVerified(user.id, true);
+
+      if (!verifiedUser) {
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_UPDATE_FAILED],
+          code: API_ERROR_CODES.AUTH_UPDATE_FAILED,
+          status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+          errorDetails: {
+            type: 'server',
+            details: [
+              {
+                field: 'database',
+                code: 'DATABASE_ERROR',
+                message: 'Error setting user as verified',
+              },
+            ],
+          },
+        });
+      }
+
+      return verifiedUser;
     } catch {
-      const error = createError(
-        'Token is valid but user update failed',
-        API_ERROR_CODES.DATABASE_ERROR
-      );
-      error.customResponse = {
-        status: 'update_failed',
+      throw createError({
         message: 'Token is valid but user update failed',
-        resendRequired: true,
-      };
-      throw error;
+        code: API_ERROR_CODES.AUTH_UPDATE_FAILED,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        errorDetails: {
+          type: 'server',
+          details: [
+            {
+              field: 'database',
+              code: 'DATABASE_ERROR',
+              message: 'Database operation failed',
+            },
+          ],
+        },
+      });
     }
   }
 
@@ -167,31 +281,77 @@ export class AuthService {
    * Start user login
    * @param {string} email
    * @param {string} password
+   * @param {string} [ipAddress] - User's IP address for tracking
    * @returns {Promise<{user: User, accessToken: string, refreshToken: string}>}
    */
-  async login(email, password) {
+  async login(email, password, ipAddress = null) {
     const dbUser = await this.userRepository.findByEmail(email);
 
     if (!dbUser) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_INVALID_CREDENTIALS],
-        API_ERROR_CODES.AUTH_INVALID_CREDENTIALS
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_INVALID_CREDENTIALS],
+        code: API_ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'email',
+              code: 'INVALID',
+              message: 'Invalid email',
+            },
+          ],
+        },
+      });
     }
 
     const isValidPassword = await bcrypt.compare(password, dbUser.passwordHash);
     if (!isValidPassword) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_INVALID_CREDENTIALS],
-        API_ERROR_CODES.AUTH_INVALID_CREDENTIALS
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_FORBIDDEN],
+        code: API_ERROR_CODES.AUTH_FORBIDDEN,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'password',
+              code: 'INVALID',
+              message: 'Invalid password',
+            },
+          ],
+        },
+      });
     }
 
+    /**
+     * @TODO: Implement Account Lockout (Blocked accounts)
+     */
+
     if (!dbUser.isVerified) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.EMAIL_NOT_VERIFIED],
-        API_ERROR_CODES.EMAIL_NOT_VERIFIED
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.EMAIL_NOT_VERIFIED],
+        code: API_ERROR_CODES.EMAIL_NOT_VERIFIED,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'email',
+              code: 'NOT_VERIFIED',
+              message: 'Email not verified',
+            },
+          ],
+        },
+      });
+    }
+
+    // Update last login tracking
+    try {
+      await this.userRepository.updateLoginTracking(dbUser.id, new Date(), ipAddress);
+    } catch (error) {
+      console.warn('Failed to update login tracking:', error.message);
+      // Don't fail the login if tracking update fails
     }
 
     const user = {
@@ -200,6 +360,7 @@ export class AuthService {
       username: dbUser.username,
       role: dbUser.role,
       is_verified: dbUser.isVerified,
+      is_active: dbUser.isActive,
       createdAt: dbUser.createdAt,
       updatedAt: dbUser.updatedAt,
     };
@@ -216,7 +377,7 @@ export class AuthService {
         userId: dbUser.id,
         token: tokens.refreshToken,
         lastActivityAt: new Date(),
-        expiresAt: new Date(Date.now() + config.tokens.refreshExpiration),
+        expiresAt: new Date(Date.now() + config.jwt.refreshExpiresIn),
       });
     } catch (err) {
       console.error(ERROR_MESSAGES[API_ERROR_CODES.UNKNOWN_ERROR], err);
@@ -237,10 +398,21 @@ export class AuthService {
     const dbUser = await this.userRepository.findById(userId);
 
     if (!dbUser) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
-        API_ERROR_CODES.AUTH_USER_NOT_FOUND
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+        code: API_ERROR_CODES.AUTH_USER_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'user',
+              code: 'NOT_FOUND',
+              message: 'User not found',
+            },
+          ],
+        },
+      });
     }
 
     const { passwordHash, ...user } = dbUser;
@@ -254,22 +426,81 @@ export class AuthService {
    */
   async refreshToken(refreshToken) {
     try {
+      if (!refreshToken) {
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
+          code: API_ERROR_CODES.INVALID_REFRESH_TOKEN,
+          status: HTTP_STATUS.BAD_REQUEST,
+          errorDetails: {
+            type: 'business',
+            details: [
+              {
+                field: 'refreshToken',
+                code: 'INVALID',
+                message: 'Missing refresh token',
+              },
+            ],
+          },
+        });
+      }
       // Check if refreshToken exists in session_tokens
       const sessionToken = await this.sessionTokenRepository.findByToken(refreshToken);
       if (!sessionToken) {
-        throw createError(
-          ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
-          API_ERROR_CODES.INVALID_REFRESH_TOKEN
-        );
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.RESOURCE_NOT_FOUND],
+          code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          status: HTTP_STATUS.NOT_FOUND,
+          errorDetails: {
+            type: 'business',
+            details: [
+              {
+                field: 'refresh_token',
+                code: 'NOT_FOUND',
+                message: 'Refresh token not found',
+              },
+            ],
+          },
+        });
       }
 
       if (sessionToken.expiresAt < new Date()) {
         // Token expired -> delete record and throw error
-        await this.sessionTokenRepository.deleteById(sessionToken.id);
-        throw createError(
-          ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
-          API_ERROR_CODES.AUTH_TOKEN_EXPIRED
-        );
+        const deletedToken = await this.sessionTokenRepository.deleteById(sessionToken.id);
+
+        if (!deletedToken) {
+          throw createError({
+            message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+            code: API_ERROR_CODES.DATABASE_ERROR,
+            status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+            errorDetails: {
+              type: 'server',
+              details: [
+                {
+                  field: 'refresh_token',
+                  code: 'DATABASE_ERROR',
+                  message: 'Error deleting expired refresh token',
+                },
+              ],
+            },
+          });
+        }
+
+        // Token was expired and successfully deleted - throw AUTH_TOKEN_EXPIRED
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
+          code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+          status: HTTP_STATUS.UNAUTHORIZED,
+          errorDetails: {
+            type: 'business',
+            details: [
+              {
+                field: 'refresh_token',
+                code: 'EXPIRED',
+                message: 'Refresh token has expired',
+              },
+            ],
+          },
+        });
       }
 
       // Update last activity
@@ -282,10 +513,21 @@ export class AuthService {
       const dbUser = await this.userRepository.findById(payload.userId);
 
       if (!dbUser) {
-        throw createError(
-          ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
-          API_ERROR_CODES.AUTH_USER_NOT_FOUND
-        );
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+          code: API_ERROR_CODES.AUTH_USER_NOT_FOUND,
+          status: HTTP_STATUS.UNAUTHORIZED,
+          errorDetails: {
+            type: 'business',
+            details: [
+              {
+                field: 'user',
+                code: 'NOT_FOUND',
+                message: 'User not found',
+              },
+            ],
+          },
+        });
       }
 
       // Generate new tokens and replace refresh in DB
@@ -295,19 +537,66 @@ export class AuthService {
         role: dbUser.role,
       });
 
-      // Sustituir token en la tabla session_tokens
-      await this.sessionTokenRepository.update(sessionToken.id, {
+      if (!newTokens) {
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+          code: API_ERROR_CODES.DATABASE_ERROR,
+          status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+          errorDetails: {
+            type: 'server',
+            details: [
+              {
+                field: 'database',
+                code: 'DATABASE_ERROR',
+                message: 'Error generating new tokens',
+              },
+            ],
+          },
+        });
+      }
+
+      // Update refresh token in session_tokens
+      const updatedToken = await this.sessionTokenRepository.update(sessionToken.id, {
         token: newTokens.refreshToken,
-        expiresAt: new Date(Date.now() + config.tokens.refreshExpiration),
+        expiresAt: new Date(Date.now() + config.jwt.refreshExpiresIn),
       });
 
+      if (!updatedToken) {
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+          code: API_ERROR_CODES.DATABASE_ERROR,
+          status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+          errorDetails: {
+            type: 'server',
+            details: [
+              {
+                field: 'database',
+                code: 'DATABASE_ERROR',
+                message: 'Error updating refresh token',
+              },
+            ],
+          },
+        });
+      }
+
       return newTokens;
-    } catch (_error) {
-      console.error('Error refreshing token:', _error);
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
-        API_ERROR_CODES.INVALID_REFRESH_TOKEN
-      );
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
+        code: API_ERROR_CODES.INVALID_REFRESH_TOKEN,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'refresh_token',
+              code: 'INVALID',
+              message: 'Invalid refresh token',
+            },
+          ],
+        },
+      });
     }
   }
 
@@ -322,11 +611,21 @@ export class AuthService {
     const count = await this.sessionTokenRepository.deleteByToken(refreshToken);
 
     if (count === 0) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
-        API_ERROR_CODES.INVALID_REFRESH_TOKEN,
-        HTTP_STATUS.UNAUTHORIZED
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.INVALID_REFRESH_TOKEN],
+        code: API_ERROR_CODES.INVALID_REFRESH_TOKEN,
+        status: HTTP_STATUS.UNAUTHORIZED,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'refresh_token',
+              code: 'NOT_FOUND',
+              message: 'Refresh token not found',
+            },
+          ],
+        },
+      });
     }
 
     return true;
@@ -338,24 +637,79 @@ export class AuthService {
    * @returns {Promise<void>}
    */
   async forgotPassword(email) {
-    const user = await this.userRepository.findByEmail(email);
+    const dbUser = await this.userRepository.findByEmail(email);
 
-    if (!user) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
-        API_ERROR_CODES.AUTH_USER_NOT_FOUND
-      );
+    if (!dbUser) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+        code: API_ERROR_CODES.AUTH_USER_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'user',
+              code: 'NOT_FOUND',
+              message: 'User not found',
+            },
+          ],
+        },
+      });
     }
 
     const resetToken = uuidv4();
-    await this.userRepository.setResetToken(
-      user.id,
+    const resetExpiresAt = new Date(Date.now() + config.tokens.passwordResetExpiration);
+
+    try {
+      await this.sendResetPasswordEmail(email, dbUser.username, resetToken);
+    } catch (error) {
+      console.error('Error sending reset password email:', error);
+
+      // Email failed - throw specific error to prevent user creation
+      throw createError({
+        message:
+          'Reset password failed: Unable to send reset password email. Please try again later.',
+        code: API_ERROR_CODES.SERVICE_UNAVAILABLE,
+        status: HTTP_STATUS.SERVICE_UNAVAILABLE,
+        errorDetails: {
+          type: 'server',
+          details: [
+            {
+              field: 'email_service',
+              code: 'EMAIL_SERVICE_FAILED',
+              message: 'Email service is temporarily unavailable',
+            },
+          ],
+        },
+      });
+    }
+
+    // Email sent successfully - NOW update the user
+    const updatedUser = await this.userRepository.setResetToken(
+      dbUser.id,
       resetToken,
-      new Date(Date.now() + config.tokens.passwordResetExpiration)
+      resetExpiresAt
     );
 
-    // @TODO: Send email with the reset token
-    console.log('Reset token:', resetToken);
+    if (!updatedUser) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+        code: API_ERROR_CODES.DATABASE_ERROR,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        errorDetails: {
+          type: 'server',
+          details: [
+            {
+              field: 'database',
+              code: 'DATABASE_ERROR',
+              message: 'Error setting reset token',
+            },
+          ],
+        },
+      });
+    }
+
+    return true;
   }
 
   /**
@@ -368,17 +722,38 @@ export class AuthService {
     const user = await this.userRepository.findByResetToken(token);
 
     if (!user) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.INVALID_RESET_TOKEN],
-        API_ERROR_CODES.INVALID_RESET_TOKEN
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.INVALID_RESET_TOKEN],
+        code: API_ERROR_CODES.INVALID_RESET_TOKEN,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'token',
+              code: 'NOT_FOUND',
+              message: 'Reset token not found',
+            },
+          ],
+        },
+      });
     }
 
-    await this.userRepository.update(user.id, {
-      password: newPassword,
-      resetToken: null,
-      resetExpiresAt: null,
-    });
+    const updatedUser = await this.userRepository.setNewPassword(user.id, newPassword);
+
+    if (!updatedUser) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+        code: API_ERROR_CODES.DATABASE_ERROR,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        errorDetails: {
+          type: 'server',
+          details: [
+            { field: 'database', code: 'DATABASE_ERROR', message: 'Error updating password' },
+          ],
+        },
+      });
+    }
 
     return true;
   }
@@ -390,8 +765,10 @@ export class AuthService {
    */
   async sendVerificationEmail(email, username, token) {
     if (!config.mail) {
-      console.log(`Verification email for ${username} ${email}: ${token}`);
-      return;
+      console.log(`Email not configured - Token for ${username} (${email}): ${token}`);
+      throw new Error(
+        'Email service not configured. Please configure MAIL_API_KEY or MAIL_HOST environment variables.'
+      );
     }
 
     const mailerSend = new MailerSend({
@@ -433,17 +810,39 @@ export class AuthService {
     const user = await this.userRepository.findByEmail(email);
 
     if (!user) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
-        API_ERROR_CODES.AUTH_USER_NOT_FOUND
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_NOT_FOUND],
+        code: API_ERROR_CODES.AUTH_USER_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'user',
+              code: 'NOT_FOUND',
+              message: 'User not found',
+            },
+          ],
+        },
+      });
     }
 
     if (user.isVerified) {
-      throw createError(
-        ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED],
-        API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED
-      );
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED],
+        code: API_ERROR_CODES.AUTH_USER_ALREADY_VERIFIED,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails: {
+          type: 'business',
+          details: [
+            {
+              field: 'user',
+              code: 'ALREADY_VERIFIED',
+              message: 'User already verified',
+            },
+          ],
+        },
+      });
     }
 
     // Generar nuevo token de verificación
@@ -458,6 +857,50 @@ export class AuthService {
 
     // Enviar email de verificación
     await this.sendVerificationEmail(user.email, user.username, verificationToken);
+  }
+
+  /**
+   * Send forgot password email using Mailgun
+   * @param {string} email
+   * @param {string} username
+   * @param {string} token
+   */
+  async sendResetPasswordEmail(email, username, token) {
+    if (!config.mail) {
+      console.log(`Email not configured - Token for ${username} (${email}): ${token}`);
+      throw new Error(
+        'Email service not configured. Please configure MAIL_API_KEY or MAIL_HOST environment variables.'
+      );
+    }
+
+    const mailerSend = new MailerSend({
+      apiKey: config.mail.apiKey,
+    });
+    const personalization = [
+      {
+        email,
+        data: {
+          username,
+          account: {
+            name: 'Gestion eSports',
+          },
+          verify_url: `${config.cors.frontendUrl}${APP_ROUTES.FORGOT_PASSWORD}?token=${token}`,
+          support_email: config.mail.from,
+        },
+      },
+    ];
+    const sentFrom = new Sender(config.mail.from, personalization[0].data.account.name);
+    const recipients = [new Recipient(email)];
+
+    const emailParams = new EmailParams()
+      .setFrom(sentFrom)
+      .setTo(recipients)
+      .setReplyTo(sentFrom)
+      .setPersonalization(personalization)
+      .setTemplateId('ynrw7gyqqmj42k8e')
+      .setSubject('Reset password');
+
+    await mailerSend.email.send(emailParams);
   }
 
   /**

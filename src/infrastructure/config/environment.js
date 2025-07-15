@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 
 import dotenv from 'dotenv';
@@ -10,14 +11,16 @@ import { z } from 'zod';
  * 3. Local .env file (not in git)
  */
 function loadEnvFiles() {
-  const nodeEnv = process.env.NODE_ENV || 'development';
+  // Preserve the original NODE_ENV before loading files
+  const originalNodeEnv = process.env.NODE_ENV;
 
   // Load base .env file
   dotenv.config({
     path: path.resolve(process.cwd(), '.env'),
   });
 
-  // Load environment-specific file
+  // Load environment-specific file based on original NODE_ENV
+  const nodeEnv = originalNodeEnv || process.env.NODE_ENV || 'development';
   dotenv.config({
     path: path.resolve(process.cwd(), `.env.${nodeEnv}`),
     override: true,
@@ -28,10 +31,43 @@ function loadEnvFiles() {
     path: path.resolve(process.cwd(), '.env.local'),
     override: true,
   });
+
+  // Restore the original NODE_ENV if it was set
+  if (originalNodeEnv) {
+    process.env.NODE_ENV = originalNodeEnv;
+  }
 }
 
 // Load environment files
 loadEnvFiles();
+
+// Detect if running inside Docker
+const isDockerEnvironment = () => {
+  // Check multiple indicators of Docker environment
+  return (
+    process.env.DOCKER_ENV === 'true' || // Explicit flag
+    process.env.HOSTNAME?.startsWith('acamae-') || // Docker container hostname pattern
+    fs.existsSync('/.dockerenv') || // Docker container indicator file
+    process.env.NODE_ENV === 'production' // Assume production runs in Docker
+  );
+};
+
+// Auto-adjust DATABASE_URL based on environment
+const adjustDatabaseUrl = (originalUrl) => {
+  if (!originalUrl) return originalUrl;
+
+  const isDocker = isDockerEnvironment();
+
+  if (isDocker && originalUrl.includes('@localhost:')) {
+    // Running in Docker but URL points to localhost -> change to db
+    return originalUrl.replace('@localhost:', '@db:');
+  } else if (!isDocker && originalUrl.includes('@db:')) {
+    // Running locally but URL points to db -> change to localhost
+    return originalUrl.replace('@db:', '@localhost:');
+  }
+
+  return originalUrl;
+};
 
 // Default values according to the environment
 const defaultValues = {
@@ -39,19 +75,19 @@ const defaultValues = {
     port: '4000',
     corsOrigin: 'https://localhost',
     frontendUrl: 'https://localhost',
-    rateLimitWindowMs: '900000', // 15 minutos
-    rateLimitMax: '100',
-    rateLimitAuthWindowMs: '3600000', // 1 hora
-    rateLimitAuthMax: '5',
+    rateLimitWindowMs: '900000', // 15 minutes
+    rateLimitMax: '500', // 500 requests per 15 minutes
+    rateLimitAuthWindowMs: '900000', // 15 minutes
+    rateLimitAuthMax: '10', // 10 attempts per 15 minutes
   },
   production: {
     port: '4000',
     corsOrigin: process.env.FRONTEND_URL || 'https://tu-dominio.com',
     frontendUrl: process.env.FRONTEND_URL || 'https://tu-dominio.com',
-    rateLimitWindowMs: '900000', // 15 minutos
-    rateLimitMax: '50', // Más restrictivo en producción
-    rateLimitAuthWindowMs: '3600000', // 1 hora
-    rateLimitAuthMax: '3', // Más restrictivo en producción
+    rateLimitWindowMs: '900000', // 15 minutes
+    rateLimitMax: '500', // 500 requests per 15 minutes
+    rateLimitAuthWindowMs: '900000', // 15 minutes
+    rateLimitAuthMax: '10', // 10 attempts per 15 minutes
   },
   test: {
     port: '4001',
@@ -88,6 +124,10 @@ const defaults = defaultValues[nodeEnv] || defaultValues.development;
  * @property {string} [MAIL_PASSWORD] - SMTP password
  * @property {string} [MAIL_FROM] - Default sender email
  * @property {string} [MAIL_API_KEY] - MailerSend API key
+ * @property {string} RATE_LIMIT_WINDOW_MS - Rate limit window in milliseconds
+ * @property {string} RATE_LIMIT_MAX - Rate limit max requests
+ * @property {string} RATE_LIMIT_AUTH_WINDOW_MS - Rate limit auth window in milliseconds
+ * @property {string} RATE_LIMIT_AUTH_MAX - Rate limit auth max requests
  */
 
 // Validation schema for environment variables
@@ -129,7 +169,10 @@ const envSchema = z.object({
   // Token expiration times
   VERIFICATION_EXPIRATION: z.string().default('10m'),
   PASSWORD_RESET_EXPIRATION: z.string().default('10m'),
-  REFRESH_EXPIRATION: z.string().default('7d'),
+
+  // Perspective API (optional)
+  PERSPECTIVE_API_KEY: z.string().optional(),
+  PERSPECTIVE_THRESHOLD: z.string().default('0.7'),
 });
 
 // Parse and validate environment variables
@@ -185,8 +228,8 @@ export const config = {
   jwt: {
     secret: env.data.JWT_SECRET,
     refreshSecret: env.data.JWT_REFRESH_SECRET,
-    expiresIn: env.data.JWT_EXPIRES_IN,
-    refreshExpiresIn: env.data.JWT_REFRESH_EXPIRES_IN,
+    expiresIn: durationToMs(env.data.JWT_EXPIRES_IN),
+    refreshExpiresIn: durationToMs(env.data.JWT_REFRESH_EXPIRES_IN),
   },
   cookie: {
     secret: env.data.COOKIE_SECRET,
@@ -204,7 +247,7 @@ export const config = {
 
   // Database
   database: {
-    url: env.data.DATABASE_URL,
+    url: adjustDatabaseUrl(env.data.DATABASE_URL),
   },
 
   // Rate limiting
@@ -221,7 +264,6 @@ export const config = {
   tokens: {
     verificationExpiration: durationToMs(env.data.VERIFICATION_EXPIRATION),
     passwordResetExpiration: durationToMs(env.data.PASSWORD_RESET_EXPIRATION),
-    refreshExpiration: durationToMs(env.data.REFRESH_EXPIRATION),
   },
 
   // Email
@@ -236,4 +278,12 @@ export const config = {
           apiKey: env.data.MAIL_API_KEY,
         }
       : null,
+
+  // Perspective API
+  perspective: env.data.PERSPECTIVE_API_KEY
+    ? {
+        apiKey: env.data.PERSPECTIVE_API_KEY,
+        threshold: parseFloat(env.data.PERSPECTIVE_THRESHOLD),
+      }
+    : null,
 };

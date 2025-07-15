@@ -1,5 +1,9 @@
 name: acamae-backend
 
+# Variables de entorno globales
+x-environment: &environment
+  NODE_ENV: ${NODE_ENV:-development}
+
 services:
   db:
     image: mariadb:11
@@ -25,10 +29,11 @@ services:
       - ../.env.${NODE_ENV:-development}
       - .env
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-gestion_esports}
+      NODE_ENV: ${NODE_ENV:-development}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-gestion_esports}
     volumes:
-      - ./volumes/mariadb_data:/var/lib/mysql
+      - mariadb_data:/var/lib/mysql
     ports:
       - '3306:3306'
     networks:
@@ -38,6 +43,8 @@ services:
     build:
       context: ./nginx
     container_name: acamae-nginx
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
     ports:
       - '443:443'
       - '80:80'
@@ -56,8 +63,20 @@ services:
     build:
       context: ../
       dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
     command: >
-      sh -c "npm run prisma:deploy && npm run start:dev"
+      sh -c "
+        if [ \"\$NODE_ENV\" = \"test\" ]; then
+          npm run prisma:deploy:test && npm run env:test && npm run start:test
+        elif [ \"\$NODE_ENV\" = \"production\" ]; then
+          npm run prisma:deploy:prod && npm run env:prod && npm run start:prod
+        else
+          npm run prisma:deploy:dev && npm run env:dev && npm run start:dev
+        fi
+      "
     stdin_open: true
     tty: true
     healthcheck:
@@ -84,10 +103,9 @@ services:
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     restart: always
-    env_file:
-      - ../.env.${NODE_ENV:-development}
     environment:
-      - PMA_HOST=db
+      NODE_ENV: ${NODE_ENV:-development}
+      PMA_HOST: db
     expose:
       - '80'
     ports:
@@ -106,3 +124,4 @@ networks:
 
 volumes:
   mariadb_data:
+    driver: local

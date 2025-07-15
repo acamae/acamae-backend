@@ -48,6 +48,11 @@ describe('TokenService', () => {
     jwt.verify.mockImplementation(() => {
       throw new Error('invalid');
     });
+
+    expect(() => {
+      service.verifyAccessToken('bad');
+    }).toThrow();
+
     try {
       service.verifyAccessToken('bad');
     } catch (err) {

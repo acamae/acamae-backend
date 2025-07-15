@@ -5,6 +5,8 @@ const makeRes = () => {
   const res = {};
   res.status = jest.fn().mockReturnValue(res);
   res.json = jest.fn().mockReturnValue(res);
+  res.apiSuccess = jest.fn().mockReturnValue(res);
+  res.apiError = jest.fn().mockReturnValue(res);
   res.redirect = jest.fn().mockReturnValue(res);
   return res;
 };
@@ -28,14 +30,32 @@ describe('UserController (unit)', () => {
   });
 
   it('getAllUsers -> 200', async () => {
-    const users = [{ id: '1' }];
-    service.getAllUsers.mockResolvedValue(users);
+    const result = {
+      users: [{ id: '1' }],
+      page: 1,
+      limit: 10,
+      total: 1,
+      totalPages: 1,
+      hasNext: false,
+      hasPrev: false,
+    };
+    service.getAllUsers.mockResolvedValue(result);
 
-    await controller.getAllUsers({}, res, next);
+    const req = { query: {} };
+    await controller.getAllUsers(req, res, next);
 
-    expect(service.getAllUsers).toHaveBeenCalled();
+    expect(service.getAllUsers).toHaveBeenCalledWith({ page: 1, limit: 10 });
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ status: 'success', data: users });
+    expect(res.apiSuccess).toHaveBeenCalledWith(result.users, 'Users retrieved successfully', {
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+    });
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -49,19 +69,19 @@ describe('UserController (unit)', () => {
 
       expect(service.getUserById).toHaveBeenCalledWith('2');
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ status: 'success', data: user });
+      expect(res.apiSuccess).toHaveBeenCalledWith(user, 'User retrieved successfully');
       expect(next).not.toHaveBeenCalled();
     });
 
     it('calls next with NOT_FOUND when user missing', async () => {
-      service.getUserById.mockResolvedValue(null);
+      const error = new Error('User not found');
+      service.getUserById.mockRejectedValue(error);
       const req = { params: { id: '3' } };
 
       await controller.getUserById(req, res, next);
 
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({ code: API_ERROR_CODES.AUTH_USER_NOT_FOUND, status: 404 })
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 
@@ -75,20 +95,16 @@ describe('UserController (unit)', () => {
 
       expect(service.updateUser).toHaveBeenCalledWith('4', { name: 'n' });
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({
-        status: 'success',
-        message: 'User updated successfully',
-        data: updated,
-      });
+      expect(res.apiSuccess).toHaveBeenCalledWith(updated, 'User updated successfully');
     });
 
     it('calls next with NOT_FOUND when user missing', async () => {
-      service.updateUser.mockResolvedValue(null);
+      const error = new Error('User not found');
+      service.updateUser.mockRejectedValue(error);
       const req = { params: { id: '5' }, body: {} };
       await controller.updateUser(req, res, next);
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({ code: API_ERROR_CODES.AUTH_USER_NOT_FOUND, status: 404 })
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 
@@ -99,20 +115,16 @@ describe('UserController (unit)', () => {
       await controller.deleteUser(req, res, next);
       expect(service.deleteUser).toHaveBeenCalledWith('6');
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({
-        status: 'success',
-        message: 'User deleted successfully',
-        data: null,
-      });
+      expect(res.apiSuccess).toHaveBeenCalledWith(null, 'User deleted successfully');
     });
 
     it('calls next with NOT_FOUND when user missing', async () => {
-      service.deleteUser.mockResolvedValue(false);
+      const error = new Error('User not found');
+      service.deleteUser.mockRejectedValue(error);
       const req = { params: { id: '7' } };
       await controller.deleteUser(req, res, next);
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({ code: API_ERROR_CODES.AUTH_USER_NOT_FOUND, status: 404 })
-      );
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 });

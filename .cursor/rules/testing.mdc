@@ -1,18 +1,18 @@
 ---
-description:
-globs: *.test.js,*.test.jsx
+globs: *.test.js
 alwaysApply: false
 ---
+
 **Testing Guidelines**
 
-* **Test Structure**:
+- **Test Structure**:
   - Use Jest as main framework
   - Organize tests by layer (unit, integration, e2e)
   - Keep tests independent
   - Clean database between tests
   - Use factories for test data
 
-* **API Testing**:
+- **API Testing**:
   - Use supertest for API tests
   - Verify response codes
   - Validate response structure
@@ -20,7 +20,7 @@ alwaysApply: false
   - Verify security headers
   - Test rate limiting
 
-* **Database Testing**:
+- **Database Testing**:
   - Use test database
   - Clean data between tests
   - Verify transactions
@@ -28,7 +28,7 @@ alwaysApply: false
   - Validate indexes
   - Test migrations
 
-* **Security Testing**:
+- **Security Testing**:
   - Test input validation
   - Verify sanitization
   - Test authentication
@@ -36,7 +36,7 @@ alwaysApply: false
   - Test rate limiting
   - Verify security headers
 
-* **Performance Testing**:
+- **Performance Testing**:
   - Use autocannon for load testing
   - Measure response times
   - Verify memory leaks
@@ -44,7 +44,7 @@ alwaysApply: false
   - Monitor resources
   - Validate timeouts
 
-* **Mocking**:
+- **Mocking**:
   - Mock external services
   - Simulate network errors
   - Mock database
@@ -52,7 +52,7 @@ alwaysApply: false
   - Mock events
   - Simulate load
 
-* **Test Coverage**:
+- **Test Coverage**:
   - Maintain 80%+ coverage
   - Focus on business logic
   - Cover error cases
@@ -65,6 +65,7 @@ alwaysApply: false
 Scenario: integration tests using Supertest + Express stalled and hit Jest's 5 s/30 s default timeout.
 
 Root causes detected:
+
 1. **Middleware side-effects** – `express-rate-limit` & custom `validation.js` created timers/DB calls that kept event-loop handles open.
 2. **CORS config** – missing `config.cors.allowedOrigins` in test env triggered silent rejection, the request never reached the route.
 3. **TCP handles** – Supertest leaves one `TCPSERVERWRAP` alive when sockets stay in keep-alive.
@@ -82,8 +83,9 @@ jest.mock('express-rate-limit', () => {
 });
 
 // 2. Mock validation middleware to bypass heavy Zod schemas
-jest.mock(require.resolve('src/infrastructure/middleware/validation.js'), () =>
-  new Proxy({}, { get: () => () => passthru, apply: () => passthru })
+jest.mock(
+  require.resolve('src/infrastructure/middleware/validation.js'),
+  () => new Proxy({}, { get: () => () => passthru, apply: () => passthru })
 );
 ```
 
@@ -95,24 +97,24 @@ import app from 'src/infrastructure/app.js';
 
 let server, agent;
 
-beforeAll(done => {
+beforeAll((done) => {
   server = http.createServer(app);
-  server.keepAliveTimeout = 0;            // disable keep-alive
+  server.keepAliveTimeout = 0; // disable keep-alive
 
-  const sockets = new Set();              // track open sockets for teardown
-  server.on('connection', s => {
+  const sockets = new Set(); // track open sockets for teardown
+  server.on('connection', (s) => {
     sockets.add(s);
     s.on('close', () => sockets.delete(s));
   });
 
   server.listen(0, () => {
-    agent = request.agent(server);        // persistent agent (cookies etc.)
+    agent = request.agent(server); // persistent agent (cookies etc.)
     server.__sockets = sockets;
     done();
   });
 });
 
-afterAll(done => {
+afterAll((done) => {
   for (const s of server.__sockets) s.destroy(); // ensure no open handles
   server.close(done);
 });
@@ -121,9 +123,160 @@ const post = (url) => agent.post(url).set('Connection', 'close'); // force socke
 ```
 
 Key takeaways:
-• Always place mocks *before* importing the Express app so middleware uses the mocked versions.
+• Always place mocks _before_ importing the Express app so middleware uses the mocked versions.
 • Provide a full `environment.js` mock including `cors.allowedOrigins` to satisfy CORS checks.
 • Disable keep-alive and destroy sockets to eliminate lingering `TCPSERVERWRAP` handles.
 • Combine `supertest.agent` with `Connection: close` header for deterministic teardown.
 
 > Follow this template for future integration tests to avoid elusive timeouts.
+
+## Centralized Exports Testing – Critical Lessons Learned
+
+**Problem Identified**: Runtime error from non-existent export not detected by unit tests.
+
+**Real Scenario**:
+
+```javascript
+// src/infrastructure/middleware/index.js
+export { applyLogging } from './logging.js'; // ❌ function doesn't exist
+// Runtime error: "The requested module does not provide an export named 'applyLogging'"
+```
+
+### Architectural Gap Detected
+
+**Unit Tests**: Import directly from specific files
+
+```javascript
+// ✓ Test passes - imports directly from module
+import { requestLogger } from '../middleware/logging.js';
+```
+
+**Production Code**: Uses centralized imports
+
+```javascript
+// ✗ Runtime fails - uses broken centralized export
+import { applyLogging } from './middleware/index.js';
+```
+
+**Result**: Unit tests never validated the complete centralized export structure.
+
+### Implemented Solution: Export Validation Pattern
+
+Create specific tests to validate centralized exports in critical modules:
+
+```javascript
+// tests/unit/middleware/middlewareExports.test.js
+describe('Middleware Exports Validation', () => {
+  const EXPECTED_EXPORTS = [
+    'requestLogger',
+    'errorLogger', // logging.js
+    'authMiddleware', // auth.js
+    'applySecurityMiddleware', // security.js
+    'validateRequest', // validation.js
+    'compressionMiddleware', // compression.js
+    'notFoundHandler', // notFoundHandler.js
+    'errorHandler', // errorHandler.js
+  ];
+
+  test('should export all expected functions', async () => {
+    const middlewareModule = await import('../../../src/infrastructure/middleware/index.js');
+
+    for (const exportName of EXPECTED_EXPORTS) {
+      expect(middlewareModule).toHaveProperty(exportName);
+      expect(typeof middlewareModule[exportName]).toBe('function');
+    }
+  });
+
+  test('should not have undefined exports', async () => {
+    const middlewareModule = await import('../../../src/infrastructure/middleware/index.js');
+
+    Object.entries(middlewareModule).forEach(([name, value]) => {
+      expect(value).toBeDefined();
+      expect(value).not.toBeNull();
+    });
+  });
+
+  test('should export functions used in app.js', async () => {
+    // Validate that functions used in app.js actually exist
+    const middlewareModule = await import('../../../src/infrastructure/middleware/index.js');
+    const { applySecurityMiddleware, requestLogger } = middlewareModule;
+
+    expect(applySecurityMiddleware).toBeDefined();
+    expect(typeof applySecurityMiddleware).toBe('function');
+    expect(requestLogger).toBeDefined();
+    expect(typeof requestLogger).toBe('function');
+  });
+});
+```
+
+### Centralized Testing Principles
+
+**1. Production-Test Alignment Validation**
+
+- Tests must use same import paths as production
+- Validate centralized exports in critical modules
+- Automatically detect `undefined` exports
+
+**2. Pattern for Modules with Centralized Exports**
+
+```javascript
+// For each directory with centralizing index.js:
+// - Create export validation test
+// - List expected exports explicitly
+// - Validate exported function types
+// - Verify alignment with production usage
+```
+
+**3. Early Detection Tests**
+
+- Execute dynamic imports to detect syntax errors
+- Validate export structure before using functions
+- Automate detection of broken exports in CI/CD
+
+### Pattern Application
+
+**Modules Requiring Validation**:
+
+- `src/infrastructure/middleware/index.js` ✓ (implemented)
+- `src/infrastructure/controllers/index.js` (pending)
+- `src/infrastructure/repositories/index.js` (pending)
+- `src/application/services/index.js` (pending)
+- `src/shared/constants/index.js` (pending)
+
+**Template for Future Modules**:
+
+```javascript
+// tests/unit/[module]/[module]Exports.test.js
+describe('[Module] Exports Validation', () => {
+  const EXPECTED_EXPORTS = ['func1', 'func2', 'func3'];
+
+  test('should export all expected functions', async () => {
+    const module = await import('../../../src/[path]/index.js');
+    EXPECTED_EXPORTS.forEach((name) => {
+      expect(module).toHaveProperty(name);
+      expect(typeof module[name]).toBe('function');
+    });
+  });
+
+  test('should not have undefined exports', async () => {
+    const module = await import('../../../src/[path]/index.js');
+    Object.entries(module).forEach(([name, value]) => {
+      expect(value).toBeDefined();
+    });
+  });
+});
+```
+
+### Impact and Benefits
+
+**Before**: 205 tests passing, runtime error in production
+**After**: 206 tests passing, error automatically detected in CI
+
+**Prevention**: This pattern would immediately detect:
+
+- Non-existent exports (`applyLogging`)
+- Typos in export names
+- Broken imports from refactoring
+- Functions removed without updating centralized exports
+
+> **Golden Rule**: For each module with centralizing `index.js`, create export validation test. Tests must fail **before** the application fails at runtime.
