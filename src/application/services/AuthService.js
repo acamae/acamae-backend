@@ -298,7 +298,7 @@ export class AuthService {
             {
               field: 'email',
               code: 'INVALID',
-              message: 'Invalid emaild',
+              message: 'Invalid email',
             },
           ],
         },
