@@ -6,13 +6,17 @@ import { config } from './config/environment.js';
 import { applyCompression } from './middleware/compression.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { applyLoggingMiddleware } from './middleware/logging.js';
+import { requestIdMiddleware } from './middleware/requestId.js';
 import { responseHelpersMiddleware } from './middleware/responseHelpers.js';
 import { applySecurityMiddleware } from './middleware/security.js';
 import router from './routes/index.js';
 
 const app = express();
 
-// Apply response helpers middleware first (needed by other middlewares)
+// Apply request ID middleware first (needed by other middlewares)
+app.use(requestIdMiddleware);
+
+// Apply response helpers middleware (needed by other middlewares)
 app.use(responseHelpersMiddleware);
 
 // Apply security middleware

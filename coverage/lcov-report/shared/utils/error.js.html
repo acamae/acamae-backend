@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/11</span>
+                <span class='fraction'>11/11</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">92.3% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/13</span>
+                <span class='fraction'>12/13</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/10</span>
+                <span class='fraction'>10/10</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -139,7 +139,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">24x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -149,17 +149,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">96x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">96x</span>
+<span class="cline-any cline-yes">96x</span>
+<span class="cline-any cline-yes">96x</span>
+<span class="cline-any cline-yes">96x</span>
+<span class="cline-any cline-yes">96x</span>
+<span class="cline-any cline-yes">96x</span>
+<span class="cline-any cline-yes">96x</span>
+<span class="cline-any cline-yes">96x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { API_ERROR_CODES, ERROR_MESSAGES } from '../constants/apiCodes.js';
 import { HTTP_STATUS } from '../constants/httpStatus.js';
@@ -188,27 +188,27 @@ import { HTTP_STATUS } from '../constants/httpStatus.js';
  * @param {ErrorDetails} [options.errorDetails] - Additional error details
  * @returns {Error} Error object with API error code and HTTP status code
  */
-export const createError = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >({</span></span>
+export const createError = ({
   message,
-  code = <span class="branch-0 cbranch-no" title="branch not covered" >API_ERROR_CODES.INTERNAL_SERVER_ERROR,</span>
-  status = <span class="branch-0 cbranch-no" title="branch not covered" >HTTP_STATUS.INTERNAL_SERVER_ERROR,</span>
-  timestamp = <span class="branch-0 cbranch-no" title="branch not covered" >new Date().toISOString(),</span>
-  requestId = <span class="branch-0 cbranch-no" title="branch not covered" >'unknown',</span>
-  success = <span class="branch-0 cbranch-no" title="branch not covered" >false,</span>
-  data = <span class="branch-0 cbranch-no" title="branch not covered" >null,</span>
-  errorDetails = <span class="branch-0 cbranch-no" title="branch not covered" >null,</span>
-} = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> =&gt; {
-  const error = <span class="cstat-no" title="statement not covered" >new Error(</span>
-    message || ERROR_MESSAGES[code] || ERROR_MESSAGES[API_ERROR_CODES.UNEXPECTED_ERROR]
+  code = API_ERROR_CODES.INTERNAL_SERVER_ERROR,
+  status = HTTP_STATUS.INTERNAL_SERVER_ERROR,
+  timestamp = new Date().toISOString(),
+  requestId = 'unknown',
+  success = false,
+  data = null,
+  errorDetails = null,
+} = {}) =&gt; {
+  const error = new Error(
+    message || ERROR_MESSAGES[code] || <span class="branch-2 cbranch-no" title="branch not covered" >ERROR_MESSAGES[API_ERROR_CODES.UNEXPECTED_ERROR]</span>
   );
-<span class="cstat-no" title="statement not covered" >  error.code = code;</span>
-<span class="cstat-no" title="statement not covered" >  error.status = status;</span>
-<span class="cstat-no" title="statement not covered" >  error.timestamp = timestamp;</span>
-<span class="cstat-no" title="statement not covered" >  error.requestId = requestId;</span>
-<span class="cstat-no" title="statement not covered" >  error.success = success;</span>
-<span class="cstat-no" title="statement not covered" >  error.data = data;</span>
-<span class="cstat-no" title="statement not covered" >  if (errorDetails) <span class="cstat-no" title="statement not covered" >error.error = errorDetails;</span></span>
-<span class="cstat-no" title="statement not covered" >  return error;</span>
+  error.code = code;
+  error.status = status;
+  error.timestamp = timestamp;
+  error.requestId = requestId;
+  error.success = success;
+  error.data = data;
+  if (errorDetails) error.error = errorDetails;
+  return error;
 };
 &nbsp;</pre></td></tr></table></pre>
 
@@ -217,7 +217,7 @@ export const createError = <span class="cstat-no" title="statement not covered" 
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-13T14:48:11.351Z
+                at 2025-07-15T05:30:02.796Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

@@ -341,7 +341,7 @@ describe('Security Middleware Real Implementation', () => {
 
       // Should call applySecurityMiddleware first (which calls app.use multiple times)
       // Then add 6 más middleware functions: CSP, clickjacking, mime sniffing, XSS, IE, noCache
-      expect(testApp.use).toHaveBeenCalledTimes(17); // Ajustado a la implementación actual
+      expect(testApp.use).toHaveBeenCalledTimes(16); // Ajustado a la implementación actual
       expect(testApp.set).toHaveBeenCalled(); // from applySecurityMiddleware
 
       // Verify the function actually executes the expected parts

@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -18,9 +20,15 @@ export const requestIdMiddleware = (req, res, next) => {
 
     next();
   } catch (error) {
-    // En caso de error generando UUID, usar timestamp + random
+    // En caso de error generando UUID, usar crypto.randomUUID() como fallback seguro
     console.error('Error generating requestId:', error);
-    req.requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    try {
+      req.requestId = crypto.randomUUID();
+    } catch (cryptoError) {
+      // Último fallback con timestamp + random si crypto también falla
+      console.error('Error generating crypto UUID:', cryptoError);
+      req.requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    }
     res.setHeader('X-Request-ID', req.requestId);
     next();
   }
