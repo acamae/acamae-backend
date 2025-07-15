@@ -484,6 +484,23 @@ export class AuthService {
             },
           });
         }
+
+        // Token was expired and successfully deleted - throw AUTH_TOKEN_EXPIRED
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
+          code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+          status: HTTP_STATUS.UNAUTHORIZED,
+          errorDetails: {
+            type: 'business',
+            details: [
+              {
+                field: 'refresh_token',
+                code: 'EXPIRED',
+                message: 'Refresh token has expired',
+              },
+            ],
+          },
+        });
       }
 
       // Update last activity
