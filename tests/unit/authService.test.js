@@ -30,6 +30,7 @@ jest.mock('../../src/infrastructure/config/environment.js', () => ({
 // Mock bcrypt
 jest.mock('bcryptjs', () => ({
   compare: jest.fn(),
+  hash: jest.fn(),
 }));
 
 // Mock uuid to return valid UUIDs
@@ -92,6 +93,7 @@ const mockUserRepo = () => ({
   setVerified: jest.fn(),
   findById: jest.fn(),
   findByResetToken: jest.fn(),
+  findByResetTokenAny: jest.fn(),
   setResetToken: jest.fn(),
   setVerificationToken: jest.fn(),
   update: jest.fn(),
@@ -516,13 +518,13 @@ describe('AuthService', () => {
 
       expect(userRepo.setResetToken).toHaveBeenCalledWith(
         user.id,
-        '12345678-1234-4abc-8def-123456789012',
+        expect.any(String),
         expect.any(Date)
       );
       expect(authService.sendResetPasswordEmail).toHaveBeenCalledWith(
         user.email,
         user.username,
-        '12345678-1234-4abc-8def-123456789012'
+        expect.any(String)
       );
     });
 
@@ -538,12 +540,14 @@ describe('AuthService', () => {
   describe('resetPassword', () => {
     it('should reset password successfully', async () => {
       const user = makeUser();
+      bcrypt.hash.mockResolvedValue('hashedPassword');
       userRepo.findByResetToken.mockResolvedValue(user);
       userRepo.setNewPassword.mockResolvedValue(user);
 
-      const result = await authService.resetPassword('reset-token', 'newPassword123!');
+      const validToken = 'a'.repeat(64);
+      const result = await authService.resetPassword(validToken, 'newPassword123!');
 
-      expect(userRepo.setNewPassword).toHaveBeenCalledWith(user.id, 'newPassword123!');
+      expect(userRepo.setNewPassword).toHaveBeenCalledWith(user.id, 'hashedPassword');
       expect(result).toBe(true);
     });
 
@@ -551,7 +555,7 @@ describe('AuthService', () => {
       userRepo.findByResetToken.mockResolvedValue(null);
 
       await expect(authService.resetPassword('invalid-token', 'newpass')).rejects.toMatchObject({
-        code: API_ERROR_CODES.INVALID_RESET_TOKEN,
+        code: API_ERROR_CODES.AUTH_RESET_TOKEN_MALFORMED,
       });
     });
   });
@@ -624,6 +628,238 @@ describe('AuthService', () => {
 
       expect(result).toBe(5);
       expect(userRepo.cleanExpiredVerificationTokens).toHaveBeenCalled();
+    });
+  });
+
+  // ===== NEW RESET PASSWORD TESTS =====
+  describe('validateResetToken', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should return invalid for malformed token format', async () => {
+      const result = await authService.validateResetToken('invalid-token');
+
+      expect(result).toEqual({
+        isValid: false,
+        isExpired: false,
+        userExists: false,
+      });
+    });
+
+    it('should return invalid when token not found', async () => {
+      userRepo.findByResetTokenAny.mockResolvedValue(null);
+
+      const validToken = 'a'.repeat(64); // 64 char hex token
+      const result = await authService.validateResetToken(validToken);
+
+      expect(result).toEqual({
+        isValid: false,
+        isExpired: false,
+        userExists: false,
+      });
+      expect(userRepo.findByResetTokenAny).toHaveBeenCalledWith(validToken);
+    });
+
+    it('should return invalid when user is not active', async () => {
+      const user = makeUser({ isActive: false });
+      userRepo.findByResetTokenAny.mockResolvedValue(user);
+
+      const validToken = 'a'.repeat(64);
+      const result = await authService.validateResetToken(validToken);
+
+      expect(result).toEqual({
+        isValid: false,
+        isExpired: false,
+        userExists: false,
+      });
+    });
+
+    it('should return invalid when token is already used', async () => {
+      const user = makeUser({
+        resetTokenUsed: true,
+        resetExpiresAt: new Date(Date.now() + 3600000), // Not expired
+      });
+      userRepo.findByResetTokenAny.mockResolvedValue(user);
+
+      const validToken = 'a'.repeat(64);
+      const result = await authService.validateResetToken(validToken);
+
+      expect(result).toEqual({
+        isValid: false,
+        isExpired: false,
+        userExists: true,
+      });
+    });
+
+    it('should return invalid when token is expired', async () => {
+      const user = makeUser({
+        resetTokenUsed: false,
+        resetExpiresAt: new Date(Date.now() - 3600000), // Expired 1 hour ago
+      });
+      userRepo.findByResetTokenAny.mockResolvedValue(user);
+
+      const validToken = 'a'.repeat(64);
+      const result = await authService.validateResetToken(validToken);
+
+      expect(result).toEqual({
+        isValid: false,
+        isExpired: true,
+        userExists: true,
+      });
+    });
+
+    it('should return valid when token is valid and not expired/used', async () => {
+      const user = makeUser({
+        resetTokenUsed: false,
+        resetExpiresAt: new Date(Date.now() + 3600000), // Expires in 1 hour
+        isActive: true,
+      });
+      userRepo.findByResetTokenAny.mockResolvedValue(user);
+
+      const validToken = 'a'.repeat(64);
+      const result = await authService.validateResetToken(validToken);
+
+      expect(result).toEqual({
+        isValid: true,
+        isExpired: false,
+        userExists: true,
+      });
+    });
+
+    it('should handle database errors', async () => {
+      userRepo.findByResetTokenAny.mockRejectedValue(new Error('Database error'));
+
+      const validToken = 'a'.repeat(64);
+
+      await expect(authService.validateResetToken(validToken)).rejects.toMatchObject({
+        code: API_ERROR_CODES.DATABASE_ERROR,
+      });
+    });
+  });
+
+  describe('isValidTokenFormat', () => {
+    it('should return false for null token', () => {
+      expect(authService.isValidTokenFormat(null)).toBe(false);
+    });
+
+    it('should return false for undefined token', () => {
+      expect(authService.isValidTokenFormat(undefined)).toBe(false);
+    });
+
+    it('should return false for non-string token', () => {
+      expect(authService.isValidTokenFormat(123)).toBe(false);
+    });
+
+    it('should return false for empty string', () => {
+      expect(authService.isValidTokenFormat('')).toBe(false);
+    });
+
+    it('should return false for token with wrong length', () => {
+      expect(authService.isValidTokenFormat('abc123')).toBe(false);
+      expect(authService.isValidTokenFormat('a'.repeat(63))).toBe(false);
+      expect(authService.isValidTokenFormat('a'.repeat(65))).toBe(false);
+    });
+
+    it('should return false for token with invalid characters', () => {
+      const invalidToken = 'g'.repeat(64); // 'g' is not valid hex
+      expect(authService.isValidTokenFormat(invalidToken)).toBe(false);
+
+      const tokenWithSymbols = 'a'.repeat(63) + '!';
+      expect(authService.isValidTokenFormat(tokenWithSymbols)).toBe(false);
+    });
+
+    it('should return true for valid hexadecimal token of 64 characters', () => {
+      const validToken = 'a'.repeat(64);
+      expect(authService.isValidTokenFormat(validToken)).toBe(true);
+
+      const validTokenMixed = 'abc123DEF456789abcdef0123456789ABCDEF0123456789abcdef012345678AB';
+      expect(authService.isValidTokenFormat(validTokenMixed)).toBe(true);
+    });
+  });
+
+  describe('resetPassword (updated)', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      bcrypt.hash.mockResolvedValue('hashedNewPassword');
+    });
+
+    it('should reset password successfully with valid token', async () => {
+      const user = makeUser();
+      userRepo.findByResetToken.mockResolvedValue(user);
+      userRepo.setNewPassword.mockResolvedValue(user);
+
+      const validToken = 'a'.repeat(64);
+      const result = await authService.resetPassword(validToken, 'newPassword123!');
+
+      expect(bcrypt.hash).toHaveBeenCalledWith('newPassword123!', 12);
+      expect(userRepo.setNewPassword).toHaveBeenCalledWith(user.id, 'hashedNewPassword');
+      expect(result).toBe(true);
+    });
+
+    it('should throw error for malformed token', async () => {
+      await expect(
+        authService.resetPassword('invalid-token', 'newPassword123!')
+      ).rejects.toMatchObject({
+        code: API_ERROR_CODES.AUTH_RESET_TOKEN_MALFORMED,
+      });
+    });
+
+    it('should throw error when token not found', async () => {
+      userRepo.findByResetToken.mockResolvedValue(null);
+      userRepo.findByResetTokenAny.mockResolvedValue(null);
+
+      const validToken = 'a'.repeat(64);
+      await expect(authService.resetPassword(validToken, 'newPassword123!')).rejects.toMatchObject({
+        code: API_ERROR_CODES.INVALID_RESET_TOKEN,
+      });
+    });
+
+    it('should throw error when token is already used', async () => {
+      const usedUser = makeUser({ resetTokenUsed: true });
+      userRepo.findByResetToken.mockResolvedValue(null);
+      userRepo.findByResetTokenAny.mockResolvedValue(usedUser);
+
+      const validToken = 'a'.repeat(64);
+      await expect(authService.resetPassword(validToken, 'newPassword123!')).rejects.toMatchObject({
+        code: API_ERROR_CODES.AUTH_TOKEN_ALREADY_USED,
+      });
+    });
+
+    it('should throw error when token is expired', async () => {
+      const expiredUser = makeUser({
+        resetTokenUsed: false,
+        resetExpiresAt: new Date(Date.now() - 3600000), // Expired
+      });
+      userRepo.findByResetToken.mockResolvedValue(null);
+      userRepo.findByResetTokenAny.mockResolvedValue(expiredUser);
+
+      const validToken = 'a'.repeat(64);
+      await expect(authService.resetPassword(validToken, 'newPassword123!')).rejects.toMatchObject({
+        code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+      });
+    });
+
+    it('should throw error when database update fails', async () => {
+      const user = makeUser();
+      userRepo.findByResetToken.mockResolvedValue(user);
+      userRepo.setNewPassword.mockResolvedValue(null);
+
+      const validToken = 'a'.repeat(64);
+      await expect(authService.resetPassword(validToken, 'newPassword123!')).rejects.toMatchObject({
+        code: API_ERROR_CODES.DATABASE_ERROR,
+      });
+    });
+
+    it('should handle unexpected errors', async () => {
+      const user = makeUser();
+      userRepo.findByResetToken.mockResolvedValue(user);
+      bcrypt.hash.mockRejectedValue(new Error('Unexpected error'));
+
+      const validToken = 'a'.repeat(64);
+      await expect(authService.resetPassword(validToken, 'newPassword123!')).rejects.toMatchObject({
+        code: API_ERROR_CODES.DATABASE_ERROR,
+      });
     });
   });
 });

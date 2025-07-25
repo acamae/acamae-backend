@@ -26,6 +26,7 @@ import {
   resetPasswordValidation,
   teamValidation,
   updateUserValidation,
+  validateResetTokenValidation,
   verifyEmailValidation,
 } from '../middleware/validation.js';
 import { PrismaSessionTokenRepository } from '../repositories/PrismaSessionTokenRepository.js';
@@ -80,10 +81,51 @@ const authLimiter = rateLimit({
 router.get(
   API_ROUTES.BASE,
   asyncHandler(async (_req, res) => {
-    res.json({
-      status: 'SUCCESS',
-      message: 'Welcome to the Acamae API',
-      data: {
+    const apiData = {
+      version: process.env.npm_package_version,
+      environment: config.env,
+      timestamp: new Date().toISOString(),
+      documentation: '/api-docs',
+      endpoints: {
+        health: API_ROUTES.HEALTH,
+        auth: {
+          login: API_ROUTES.AUTH.LOGIN,
+          register: API_ROUTES.AUTH.REGISTER,
+          refreshToken: API_ROUTES.AUTH.REFRESH_TOKEN,
+          logout: API_ROUTES.AUTH.LOGOUT,
+          verifyEmail: API_ROUTES.AUTH.VERIFY_EMAIL,
+          resendVerification: API_ROUTES.AUTH.RESEND_VERIFICATION,
+          forgotPassword: API_ROUTES.AUTH.FORGOT_PASSWORD,
+          resetPassword: API_ROUTES.AUTH.RESET_PASSWORD,
+          me: API_ROUTES.AUTH.ME,
+        },
+        users: {
+          getAll: API_ROUTES.USERS.GET_ALL,
+          getById: API_ROUTES.USERS.GET_BY_ID,
+          updateById: API_ROUTES.USERS.UPDATE_BY_ID,
+          deleteById: API_ROUTES.USERS.DELETE_BY_ID,
+        },
+        teams: {
+          getAll: API_ROUTES.TEAMS.GET_ALL,
+          getById: API_ROUTES.TEAMS.GET_BY_ID,
+          create: API_ROUTES.TEAMS.CREATE,
+          updateById: API_ROUTES.TEAMS.UPDATE_BY_ID,
+          deleteById: API_ROUTES.TEAMS.DELETE_BY_ID,
+        },
+      },
+    };
+
+    res.apiSuccess(apiData, 'Welcome to the Acamae API');
+  })
+);
+
+// API dev route (only in development environment)
+if (config.env === 'development') {
+  router.get(
+    `${API_ROUTES.BASE}/dev`,
+    asyncHandler(async (_req, res) => {
+      const devData = {
+        name: 'Esports Management API',
         version: process.env.npm_package_version,
         environment: config.env,
         timestamp: new Date().toISOString(),
@@ -114,63 +156,18 @@ router.get(
             updateById: API_ROUTES.TEAMS.UPDATE_BY_ID,
             deleteById: API_ROUTES.TEAMS.DELETE_BY_ID,
           },
-        },
-      },
-    });
-  })
-);
-
-// API dev route (only in development environment)
-if (config.env === 'development') {
-  router.get(
-    `${API_ROUTES.BASE}/dev`,
-    asyncHandler(async (_req, res) => {
-      res.json({
-        status: 'SUCCESS',
-        message: 'Development API Information',
-        data: {
-          name: 'Esports Management API',
-          version: process.env.npm_package_version,
-          environment: config.env,
-          timestamp: new Date().toISOString(),
-          documentation: '/api-docs',
-          endpoints: {
-            health: API_ROUTES.HEALTH,
-            auth: {
-              login: API_ROUTES.AUTH.LOGIN,
-              register: API_ROUTES.AUTH.REGISTER,
-              refreshToken: API_ROUTES.AUTH.REFRESH_TOKEN,
-              logout: API_ROUTES.AUTH.LOGOUT,
-              verifyEmail: API_ROUTES.AUTH.VERIFY_EMAIL,
-              resendVerification: API_ROUTES.AUTH.RESEND_VERIFICATION,
-              forgotPassword: API_ROUTES.AUTH.FORGOT_PASSWORD,
-              resetPassword: API_ROUTES.AUTH.RESET_PASSWORD,
-              me: API_ROUTES.AUTH.ME,
-            },
-            users: {
-              getAll: API_ROUTES.USERS.GET_ALL,
-              getById: API_ROUTES.USERS.GET_BY_ID,
-              updateById: API_ROUTES.USERS.UPDATE_BY_ID,
-              deleteById: API_ROUTES.USERS.DELETE_BY_ID,
-            },
-            teams: {
-              getAll: API_ROUTES.TEAMS.GET_ALL,
-              getById: API_ROUTES.TEAMS.GET_BY_ID,
-              create: API_ROUTES.TEAMS.CREATE,
-              updateById: API_ROUTES.TEAMS.UPDATE_BY_ID,
-              deleteById: API_ROUTES.TEAMS.DELETE_BY_ID,
-            },
-            admin: {
-              stats: API_ROUTES.ADMIN.STATS,
-              users: API_ROUTES.ADMIN.USERS,
-              teams: API_ROUTES.ADMIN.TEAMS,
-            },
-            manager: {
-              dashboard: API_ROUTES.MANAGER.DASHBOARD,
-            },
+          admin: {
+            stats: API_ROUTES.ADMIN.STATS,
+            users: API_ROUTES.ADMIN.USERS,
+            teams: API_ROUTES.ADMIN.TEAMS,
+          },
+          manager: {
+            dashboard: API_ROUTES.MANAGER.DASHBOARD,
           },
         },
-      });
+      };
+
+      res.apiSuccess(devData, 'Development API Information');
     })
   );
 
@@ -261,7 +258,7 @@ router.get(
       healthCheck.message = 'Algunos servicios no están funcionando correctamente';
     }
 
-    res.json(healthCheck);
+    res.apiSuccess(healthCheck.data, healthCheck.message);
   })
 );
 
@@ -306,22 +303,7 @@ router.post(
   resendVerificationValidation,
   asyncHandler(authController.resendVerification.bind(authController))
 );
-router.get(
-  '/api/auth/verify-email-sent',
-  asyncHandler(authController.verifyEmailSent.bind(authController))
-);
-router.get(
-  '/api/auth/verify-email-success',
-  asyncHandler(authController.verifyEmailSuccess.bind(authController))
-);
-router.get(
-  '/api/auth/verify-email-expired',
-  asyncHandler(authController.verifyEmailExpired.bind(authController))
-);
-router.get(
-  '/api/auth/verify-email-already-verified',
-  asyncHandler(authController.verifyEmailAlreadyVerified.bind(authController))
-);
+
 router.post(
   API_ROUTES.AUTH.FORGOT_PASSWORD,
   authLimiter,
@@ -329,12 +311,24 @@ router.post(
   forgotPasswordValidation,
   asyncHandler(authController.forgotPassword.bind(authController))
 );
+
+// Reset Password Flow - Two endpoints following REST semantics
+// POST: Validate reset token (check if token is valid before showing form)
 router.post(
+  API_ROUTES.AUTH.RESET_PASSWORD,
+  authLimiter,
+  validateResetTokenValidation,
+  asyncHandler(authController.validateResetToken.bind(authController))
+);
+
+// PUT: Reset password (update password using valid token)
+router.put(
   API_ROUTES.AUTH.RESET_PASSWORD,
   authLimiter,
   resetPasswordValidation,
   asyncHandler(authController.resetPassword.bind(authController))
 );
+
 router.get(
   API_ROUTES.AUTH.ME,
   authMiddleware,

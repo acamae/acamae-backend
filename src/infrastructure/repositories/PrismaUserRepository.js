@@ -41,6 +41,7 @@ export class PrismaUserRepository {
       verificationExpiresAt: prismaUser.verification_expires_at || undefined,
       resetToken: prismaUser.reset_token || undefined,
       resetExpiresAt: prismaUser.reset_expires_at || undefined,
+      resetTokenUsed: prismaUser.reset_token_used || false,
       createdAt: prismaUser.created_at,
       updatedAt: prismaUser.updated_at,
     };
@@ -255,6 +256,7 @@ export class PrismaUserRepository {
       data: {
         reset_token: resetToken,
         reset_expires_at: resetExpiresAt,
+        reset_token_used: false,
       },
     });
 
@@ -270,7 +272,12 @@ export class PrismaUserRepository {
   async setNewPassword(id, newPassword) {
     const user = await this.#prisma.user.update({
       where: { id: parseInt(id) },
-      data: { password_hash: newPassword, reset_token: null, reset_expires_at: null },
+      data: {
+        password_hash: newPassword,
+        reset_token: null,
+        reset_expires_at: null,
+        reset_token_used: true,
+      },
     });
 
     return this.#toDomainModel(user);
@@ -321,10 +328,44 @@ export class PrismaUserRepository {
         reset_expires_at: {
           gt: new Date(),
         },
+        reset_token_used: false,
       },
     });
 
     return user ? this.#toDomainModel(user) : null;
+  }
+
+  /**
+   * Find a user by reset token (includes expired and used tokens) - Used for validation
+   * @param {string} token - Reset token
+   * @returns {Promise<import('../../domain/entities/User').User|null>}
+   */
+  async findByResetTokenAny(token) {
+    const user = await this.#prisma.user.findFirst({
+      where: {
+        reset_token: token,
+      },
+    });
+
+    return user ? this.#toDomainModel(user) : null;
+  }
+
+  /**
+   * Mark reset token as used
+   * @param {string} id - User ID
+   * @returns {Promise<import('../../domain/entities/User').User>}
+   */
+  async markResetTokenAsUsed(id) {
+    const user = await this.#prisma.user.update({
+      where: { id: parseInt(id) },
+      data: {
+        reset_token_used: true,
+        reset_token: null,
+        reset_expires_at: null,
+      },
+    });
+
+    return this.#toDomainModel(user);
   }
 
   /**

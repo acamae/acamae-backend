@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 import bcrypt from 'bcryptjs';
 import { EmailParams, MailerSend, Recipient, Sender } from 'mailersend';
 import { v4 as uuidv4 } from 'uuid';
@@ -657,7 +659,8 @@ export class AuthService {
       });
     }
 
-    const resetToken = uuidv4();
+    // Generate a secure 64-character hexadecimal token
+    const resetToken = crypto.randomBytes(32).toString('hex');
     const resetExpiresAt = new Date(Date.now() + config.tokens.passwordResetExpiration);
 
     try {
@@ -719,29 +722,125 @@ export class AuthService {
    * @returns {Promise<boolean>}
    */
   async resetPassword(token, newPassword) {
-    const user = await this.userRepository.findByResetToken(token);
+    try {
+      // 1. Validate token format
+      if (!this.isValidTokenFormat(token)) {
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_RESET_TOKEN_MALFORMED],
+          code: API_ERROR_CODES.AUTH_RESET_TOKEN_MALFORMED,
+          status: HTTP_STATUS.BAD_REQUEST,
+          errorDetails: {
+            type: 'business',
+            details: [
+              {
+                field: 'token',
+                code: 'INVALID_FORMAT',
+                message: 'Token format is invalid',
+              },
+            ],
+          },
+        });
+      }
 
-    if (!user) {
-      throw createError({
-        message: ERROR_MESSAGES[API_ERROR_CODES.INVALID_RESET_TOKEN],
-        code: API_ERROR_CODES.INVALID_RESET_TOKEN,
-        status: HTTP_STATUS.BAD_REQUEST,
-        errorDetails: {
-          type: 'business',
-          details: [
-            {
-              field: 'token',
-              code: 'NOT_FOUND',
-              message: 'Reset token not found',
+      // 2. Find user by reset token (only valid, non-expired, non-used tokens)
+      const user = await this.userRepository.findByResetToken(token);
+
+      if (!user) {
+        // Check if token exists but is expired/used to provide specific error
+        const userAny = await this.userRepository.findByResetTokenAny(token);
+
+        if (!userAny) {
+          throw createError({
+            message: ERROR_MESSAGES[API_ERROR_CODES.INVALID_RESET_TOKEN],
+            code: API_ERROR_CODES.INVALID_RESET_TOKEN,
+            status: HTTP_STATUS.NOT_FOUND,
+            errorDetails: {
+              type: 'business',
+              details: [
+                {
+                  field: 'token',
+                  code: 'NOT_FOUND',
+                  message: 'Reset token not found',
+                },
+              ],
             },
-          ],
-        },
-      });
-    }
+          });
+        }
 
-    const updatedUser = await this.userRepository.setNewPassword(user.id, newPassword);
+        // Token exists but is invalid - check why
+        if (userAny.resetTokenUsed) {
+          throw createError({
+            message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_ALREADY_USED],
+            code: API_ERROR_CODES.AUTH_TOKEN_ALREADY_USED,
+            status: HTTP_STATUS.CONFLICT,
+            errorDetails: {
+              type: 'business',
+              details: [
+                {
+                  field: 'token',
+                  code: 'ALREADY_USED',
+                  message: 'This token has already been used',
+                },
+              ],
+            },
+          });
+        }
 
-    if (!updatedUser) {
+        if (userAny.resetExpiresAt && userAny.resetExpiresAt < new Date()) {
+          throw createError({
+            message: ERROR_MESSAGES[API_ERROR_CODES.AUTH_TOKEN_EXPIRED],
+            code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+            status: HTTP_STATUS.BAD_REQUEST,
+            errorDetails: {
+              type: 'business',
+              details: [
+                {
+                  field: 'token',
+                  code: 'EXPIRED',
+                  message: 'The reset link has expired',
+                },
+              ],
+            },
+          });
+        }
+      }
+
+      // 3. Hash the new password
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+      // 4. Update password and mark token as used
+      const updatedUser = await this.userRepository.setNewPassword(user.id, hashedPassword);
+
+      if (!updatedUser) {
+        throw createError({
+          message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+          code: API_ERROR_CODES.DATABASE_ERROR,
+          status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+          errorDetails: {
+            type: 'server',
+            details: [
+              {
+                field: 'database',
+                code: 'DATABASE_ERROR',
+                message: 'Failed to update password in database',
+              },
+            ],
+          },
+        });
+      }
+
+      // 5. TODO: Invalidate all existing sessions for this user
+      // await this.sessionTokenRepository.invalidateUserSessions(user.id);
+
+      return true;
+    } catch (error) {
+      // Re-throw known errors
+      if (error.code) {
+        throw error;
+      }
+
+      // Handle unexpected errors
+      console.error('Unexpected error in resetPassword:', error);
       throw createError({
         message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
         code: API_ERROR_CODES.DATABASE_ERROR,
@@ -749,13 +848,107 @@ export class AuthService {
         errorDetails: {
           type: 'server',
           details: [
-            { field: 'database', code: 'DATABASE_ERROR', message: 'Error updating password' },
+            {
+              field: 'database',
+              code: 'DATABASE_ERROR',
+              message: 'Database operation failed during password reset',
+            },
           ],
         },
       });
     }
+  }
 
-    return true;
+  /**
+   * Validate reset token without modifying anything
+   * @param {string} token - Reset token to validate
+   * @returns {Promise<{isValid: boolean, isExpired?: boolean, userExists?: boolean}>}
+   */
+  async validateResetToken(token) {
+    try {
+      // 1. Validate token format (hexadecimal, 64 characters)
+      if (!this.isValidTokenFormat(token)) {
+        return {
+          isValid: false,
+          isExpired: false,
+          userExists: false,
+        };
+      }
+
+      // 2. Find user by token (includes expired and used tokens)
+      const user = await this.userRepository.findByResetTokenAny(token);
+
+      if (!user) {
+        return {
+          isValid: false,
+          isExpired: false,
+          userExists: false,
+        };
+      }
+
+      // 3. Check if user is active
+      if (!user.isActive) {
+        return {
+          isValid: false,
+          isExpired: false,
+          userExists: false,
+        };
+      }
+
+      // 4. Check if token has already been used
+      if (user.resetTokenUsed) {
+        return {
+          isValid: false,
+          isExpired: false,
+          userExists: true,
+        };
+      }
+
+      // 5. Check token expiration
+      if (user.resetExpiresAt && user.resetExpiresAt < new Date()) {
+        return {
+          isValid: false,
+          isExpired: true,
+          userExists: true,
+        };
+      }
+
+      // Token is valid
+      return {
+        isValid: true,
+        isExpired: false,
+        userExists: true,
+      };
+    } catch (error) {
+      console.error('Error validating reset token:', error);
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.DATABASE_ERROR],
+        code: API_ERROR_CODES.DATABASE_ERROR,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        errorDetails: {
+          type: 'server',
+          details: [
+            {
+              field: 'database',
+              code: 'DATABASE_ERROR',
+              message: 'Database operation failed during token validation',
+            },
+          ],
+        },
+      });
+    }
+  }
+
+  /**
+   * Validate token format (hexadecimal, 64 characters)
+   * @param {string} token - Token to validate
+   * @returns {boolean}
+   */
+  isValidTokenFormat(token) {
+    if (!token || typeof token !== 'string') return false;
+    if (token.length !== 64) return false;
+    const tokenRegex = /^[a-fA-F0-9]{64}$/;
+    return tokenRegex.test(token);
   }
 
   /**
@@ -765,7 +958,6 @@ export class AuthService {
    */
   async sendVerificationEmail(email, username, token) {
     if (!config.mail) {
-      console.log(`Email not configured - Token for ${username} (${email}): ${token}`);
       throw new Error(
         'Email service not configured. Please configure MAIL_API_KEY or MAIL_HOST environment variables.'
       );
@@ -782,7 +974,7 @@ export class AuthService {
           account: {
             name: 'Gestion eSports',
           },
-          verify_url: `${config.cors.frontendUrl}${APP_ROUTES.VERIFY_EMAIL}?token=${token}`,
+          verify_url: `${config.cors.frontendUrl}${APP_ROUTES.VERIFY_EMAIL}/${token}`,
           support_email: config.mail.from,
         },
       },
@@ -867,7 +1059,6 @@ export class AuthService {
    */
   async sendResetPasswordEmail(email, username, token) {
     if (!config.mail) {
-      console.log(`Email not configured - Token for ${username} (${email}): ${token}`);
       throw new Error(
         'Email service not configured. Please configure MAIL_API_KEY or MAIL_HOST environment variables.'
       );
@@ -884,7 +1075,7 @@ export class AuthService {
           account: {
             name: 'Gestion eSports',
           },
-          verify_url: `${config.cors.frontendUrl}${APP_ROUTES.FORGOT_PASSWORD}?token=${token}`,
+          verify_url: `${config.cors.frontendUrl}${APP_ROUTES.RESET_PASSWORD}/${token}`,
           support_email: config.mail.from,
         },
       },
@@ -897,8 +1088,8 @@ export class AuthService {
       .setTo(recipients)
       .setReplyTo(sentFrom)
       .setPersonalization(personalization)
-      .setTemplateId('ynrw7gyqqmj42k8e')
-      .setSubject('Reset password');
+      .setTemplateId('vywj2lpzppjg7oqz')
+      .setSubject('Change your password');
 
     await mailerSend.email.send(emailParams);
   }

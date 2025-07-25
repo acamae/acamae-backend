@@ -17,7 +17,6 @@ export const apiSuccess = (res, data = null, message = 'Operación exitosa', met
   const response = {
     success: true,
     data,
-    status: res.statusCode,
     code: API_SUCCESS_CODES.SUCCESS,
     message,
     timestamp: new Date().toISOString(),

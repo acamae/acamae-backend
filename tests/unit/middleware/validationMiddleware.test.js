@@ -12,6 +12,7 @@ import {
   teamValidation,
   updateUserValidation,
   validateRequest,
+  validateResetTokenValidation,
   validationSchemas,
   verifyEmailValidation,
 } from '../../../src/infrastructure/middleware/validation.js';
@@ -654,6 +655,73 @@ describe('Validation Middleware', () => {
       expect(next).toHaveBeenCalledWith(expect.any(Error));
 
       consoleSpy.mockRestore();
+    });
+  });
+
+  // ===== NEW RESET PASSWORD VALIDATION TESTS =====
+  describe('validateResetToken schema', () => {
+    it('should validate correct reset token', () => {
+      const validToken = 'a'.repeat(64); // 64 hex characters
+      const data = { token: validToken };
+
+      const result = validationSchemas.validateResetToken.parse(data);
+
+      expect(result.token).toBe(validToken);
+    });
+
+    it('should validate mixed case hexadecimal token', () => {
+      const validToken = 'abc123DEF456789abcdef0123456789ABCDEF0123456789abcdef012345678AB';
+      const data = { token: validToken };
+
+      const result = validationSchemas.validateResetToken.parse(data);
+
+      expect(result.token).toBe(validToken);
+    });
+
+    it('should reject token that is too short', () => {
+      const shortToken = 'a'.repeat(63); // 63 characters
+      const data = { token: shortToken };
+
+      expect(() => validationSchemas.validateResetToken.parse(data)).toThrow();
+    });
+
+    it('should reject token that is too long', () => {
+      const longToken = 'a'.repeat(65); // 65 characters
+      const data = { token: longToken };
+
+      expect(() => validationSchemas.validateResetToken.parse(data)).toThrow();
+    });
+
+    it('should reject token with invalid characters', () => {
+      const invalidToken = 'g'.repeat(64); // 'g' is not valid hex
+      const data = { token: invalidToken };
+
+      expect(() => validationSchemas.validateResetToken.parse(data)).toThrow();
+    });
+
+    it('should reject token with symbols', () => {
+      const invalidToken = 'a'.repeat(63) + '!'; // Contains symbol
+      const data = { token: invalidToken };
+
+      expect(() => validationSchemas.validateResetToken.parse(data)).toThrow();
+    });
+
+    it('should reject empty token', () => {
+      const data = { token: '' };
+
+      expect(() => validationSchemas.validateResetToken.parse(data)).toThrow();
+    });
+
+    it('should reject missing token', () => {
+      const data = {};
+
+      expect(() => validationSchemas.validateResetToken.parse(data)).toThrow();
+    });
+
+    it('should reject non-string token', () => {
+      const data = { token: 123 };
+
+      expect(() => validationSchemas.validateResetToken.parse(data)).toThrow();
     });
   });
 });
