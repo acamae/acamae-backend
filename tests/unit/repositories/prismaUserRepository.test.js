@@ -57,6 +57,7 @@ describe('PrismaUserRepository', () => {
         verification_expires_at: new Date('2023-12-31'),
         reset_token: 'reset123',
         reset_expires_at: new Date('2023-12-31'),
+        reset_token_used: false,
         created_at: new Date('2023-01-01'),
         updated_at: new Date('2023-01-01'),
       };
@@ -80,6 +81,7 @@ describe('PrismaUserRepository', () => {
         verificationExpiresAt: prismaUser.verification_expires_at,
         resetToken: 'reset123',
         resetExpiresAt: prismaUser.reset_expires_at,
+        resetTokenUsed: false,
         createdAt: prismaUser.created_at,
         updatedAt: prismaUser.updated_at,
       });
@@ -451,6 +453,7 @@ describe('PrismaUserRepository', () => {
         data: {
           reset_token: 'resettoken',
           reset_expires_at: expiresAt,
+          reset_token_used: false,
         },
       });
       expect(result).toBeDefined();
@@ -512,6 +515,7 @@ describe('PrismaUserRepository', () => {
         where: {
           reset_token: 'resettoken',
           reset_expires_at: { gt: expect.any(Date) },
+          reset_token_used: false,
         },
       });
       expect(result).toBeDefined();
@@ -632,6 +636,284 @@ describe('PrismaUserRepository', () => {
       const result = await repo.cleanExpiredVerificationTokens();
 
       expect(result).toBe(0);
+    });
+  });
+
+  // ===== RESET PASSWORD TESTS =====
+  describe('findByResetTokenAny', () => {
+    it('should find user by reset token including expired and used tokens', async () => {
+      const prismaUser = {
+        id: 1,
+        email: 'test@example.com',
+        username: 'testuser',
+        password_hash: 'hashedpass',
+        first_name: null,
+        last_name: null,
+        role: 'user',
+        is_verified: true,
+        is_active: true,
+        last_login_at: null,
+        last_login_ip: null,
+        verification_token: null,
+        verification_expires_at: null,
+        reset_token: 'reset123',
+        reset_expires_at: new Date('2023-01-01'), // Expired
+        reset_token_used: true, // Used
+        created_at: new Date('2023-01-01'),
+        updated_at: new Date('2023-01-01'),
+      };
+
+      mockPrisma.user.findFirst.mockResolvedValue(prismaUser);
+
+      const result = await repo.findByResetTokenAny('reset123');
+
+      expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({
+        where: {
+          reset_token: 'reset123',
+        },
+      });
+      expect(result.resetToken).toBe('reset123');
+      expect(result.resetTokenUsed).toBe(true);
+    });
+
+    it('should return null when token not found', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+
+      const result = await repo.findByResetTokenAny('nonexistent');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('markResetTokenAsUsed', () => {
+    it('should mark reset token as used and clear token data', async () => {
+      const prismaUser = {
+        id: 1,
+        email: 'test@example.com',
+        username: 'testuser',
+        password_hash: 'hashedpass',
+        first_name: null,
+        last_name: null,
+        role: 'user',
+        is_verified: true,
+        is_active: true,
+        last_login_at: null,
+        last_login_ip: null,
+        verification_token: null,
+        verification_expires_at: null,
+        reset_token: null,
+        reset_expires_at: null,
+        reset_token_used: true,
+        created_at: new Date('2023-01-01'),
+        updated_at: new Date('2023-01-01'),
+      };
+
+      mockPrisma.user.update.mockResolvedValue(prismaUser);
+
+      const result = await repo.markResetTokenAsUsed('1');
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          reset_token_used: true,
+          reset_token: null,
+          reset_expires_at: null,
+        },
+      });
+      expect(result.resetTokenUsed).toBe(true);
+      expect(result.resetToken).toBeUndefined();
+    });
+  });
+
+  describe('setResetToken (updated)', () => {
+    it('should set reset token and mark as not used', async () => {
+      const prismaUser = {
+        id: 1,
+        email: 'test@example.com',
+        username: 'testuser',
+        password_hash: 'hashedpass',
+        first_name: null,
+        last_name: null,
+        role: 'user',
+        is_verified: true,
+        is_active: true,
+        last_login_at: null,
+        last_login_ip: null,
+        verification_token: null,
+        verification_expires_at: null,
+        reset_token: 'reset123',
+        reset_expires_at: new Date('2024-01-01'),
+        reset_token_used: false,
+        created_at: new Date('2023-01-01'),
+        updated_at: new Date('2023-01-01'),
+      };
+
+      mockPrisma.user.update.mockResolvedValue(prismaUser);
+
+      const resetExpiresAt = new Date('2024-01-01');
+      const result = await repo.setResetToken('1', 'reset123', resetExpiresAt);
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          reset_token: 'reset123',
+          reset_expires_at: resetExpiresAt,
+          reset_token_used: false,
+        },
+      });
+      expect(result.resetToken).toBe('reset123');
+      expect(result.resetTokenUsed).toBe(false);
+    });
+  });
+
+  describe('setNewPassword (updated)', () => {
+    it('should update password and mark reset token as used', async () => {
+      const prismaUser = {
+        id: 1,
+        email: 'test@example.com',
+        username: 'testuser',
+        password_hash: 'newHashedPassword',
+        first_name: null,
+        last_name: null,
+        role: 'user',
+        is_verified: true,
+        is_active: true,
+        last_login_at: null,
+        last_login_ip: null,
+        verification_token: null,
+        verification_expires_at: null,
+        reset_token: null,
+        reset_expires_at: null,
+        reset_token_used: true,
+        created_at: new Date('2023-01-01'),
+        updated_at: new Date('2023-01-01'),
+      };
+
+      mockPrisma.user.update.mockResolvedValue(prismaUser);
+
+      const result = await repo.setNewPassword('1', 'newHashedPassword');
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          password_hash: 'newHashedPassword',
+          reset_token: null,
+          reset_expires_at: null,
+          reset_token_used: true,
+        },
+      });
+      expect(result.passwordHash).toBe('newHashedPassword');
+      expect(result.resetTokenUsed).toBe(true);
+      expect(result.resetToken).toBeUndefined();
+    });
+  });
+
+  describe('findByResetToken (updated)', () => {
+    it('should find user by valid reset token (not expired, not used)', async () => {
+      const prismaUser = {
+        id: 1,
+        email: 'test@example.com',
+        username: 'testuser',
+        password_hash: 'hashedpass',
+        first_name: null,
+        last_name: null,
+        role: 'user',
+        is_verified: true,
+        is_active: true,
+        last_login_at: null,
+        last_login_ip: null,
+        verification_token: null,
+        verification_expires_at: null,
+        reset_token: 'reset123',
+        reset_expires_at: new Date('2024-01-01'),
+        reset_token_used: false,
+        created_at: new Date('2023-01-01'),
+        updated_at: new Date('2023-01-01'),
+      };
+
+      mockPrisma.user.findFirst.mockResolvedValue(prismaUser);
+
+      const result = await repo.findByResetToken('reset123');
+
+      expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({
+        where: {
+          reset_token: 'reset123',
+          reset_expires_at: {
+            gt: expect.any(Date),
+          },
+          reset_token_used: false,
+        },
+      });
+      expect(result.resetToken).toBe('reset123');
+      expect(result.resetTokenUsed).toBe(false);
+    });
+
+    it('should return null when reset token is used or expired', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+
+      const result = await repo.findByResetToken('expired_or_used_token');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('#toDomainModel (updated for resetTokenUsed)', () => {
+    it('should map resetTokenUsed field correctly', async () => {
+      const prismaUser = {
+        id: 1,
+        email: 'test@example.com',
+        username: 'testuser',
+        password_hash: 'hashedpass',
+        first_name: null,
+        last_name: null,
+        role: 'user',
+        is_verified: true,
+        is_active: true,
+        last_login_at: null,
+        last_login_ip: null,
+        verification_token: null,
+        verification_expires_at: null,
+        reset_token: 'reset123',
+        reset_expires_at: new Date('2024-01-01'),
+        reset_token_used: true,
+        created_at: new Date('2023-01-01'),
+        updated_at: new Date('2023-01-01'),
+      };
+
+      mockPrisma.user.findUnique.mockResolvedValue(prismaUser);
+
+      const result = await repo.findById('1');
+
+      expect(result.resetTokenUsed).toBe(true);
+    });
+
+    it('should default resetTokenUsed to false when not provided', async () => {
+      const prismaUser = {
+        id: 1,
+        email: 'test@example.com',
+        username: 'testuser',
+        password_hash: 'hashedpass',
+        first_name: null,
+        last_name: null,
+        role: 'user',
+        is_verified: true,
+        is_active: true,
+        last_login_at: null,
+        last_login_ip: null,
+        verification_token: null,
+        verification_expires_at: null,
+        reset_token: null,
+        reset_expires_at: null,
+        // reset_token_used: not provided
+        created_at: new Date('2023-01-01'),
+        updated_at: new Date('2023-01-01'),
+      };
+
+      mockPrisma.user.findUnique.mockResolvedValue(prismaUser);
+
+      const result = await repo.findById('1');
+
+      expect(result.resetTokenUsed).toBe(false);
     });
   });
 });

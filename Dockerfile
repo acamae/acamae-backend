@@ -2,34 +2,40 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Definir argumento para NODE_ENV
+# Define NODE_ENV variable
 ARG NODE_ENV=development
 
-# Instalar curl para health checks
-RUN apk add --no-cache curl
+# Install curl for health checks and create non-privileged user
+RUN apk add --no-cache curl && addgroup -S appuser && adduser -S appuser -G appuser
 
-# Copiar archivos de configuración
+# Copy configuration files
 COPY package*.json ./
 COPY prisma ./prisma/
 COPY ./src /app/src
-# Copiar solo el archivo de entorno específico, excluyendo .env.local
+# Copy specific environment file, excluding .env.local
 COPY .env.${NODE_ENV} /app/.env.${NODE_ENV}
 
-# Crear directorio para logs
+# Create logs directory and change owner
 RUN mkdir -p logs \
-  && npm install -g nodemon \
-  && npm install --save-dev prisma \
+  && npm install -g --ignore-scripts nodemon \
+  && npm install --save-dev --ignore-scripts prisma \
   && npx prisma generate
 
-# Copiar el resto del código fuente
+# Copy remaining code
 COPY . .
 
-# Configurar Prisma para usar el motor binario
+# Change ownership of all files
+RUN chown -R appuser:appuser /app
+
+# Configure Prisma to use the binary engine
 ENV PRISMA_CLIENT_ENGINE_TYPE=binary
 
-# Variables de entorno para desarrollo
+# Environment variables for development
 ENV NODE_ENV=$NODE_ENV
 ENV PORT=$PORT
 
-# Exponer puerto
+# Switch to non-privileged user
+USER appuser
+
+# Expose port
 EXPOSE $PORT

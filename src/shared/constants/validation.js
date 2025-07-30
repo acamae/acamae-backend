@@ -1,4 +1,3 @@
-import { ERROR_MESSAGES } from './apiCodes.js';
 import { ROLES } from './roles.js';
 
 /**
@@ -42,6 +41,3 @@ export const USER_ROLES = {
   ADMIN: ROLES.ADMIN.name,
   MANAGER: ROLES.MANAGER.name,
 };
-
-// Re-export error messages for backward compatibility
-export { ERROR_MESSAGES };

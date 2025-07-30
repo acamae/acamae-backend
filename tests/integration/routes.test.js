@@ -14,10 +14,10 @@ jest.mock('@prisma/client', () => {
 });
 
 describe('API routes integration', () => {
-  describe('GET /api', () => {
+  describe('GET /api/health', () => {
     it('should return welcome payload', async () => {
       const res = await request(app).get(API_ROUTES.BASE).expect(200);
-      expect(res.body).toHaveProperty('status', 'SUCCESS');
+      expect(res.body).toHaveProperty('code', 'SUCCESS');
       expect(res.body).toHaveProperty('data.version');
       expect(res.body).toHaveProperty('data.endpoints');
     });
@@ -26,7 +26,7 @@ describe('API routes integration', () => {
   describe('GET /api/health', () => {
     it('should report healthy server and database', async () => {
       const res = await request(app).get(API_ROUTES.HEALTH).expect(200);
-      expect(res.body).toHaveProperty('status');
+      expect(res.body).toHaveProperty('code');
       expect(res.body).toHaveProperty('data.checks.server.status', 'healthy');
       expect(res.body).toHaveProperty('data.checks.database.status', 'healthy');
     });

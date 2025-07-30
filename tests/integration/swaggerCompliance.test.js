@@ -119,15 +119,16 @@ describe('Swagger Compliance Tests', () => {
   const validateApiResponseStructure = (response, expectedStatus) => {
     expect(response.body).toHaveProperty('success');
     expect(response.body).toHaveProperty('data');
-    expect(response.body).toHaveProperty('status', expectedStatus);
     expect(response.body).toHaveProperty('code');
     expect(response.body).toHaveProperty('message');
     expect(response.body).toHaveProperty('timestamp');
     expect(response.body).toHaveProperty('requestId');
 
+    // Validate HTTP status separately (not in response body)
+    expect(response.status).toBe(expectedStatus);
+
     // Validate types
     expect(typeof response.body.success).toBe('boolean');
-    expect(typeof response.body.status).toBe('number');
     expect(typeof response.body.code).toBe('string');
     expect(typeof response.body.message).toBe('string');
     expect(typeof response.body.timestamp).toBe('string');
@@ -299,15 +300,7 @@ describe('Swagger Compliance Tests', () => {
         .set('Connection', 'close');
 
       // All responses must have these exact fields per Swagger
-      const requiredFields = [
-        'success',
-        'data',
-        'status',
-        'code',
-        'message',
-        'timestamp',
-        'requestId',
-      ];
+      const requiredFields = ['success', 'data', 'code', 'message', 'timestamp', 'requestId'];
       requiredFields.forEach((field) => {
         expect(response.body).toHaveProperty(field);
       });

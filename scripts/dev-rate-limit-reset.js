@@ -21,7 +21,7 @@ function resetRateLimit() {
     try {
       envContent = readFileSync(envPath, 'utf8');
     } catch (error) {
-      console.log('📝 .env.development file not found, creating a new one...');
+      console.log('📝 .env.development file not found, creating a new one...', error.message);
     }
 
     // Remove existing rate limit configurations
@@ -78,7 +78,7 @@ function showCurrentConfig() {
       console.log('📋 No custom rate limit configuration found');
     }
   } catch (error) {
-    console.log('📋 Could not read current configuration');
+    console.log('📋 Could not read current configuration', error.message);
   }
 }
 

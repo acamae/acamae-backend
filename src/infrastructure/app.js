@@ -1,8 +1,5 @@
 import express from 'express';
 
-import { API_ROUTES } from '../shared/constants/apiRoutes.js';
-
-import { config } from './config/environment.js';
 import { applyCompression } from './middleware/compression.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { applyLoggingMiddleware } from './middleware/logging.js';
@@ -34,20 +31,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Routes
 app.use(router);
-
-// Health check route
-app.get(API_ROUTES.HEALTH, (req, res) => {
-  res.json({
-    status: 'SUCCESS',
-    message: 'Servidor funcionando correctamente',
-    data: {
-      environment: config.env,
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      version: process.env.npm_package_version,
-    },
-  });
-});
 
 // 404 handler
 app.use(notFoundHandler);

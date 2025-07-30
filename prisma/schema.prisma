@@ -26,6 +26,7 @@ model User {
   verification_expires_at DateTime?
   reset_token          String?                 @db.VarChar(255)
   reset_expires_at     DateTime?
+  reset_token_used     Boolean                 @default(false)
   created_at           DateTime                @default(now()) @map("created_at")
   updated_at           DateTime                @default(now()) @updatedAt @map("updated_at")
 

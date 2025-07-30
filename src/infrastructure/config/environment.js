@@ -191,7 +191,8 @@ if (!env.success) {
  * @returns {number} Duration in milliseconds
  */
 function durationToMs(duration) {
-  const match = duration.match(/^(\d+)([smhd])$/);
+  const regex = /^(\d+)([smhd])$/;
+  const match = regex.exec(duration);
   if (!match) {
     throw new Error(`Invalid duration format: ${duration}`);
   }

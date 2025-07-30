@@ -127,7 +127,7 @@ export const applySecurityMiddleware = (app) => {
     max: config.rateLimit.max,
     handler: (req, res) => {
       return res.apiError(
-        429,
+        HTTP_STATUS.TOO_MANY_REQUESTS,
         API_ERROR_CODES.TOO_MANY_REQUESTS,
         'Too many requests. Please try again later.',
         {

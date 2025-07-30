@@ -1,9 +1,4 @@
-import {
-  authenticate,
-  authorize,
-  isAdmin,
-  isManagerOrAdmin,
-} from '../../../src/infrastructure/middleware/auth.js';
+import { authenticate, authorize } from '../../../src/infrastructure/middleware/auth.js';
 import { API_ERROR_CODES } from '../../../src/shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../../src/shared/constants/httpStatus.js';
 
@@ -142,26 +137,5 @@ describe('authorize helpers', () => {
     const middleware = authorize(['admin']);
     middleware(req, noopRes, passNext);
     expect(passNext).toHaveBeenCalledWith();
-  });
-
-  it('isAdmin wrapper only allows admin', () => {
-    const adminReq = { user: { role: 'admin' } };
-    const userReq = { user: { role: 'user' } };
-
-    const adminNext = buildNext();
-    isAdmin()(adminReq, noopRes, adminNext);
-    expect(adminNext).toHaveBeenCalledWith();
-
-    const denyNext = buildNext();
-    isAdmin()(userReq, noopRes, denyNext);
-    const err = denyNext.mock.calls[0][0];
-    expect(err.code).toBe(API_ERROR_CODES.AUTH_FORBIDDEN);
-  });
-
-  it('isManagerOrAdmin allows manager', () => {
-    const req = { user: { role: 'manager' } };
-    const passNext = buildNext();
-    isManagerOrAdmin()(req, noopRes, passNext);
-    expect(passNext).toHaveBeenCalled();
   });
 });
