@@ -646,7 +646,6 @@ describe('Validation Middleware', () => {
     });
   });
 
-  // ===== NEW RESET PASSWORD VALIDATION TESTS =====
   describe('validateResetToken schema', () => {
     it('should validate correct reset token', () => {
       const validToken = 'a'.repeat(64); // 64 hex characters
@@ -688,7 +687,7 @@ describe('Validation Middleware', () => {
     });
 
     it('should reject token with symbols', () => {
-      const invalidToken = 'a'.repeat(63) + '!'; // Contains symbol
+      const invalidToken = `${'a'.repeat(63)}!`; // Contains symbol
       const data = { token: invalidToken };
 
       expect(() => validationSchemas.validateResetToken.parse(data)).toThrow();

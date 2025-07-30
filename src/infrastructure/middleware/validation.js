@@ -1,9 +1,8 @@
 import { z } from 'zod';
 
-import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import {
-  ERROR_MESSAGES,
   MAX_EMAIL_LENGTH,
   MAX_NAME_LENGTH,
   MAX_PASSWORD_LENGTH,
