@@ -149,6 +149,57 @@ export class AuthController {
   }
 
   /**
+   * Validate reset token
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
+  async validateResetToken(req, res, next) {
+    try {
+      const { token } = req.params;
+      const { token: tokenBody } = req.body;
+
+      // Use token from params or body (frontend sends in body)
+      const resetToken = token || tokenBody;
+
+      const validation = await this.authService.validateResetToken(resetToken);
+
+      if (validation.isValid) {
+        return res.status(HTTP_STATUS.OK).apiSuccess(validation, 'Token validation successful');
+      } else {
+        // Determine appropriate status code based on validation result
+        let statusCode = HTTP_STATUS.BAD_REQUEST;
+        let errorCode = API_ERROR_CODES.INVALID_RESET_TOKEN;
+
+        if (!validation.userExists) {
+          statusCode = HTTP_STATUS.NOT_FOUND;
+          errorCode = API_ERROR_CODES.INVALID_RESET_TOKEN;
+        } else if (validation.isExpired) {
+          statusCode = HTTP_STATUS.BAD_REQUEST;
+          errorCode = API_ERROR_CODES.AUTH_TOKEN_EXPIRED;
+        } else {
+          // Token is invalid for other reasons (used, malformed, etc.)
+          statusCode = HTTP_STATUS.BAD_REQUEST;
+          errorCode = API_ERROR_CODES.AUTH_TOKEN_INVALID;
+        }
+
+        return res.apiError(statusCode, errorCode, 'Token validation failed', {
+          type: 'business',
+          details: [
+            {
+              field: 'token',
+              code: errorCode,
+              message: 'Token validation failed',
+            },
+          ],
+        });
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Reset user password
    * @param {import('express').Request} req
    * @param {import('express').Response} res
@@ -159,7 +210,7 @@ export class AuthController {
       const { token } = req.params;
       const { password } = req.body; // Changed from newPassword to password according to Swagger
       await this.authService.resetPassword(token, password);
-      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Password reset successfully');
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Password has been reset successfully');
     } catch (error) {
       next(error);
     }
@@ -189,12 +240,7 @@ export class AuthController {
    */
   async verifyEmailSent(req, res, next) {
     try {
-      return res
-        .status(HTTP_STATUS.OK)
-        .apiSuccess(
-          { message: 'Verification email has been sent' },
-          'Verification email sent successfully'
-        );
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Verification email sent successfully');
     } catch (error) {
       next(error);
     }
@@ -208,9 +254,7 @@ export class AuthController {
    */
   async verifyEmailSuccess(req, res, next) {
     try {
-      return res
-        .status(HTTP_STATUS.OK)
-        .apiSuccess({ message: 'Email verified successfully' }, 'Email verification completed');
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Email verification completed');
     } catch (error) {
       next(error);
     }
@@ -267,6 +311,70 @@ export class AuthController {
                 field: 'user',
                 code: 'ALREADY_VERIFIED',
                 message: 'Email is already verified',
+              },
+            ],
+          }
+        );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resetPasswordSent(req, res, next) {
+    try {
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Reset password email sent');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resetPasswordSuccess(req, res, next) {
+    try {
+      return res.status(HTTP_STATUS.OK).apiSuccess(null, 'Reset password successful');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resetPasswordError(req, res, next) {
+    try {
+      return res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .apiError(
+          HTTP_STATUS.BAD_REQUEST,
+          API_ERROR_CODES.AUTH_TOKEN_INVALID,
+          'Reset password error',
+          {
+            type: 'business',
+            details: [
+              {
+                field: 'token',
+                code: 'INVALID',
+                message: 'Reset password error',
+              },
+            ],
+          }
+        );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resetPasswordExpired(req, res, next) {
+    try {
+      return res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .apiError(
+          HTTP_STATUS.BAD_REQUEST,
+          API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+          'Reset password expired',
+          {
+            type: 'business',
+            details: [
+              {
+                field: 'token',
+                code: 'EXPIRED',
+                message: 'Reset password expired',
               },
             ],
           }

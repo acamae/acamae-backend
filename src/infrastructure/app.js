@@ -35,20 +35,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Routes
 app.use(router);
 
-// Health check route
-app.get(API_ROUTES.HEALTH, (req, res) => {
-  res.json({
-    status: 'SUCCESS',
-    message: 'Servidor funcionando correctamente',
-    data: {
-      environment: config.env,
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      version: process.env.npm_package_version,
-    },
-  });
-});
-
 // 404 handler
 app.use(notFoundHandler);
 

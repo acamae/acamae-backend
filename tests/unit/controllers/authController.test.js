@@ -29,6 +29,7 @@ describe('AuthController (unit)', () => {
       logout: jest.fn(),
       forgotPassword: jest.fn(),
       resetPassword: jest.fn(),
+      validateResetToken: jest.fn(),
       resendVerification: jest.fn(),
     };
     controller = new AuthController(service);
@@ -389,7 +390,7 @@ describe('AuthController (unit)', () => {
 
       expect(service.resetPassword).toHaveBeenCalledWith('reset-token', 'NewPassword123!');
       expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
-      expect(res.apiSuccess).toHaveBeenCalledWith(null, 'Password reset successfully');
+      expect(res.apiSuccess).toHaveBeenCalledWith(null, 'Password has been reset successfully');
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -402,6 +403,214 @@ describe('AuthController (unit)', () => {
       };
 
       await controller.resetPassword(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+      expect(res.status).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('validateResetToken', () => {
+    it('should validate token successfully when token is valid', async () => {
+      const validationResponse = {
+        isValid: true,
+        isExpired: false,
+        userExists: true,
+        message: 'Token is valid',
+      };
+      service.validateResetToken.mockResolvedValue(validationResponse);
+
+      const req = {
+        params: { token: 'valid-token' },
+        body: { token: 'valid-token' },
+      };
+
+      await controller.validateResetToken(req, res, next);
+
+      expect(service.validateResetToken).toHaveBeenCalledWith('valid-token');
+      expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
+      expect(res.apiSuccess).toHaveBeenCalledWith(
+        validationResponse,
+        'Token validation successful'
+      );
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('should use token from params when no token in body', async () => {
+      const validationResponse = {
+        isValid: true,
+        isExpired: false,
+        userExists: true,
+        message: 'Token is valid',
+      };
+      service.validateResetToken.mockResolvedValue(validationResponse);
+
+      const req = {
+        params: { token: 'param-token' },
+        body: {},
+      };
+
+      await controller.validateResetToken(req, res, next);
+
+      expect(service.validateResetToken).toHaveBeenCalledWith('param-token');
+    });
+
+    it('should use token from body when no token in params', async () => {
+      const validationResponse = {
+        isValid: true,
+        isExpired: false,
+        userExists: true,
+        message: 'Token is valid',
+      };
+      service.validateResetToken.mockResolvedValue(validationResponse);
+
+      const req = {
+        params: {},
+        body: { token: 'body-token' },
+      };
+
+      await controller.validateResetToken(req, res, next);
+
+      expect(service.validateResetToken).toHaveBeenCalledWith('body-token');
+    });
+
+    it('should return error when token not found', async () => {
+      const validationResponse = {
+        isValid: false,
+        isExpired: false,
+        userExists: false,
+      };
+      service.validateResetToken.mockResolvedValue(validationResponse);
+
+      const req = {
+        params: { token: 'nonexistent-token' },
+        body: { token: 'nonexistent-token' },
+      };
+
+      await controller.validateResetToken(req, res, next);
+
+      expect(res.apiError).toHaveBeenCalledWith(
+        HTTP_STATUS.NOT_FOUND,
+        API_ERROR_CODES.INVALID_RESET_TOKEN,
+        'Token validation failed',
+        {
+          type: 'business',
+          details: [
+            {
+              field: 'token',
+              code: API_ERROR_CODES.INVALID_RESET_TOKEN,
+              message: 'Token validation failed',
+            },
+          ],
+        }
+      );
+    });
+
+    it('should return error when token is expired', async () => {
+      const validationResponse = {
+        isValid: false,
+        isExpired: true,
+        userExists: true,
+      };
+      service.validateResetToken.mockResolvedValue(validationResponse);
+
+      const req = {
+        params: { token: 'expired-token' },
+        body: { token: 'expired-token' },
+      };
+
+      await controller.validateResetToken(req, res, next);
+
+      expect(res.apiError).toHaveBeenCalledWith(
+        HTTP_STATUS.BAD_REQUEST,
+        API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+        'Token validation failed',
+        {
+          type: 'business',
+          details: [
+            {
+              field: 'token',
+              code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+              message: 'Token validation failed',
+            },
+          ],
+        }
+      );
+    });
+
+    it('should return error when token is already used', async () => {
+      const validationResponse = {
+        isValid: false,
+        isExpired: false,
+        userExists: true,
+      };
+      service.validateResetToken.mockResolvedValue(validationResponse);
+
+      const req = {
+        params: { token: 'used-token' },
+        body: { token: 'used-token' },
+      };
+
+      await controller.validateResetToken(req, res, next);
+
+      expect(res.apiError).toHaveBeenCalledWith(
+        HTTP_STATUS.BAD_REQUEST,
+        API_ERROR_CODES.AUTH_TOKEN_INVALID,
+        'Token validation failed',
+        {
+          type: 'business',
+          details: [
+            {
+              field: 'token',
+              code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
+              message: 'Token validation failed',
+            },
+          ],
+        }
+      );
+    });
+
+    it('should return bad request for other invalid states', async () => {
+      const validationResponse = {
+        isValid: false,
+        isExpired: false,
+        userExists: true,
+      };
+      service.validateResetToken.mockResolvedValue(validationResponse);
+
+      const req = {
+        params: { token: 'malformed-token' },
+        body: { token: 'malformed-token' },
+      };
+
+      await controller.validateResetToken(req, res, next);
+
+      expect(res.apiError).toHaveBeenCalledWith(
+        HTTP_STATUS.BAD_REQUEST,
+        API_ERROR_CODES.AUTH_TOKEN_INVALID,
+        'Token validation failed',
+        {
+          type: 'business',
+          details: [
+            {
+              field: 'token',
+              code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
+              message: 'Token validation failed',
+            },
+          ],
+        }
+      );
+    });
+
+    it('should call next on service error', async () => {
+      const error = new Error('Database error');
+      service.validateResetToken.mockRejectedValue(error);
+
+      const req = {
+        params: { token: 'any-token' },
+        body: { token: 'any-token' },
+      };
+
+      await controller.validateResetToken(req, res, next);
 
       expect(next).toHaveBeenCalledWith(error);
       expect(res.status).not.toHaveBeenCalled();

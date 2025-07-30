@@ -166,6 +166,13 @@ export const validationSchemas = {
       .regex(REGEX.PASSWORD, ERROR_MESSAGES.INVALID_PASSWORD),
   }),
 
+  validateResetToken: z.object({
+    token: z
+      .string()
+      .length(64, 'Reset token must be exactly 64 characters')
+      .regex(/^[a-fA-F0-9]{64}$/, 'Reset token must be valid hexadecimal format'),
+  }),
+
   refreshToken: z.object({
     refreshToken: z.string().min(1, ERROR_MESSAGES.INVALID_REFRESH_TOKEN),
   }),
@@ -406,6 +413,80 @@ export const forgotPasswordValidation = validateRequest('forgotPassword');
  * Validation rules for resetting password
  */
 export const resetPasswordValidation = validateRequest('resetPassword');
+
+/**
+ * Validate reset token format (hexadecimal, 64 characters)
+ * @param {string} token - Token to validate
+ * @returns {boolean}
+ */
+const isValidResetTokenFormat = (token) => {
+  if (!token || typeof token !== 'string') return false;
+  if (token.length !== 64) return false;
+  const tokenRegex = /^[a-fA-F0-9]{64}$/;
+  return tokenRegex.test(token);
+};
+
+/**
+ * Validation rules for validating reset token (params or body)
+ */
+export const validateResetTokenValidation = (req, res, next) => {
+  try {
+    // Check if token is in params or body
+    const tokenFromParams = req.params?.token;
+    const tokenFromBody = req.body?.token;
+    const token = tokenFromParams || tokenFromBody;
+
+    if (!token) {
+      const errorDetails = {
+        type: 'validation',
+        details: [
+          {
+            field: 'token',
+            code: 'VALIDATION_FAILED',
+            message: 'Reset token is required',
+          },
+        ],
+      };
+
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.VALIDATION_ERROR],
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails,
+      });
+    }
+
+    // Validate token format using the same logic as AuthService
+    if (!isValidResetTokenFormat(token)) {
+      const errorDetails = {
+        type: 'validation',
+        details: [
+          {
+            field: 'token',
+            code: 'VALIDATION_FAILED',
+            message: 'Reset token must be exactly 64 characters of valid hexadecimal format',
+          },
+        ],
+      };
+
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.VALIDATION_ERROR],
+        code: API_ERROR_CODES.VALIDATION_ERROR,
+        status: HTTP_STATUS.BAD_REQUEST,
+        errorDetails,
+      });
+    }
+
+    // Ensure token is available in body for controller compatibility
+    if (!req.body.token && tokenFromParams) {
+      req.body.token = tokenFromParams;
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
  * Validation rules for refreshing token
