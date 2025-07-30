@@ -3,8 +3,8 @@ import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Middleware para agregar requestId único a cada request
- * Genera un UUID v4 o usa el X-Request-ID header si está presente
+ * Middleware to add a unique requestId to each request
+ * Generates a UUID v4 or uses the X-Request-ID header if present
  *
  * @param {import('express').Request} req - Express request object
  * @param {import('express').Response} res - Express response object
@@ -12,23 +12,16 @@ import { v4 as uuidv4 } from 'uuid';
  */
 export const requestIdMiddleware = (req, res, next) => {
   try {
-    // Usar el header X-Request-ID si está presente, o generar uno nuevo
+    // Use the X-Request-ID header if present, or generate a new one
     req.requestId = req.headers['x-request-id'] || uuidv4();
 
-    // Agregar el requestId al header de respuesta para trazabilidad
+    // Add the requestId to the response header for traceability
     res.setHeader('X-Request-ID', req.requestId);
 
     next();
   } catch (error) {
-    // En caso de error generando UUID, usar crypto.randomUUID() como fallback seguro
     console.error('Error generating requestId:', error);
-    try {
-      req.requestId = crypto.randomUUID();
-    } catch (cryptoError) {
-      // Último fallback con timestamp + random si crypto también falla
-      console.error('Error generating crypto UUID:', cryptoError);
-      req.requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-    }
+    req.requestId = crypto.randomUUID();
     res.setHeader('X-Request-ID', req.requestId);
     next();
   }

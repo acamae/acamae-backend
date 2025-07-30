@@ -10,7 +10,7 @@ morgan.token('requestId', (req) => req.requestId || uuidv4());
  * Custom token for error details
  */
 morgan.token('errorDetails', (req) => {
-  if (req.log && req.log.error) {
+  if (req.log?.error) {
     return JSON.stringify({
       error: req.log.error,
       stack: req.log.stack,

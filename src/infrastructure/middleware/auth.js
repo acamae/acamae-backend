@@ -143,19 +143,3 @@ export const authorize = (roles = []) => {
     }
   };
 };
-
-/**
- * Admin role middleware
- * @returns {import('express').RequestHandler} Express middleware
- */
-export const isAdmin = () => {
-  return authorize(['admin']);
-};
-
-/**
- * Manager or Admin role middleware
- * @returns {import('express').RequestHandler} Express middleware
- */
-export const isManagerOrAdmin = () => {
-  return authorize(['admin', 'manager']);
-};

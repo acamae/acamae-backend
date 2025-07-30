@@ -4,7 +4,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { AuthService } from '../../src/application/services/AuthService.js';
 import { API_ERROR_CODES } from '../../src/shared/constants/apiCodes.js';
-import { TokenService } from '../../src/shared/utils/token.js';
 import { makeRegisterDto, makeUser } from '../factories/userFactory.js';
 
 // Mock configuration
