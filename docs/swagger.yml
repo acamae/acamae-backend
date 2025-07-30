@@ -22,7 +22,6 @@ components:
       required:
         - success
         - data
-        - status
         - code
         - message
         - timestamp
@@ -34,10 +33,6 @@ components:
           description: Indicates if the operation was successful
         data:
           description: The response data (can be null, object, array)
-        status:
-          type: integer
-          example: 200
-          description: HTTP status code
         code:
           type: string
           example: 'SUCCESS'
@@ -65,7 +60,6 @@ components:
       required:
         - success
         - data
-        - status
         - code
         - message
         - timestamp
@@ -79,10 +73,6 @@ components:
           nullable: true
           example: null
           description: Always null in errors
-        status:
-          type: integer
-          example: 400
-          description: HTTP status code
         code:
           type: string
           example: 'AUTH_INVALID_CREDENTIALS'
@@ -228,6 +218,32 @@ components:
           type: string
           format: password
           example: 'NewPassword123!'
+
+    ValidateResetTokenPayload:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          example: 'abc123def456...xyz789'
+          description: Reset token to validate
+
+    ResetTokenValidationResponse:
+      type: object
+      properties:
+        isValid:
+          type: boolean
+          example: true
+          description: Whether the token is valid
+        isExpired:
+          type: boolean
+          example: false
+          description: Whether the token has expired
+        userExists:
+          type: boolean
+          example: true
+          description: Whether the associated user exists
 
     ResendVerificationPayload:
       type: object
@@ -1078,18 +1094,184 @@ paths:
         default:
           $ref: '#/components/responses/NetworkError'
 
+  # ===== PASSWORD RESET FLOW =====
+  # New two-step password reset flow:
+  # 1. POST /auth/reset-password/{token} - Validate token (returns validation data)
+  # 2. PUT /auth/reset-password/{token} - Update password (requires valid token)
+  # This provides better UX and follows REST semantics correctly.
+
   /auth/reset-password/{token}:
     post:
       tags:
         - Authentication
-      summary: Reset password
-      description: Change password using reset token
+      summary: Validate reset token
+      description: |
+        Validate a password reset token before allowing password change.
+
+        **Purpose:** Check if the token is valid, not expired, and associated with an existing user.
+        This endpoint should be called before showing the password reset form to the user.
       parameters:
         - name: token
           in: path
           required: true
           schema:
             type: string
+          example: 'abc123def456...xyz789'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateResetTokenPayload'
+      responses:
+        '200':
+          description: Token is valid and can be used for password reset
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ResetTokenValidationResponse'
+              examples:
+                token_valid:
+                  summary: Token is valid
+                  value:
+                    success: true
+                    data:
+                      isValid: true
+                      isExpired: false
+                      userExists: true
+                    status: 200
+                    code: 'SUCCESS'
+                    message: 'Token validation successful'
+                    timestamp: '2024-01-15T10:30:00.000Z'
+                    requestId: '550e8400-e29b-41d4-a716-446655440000'
+        '400':
+          description: Token validation failed (expired or malformed)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiErrorResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ResetTokenValidationResponse'
+              examples:
+                token_expired:
+                  summary: Token has expired
+                  value:
+                    success: false
+                    data:
+                      isValid: false
+                      isExpired: true
+                      userExists: true
+                    status: 400
+                    code: 'AUTH_TOKEN_EXPIRED'
+                    message: 'Token validation failed'
+                    timestamp: '2024-01-15T10:30:00.000Z'
+                    requestId: '550e8400-e29b-41d4-a716-446655440000'
+                    error:
+                      type: 'business'
+                      details:
+                        - field: 'token'
+                          code: 'EXPIRED'
+                          message: 'Token has expired'
+                token_malformed:
+                  summary: Token format invalid
+                  value:
+                    success: false
+                    data:
+                      isValid: false
+                      isExpired: false
+                      userExists: false
+                    status: 400
+                    code: 'AUTH_TOKEN_INVALID'
+                    message: 'Token validation failed'
+                    timestamp: '2024-01-15T10:30:00.000Z'
+                    requestId: '550e8400-e29b-41d4-a716-446655440000'
+                    error:
+                      type: 'business'
+                      details:
+                        - field: 'token'
+                          code: 'INVALID_FORMAT'
+                          message: 'Token format is invalid'
+        '404':
+          description: Token not found or user does not exist
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiErrorResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ResetTokenValidationResponse'
+              examples:
+                token_not_found:
+                  summary: Token not found
+                  value:
+                    success: false
+                    data:
+                      isValid: false
+                      isExpired: false
+                      userExists: false
+                    status: 404
+                    code: 'INVALID_RESET_TOKEN'
+                    message: 'Token validation failed'
+                    timestamp: '2024-01-15T10:30:00.000Z'
+                    requestId: '550e8400-e29b-41d4-a716-446655440000'
+                    error:
+                      type: 'business'
+                      details:
+                        - field: 'token'
+                          code: 'NOT_FOUND'
+                          message: 'Token not found or user does not exist'
+        '500':
+          description: Database error during validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                database_error:
+                  summary: Database error
+                  value:
+                    success: false
+                    data: null
+                    status: 500
+                    code: 'DATABASE_ERROR'
+                    message: 'Database operation failed'
+                    timestamp: '2024-01-15T10:30:00.000Z'
+                    requestId: '550e8400-e29b-41d4-a716-446655440000'
+                    error:
+                      type: 'server'
+                      details:
+                        - field: 'database'
+                          code: 'DATABASE_ERROR'
+                          message: 'Database connection or operation failed'
+        default:
+          $ref: '#/components/responses/NetworkError'
+
+    put:
+      tags:
+        - Authentication
+      summary: Reset password
+      description: |
+        Update user password using a validated reset token.
+
+        **Purpose:** Change the user's password after token validation has been successful.
+        This endpoint should only be called after POST validation confirms the token is valid.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 'abc123def456...xyz789'
       requestBody:
         required: true
         content:
@@ -1110,13 +1292,13 @@ paths:
                         nullable: true
               examples:
                 reset_success:
-                  summary: Password reset
+                  summary: Password reset successful
                   value:
                     success: true
                     data: null
                     status: 200
                     code: 'SUCCESS'
-                    message: 'Password reset successfully'
+                    message: 'Password has been reset successfully'
                     timestamp: '2024-01-15T10:30:00.000Z'
                     requestId: '550e8400-e29b-41d4-a716-446655440000'
         '400':
@@ -1127,7 +1309,7 @@ paths:
                 $ref: '#/components/schemas/ApiErrorResponse'
               examples:
                 token_expired:
-                  summary: Expired token
+                  summary: Token expired during process
                   value:
                     success: false
                     data: null
@@ -1136,12 +1318,25 @@ paths:
                     message: 'The reset link has expired'
                     timestamp: '2024-01-15T10:30:00.000Z'
                     requestId: '550e8400-e29b-41d4-a716-446655440000'
-                token_invalid:
-                  summary: Invalid token
+                    error:
+                      type: 'business'
+                      details:
+                        - field: 'token'
+                          code: 'EXPIRED'
+                          message: 'Token has expired'
+        '404':
+          description: Token not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                token_not_found:
+                  summary: Token not found
                   value:
                     success: false
                     data: null
-                    status: 400
+                    status: 404
                     code: 'INVALID_RESET_TOKEN'
                     message: 'Reset token not found'
                     timestamp: '2024-01-15T10:30:00.000Z'
@@ -1152,6 +1347,29 @@ paths:
                         - field: 'token'
                           code: 'NOT_FOUND'
                           message: 'Reset token not found'
+        '409':
+          description: Token already used
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                token_already_used:
+                  summary: Token already used
+                  value:
+                    success: false
+                    data: null
+                    status: 409
+                    code: 'AUTH_TOKEN_ALREADY_USED'
+                    message: 'Token has already been used'
+                    timestamp: '2024-01-15T10:30:00.000Z'
+                    requestId: '550e8400-e29b-41d4-a716-446655440000'
+                    error:
+                      type: 'business'
+                      details:
+                        - field: 'token'
+                          code: 'ALREADY_USED'
+                          message: 'This token has already been used'
         '422':
           description: Invalid password format
           content:
@@ -1160,7 +1378,7 @@ paths:
                 $ref: '#/components/schemas/ApiErrorResponse'
               examples:
                 invalid_password:
-                  summary: Invalid password
+                  summary: Password validation failed
                   value:
                     success: false
                     data: null
@@ -1175,6 +1393,29 @@ paths:
                         - field: 'password'
                           code: 'TOO_WEAK'
                           message: 'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character'
+        '500':
+          description: Database error during password update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                database_error:
+                  summary: Database error
+                  value:
+                    success: false
+                    data: null
+                    status: 500
+                    code: 'DATABASE_ERROR'
+                    message: 'Database operation failed'
+                    timestamp: '2024-01-15T10:30:00.000Z'
+                    requestId: '550e8400-e29b-41d4-a716-446655440000'
+                    error:
+                      type: 'server'
+                      details:
+                        - field: 'database'
+                          code: 'DATABASE_ERROR'
+                          message: 'Failed to update password in database'
         default:
           $ref: '#/components/responses/NetworkError'
 

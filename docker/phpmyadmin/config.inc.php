@@ -36,4 +36,4 @@ $cfg['NavigationTreeEnableGrouping'] = true;
 $cfg['MaxRows'] = 100;                         // evita cargas excesivas
 
 // Otros: evita exposición de scripts embebidos
-$cfg['AllowThirdPartyFraming'] = false; 
+$cfg['AllowThirdPartyFraming'] = false;

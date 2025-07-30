@@ -21,6 +21,9 @@ export const makeUser = (overrides = {}) => {
     passwordHash: overrides.passwordHash, // optional
     verificationToken: overrides.verificationToken,
     verificationExpiresAt: overrides.verificationExpiresAt,
+    resetToken: overrides.resetToken,
+    resetExpiresAt: overrides.resetExpiresAt,
+    resetTokenUsed: overrides.resetTokenUsed ?? false,
   };
 };
 

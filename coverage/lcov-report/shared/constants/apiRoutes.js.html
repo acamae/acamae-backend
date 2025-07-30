@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>17/17</span>
+                <span class='fraction'>0/17</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>8/8</span>
+                <span class='fraction'>0/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>0/11</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -124,7 +124,11 @@
 <a name='L59'></a><a href='#L59'>59</a>
 <a name='L60'></a><a href='#L60'>60</a>
 <a name='L61'></a><a href='#L61'>61</a>
-<a name='L62'></a><a href='#L62'>62</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">5x</span>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -168,24 +172,28 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export const API_ROUTES = {
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export const API_ROUTES = <span class="cstat-no" title="statement not covered" >{</span>
   BASE: '/api',
   HEALTH: '/api/health',
   DEV: '/api/dev',
@@ -197,6 +205,10 @@
     LOGOUT: '/api/auth/logout',
     VERIFY_EMAIL: '/api/auth/verify-email/:token',
     VERIFY_EMAIL_RESEND: '/api/auth/verify-email-resend',
+    VERIFY_EMAIL_SENT: '/api/auth/verify-email-sent',
+    VERIFY_EMAIL_SUCCESS: '/api/auth/verify-email-success',
+    VERIFY_EMAIL_EXPIRED: '/api/auth/verify-email-expired',
+    VERIFY_EMAIL_ALREADY_VERIFIED: '/api/auth/verify-email-already-verified',
     FORGOT_PASSWORD: '/api/auth/forgot-password',
     RESET_PASSWORD: '/api/auth/reset-password/:token',
     ME: '/api/auth/me',
@@ -229,23 +241,23 @@
 };
 &nbsp;
 // Auxiliary functions for routes with parameters
-export const getAuthVerifyEmailUrl = (token) =&gt;
-  API_ROUTES.AUTH.VERIFY_EMAIL.replace(':token', token);
+export const getAuthVerifyEmailUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(t</span>oken) =&gt;</span>
+<span class="cstat-no" title="statement not covered" >  API_ROUTES.AUTH.VERIFY_EMAIL.replace(':token', token);</span>
 &nbsp;
-export const getAuthResetPasswordUrl = (token) =&gt;
-  API_ROUTES.AUTH.RESET_PASSWORD.replace(':token', token);
+export const getAuthResetPasswordUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(t</span>oken) =&gt;</span>
+<span class="cstat-no" title="statement not covered" >  API_ROUTES.AUTH.RESET_PASSWORD.replace(':token', token);</span>
 &nbsp;
-export const getUserByIdUrl = (id) =&gt; API_ROUTES.USERS.GET_BY_ID.replace(':id', id);
+export const getUserByIdUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >API_ROUTES.USERS.GET_BY_ID.replace(':id', id);</span></span>
 &nbsp;
-export const getUpdateUserByIdUrl = (id) =&gt; API_ROUTES.USERS.UPDATE_BY_ID.replace(':id', id);
+export const getUpdateUserByIdUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >API_ROUTES.USERS.UPDATE_BY_ID.replace(':id', id);</span></span>
 &nbsp;
-export const getDeleteUserByIdUrl = (id) =&gt; API_ROUTES.USERS.DELETE_BY_ID.replace(':id', id);
+export const getDeleteUserByIdUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >API_ROUTES.USERS.DELETE_BY_ID.replace(':id', id);</span></span>
 &nbsp;
-export const getTeamByIdUrl = (id) =&gt; API_ROUTES.TEAMS.GET_BY_ID.replace(':id', id);
+export const getTeamByIdUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >API_ROUTES.TEAMS.GET_BY_ID.replace(':id', id);</span></span>
 &nbsp;
-export const getUpdateTeamByIdUrl = (id) =&gt; API_ROUTES.TEAMS.UPDATE_BY_ID.replace(':id', id);
+export const getUpdateTeamByIdUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >API_ROUTES.TEAMS.UPDATE_BY_ID.replace(':id', id);</span></span>
 &nbsp;
-export const getDeleteTeamByIdUrl = (id) =&gt; API_ROUTES.TEAMS.DELETE_BY_ID.replace(':id', id);
+export const getDeleteTeamByIdUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >API_ROUTES.TEAMS.DELETE_BY_ID.replace(':id', id);</span></span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -253,7 +265,7 @@ export const getDeleteTeamByIdUrl = (id) =&gt; API_ROUTES.TEAMS.DELETE_BY_ID.rep
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-15T05:42:18.574Z
+                at 2025-07-30T16:09:37.968Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

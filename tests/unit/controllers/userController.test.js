@@ -1,5 +1,4 @@
 import { UserController } from '../../../src/infrastructure/controllers/UserController.js';
-import { API_ERROR_CODES } from '../../../src/shared/constants/apiCodes.js';
 
 const makeRes = () => {
   const res = {};
