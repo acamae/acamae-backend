@@ -28,6 +28,9 @@ runs:
         registry-url: 'https://npm.pkg.github.com'
         scope: '@acamae'
 
+    - name: Install latest npm
+      run: npm install -g npm@latest
+
     - name: Create .npmrc file
       shell: bash
       run: |
