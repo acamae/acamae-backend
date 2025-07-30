@@ -168,8 +168,8 @@ export class AuthController {
         return res.status(HTTP_STATUS.OK).apiSuccess(validation, 'Token validation successful');
       } else {
         // Determine appropriate status code based on validation result
-        let statusCode = HTTP_STATUS.BAD_REQUEST;
-        let errorCode = API_ERROR_CODES.INVALID_RESET_TOKEN;
+        let statusCode;
+        let errorCode;
 
         if (!validation.userExists) {
           statusCode = HTTP_STATUS.NOT_FOUND;

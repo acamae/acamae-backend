@@ -1,8 +1,5 @@
 import express from 'express';
 
-import { API_ROUTES } from '../shared/constants/apiRoutes.js';
-
-import { config } from './config/environment.js';
 import { applyCompression } from './middleware/compression.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { applyLoggingMiddleware } from './middleware/logging.js';
