@@ -13,13 +13,13 @@ import { TeamController } from '../controllers/TeamController.js';
 import { UserController } from '../controllers/UserController.js';
 import { authenticate as authMiddleware, authorize } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { timeoutMiddleware } from '../middleware/index.js';
+import { timeoutMiddleware } from '../middleware/timeout.js';
 import {
   forgotPasswordValidation,
-  idValidation,
+  // idValidation,
   loginValidation,
   logoutValidation,
-  paginationValidation,
+  // paginationValidation,
   refreshTokenValidation,
   registerValidation,
   resendVerificationValidation,
@@ -34,14 +34,10 @@ import { PrismaUserRepository } from '../repositories/PrismaUserRepository.js';
 
 const router = Router();
 
-// --- Dependency Injection ---
-// 1. Instanciar el repositorio de infraestructura (implementa la interfaz de dominio)
+// Dependency Injection
 const userRepository = new PrismaUserRepository();
-// 2. Instanciar el servicio de aplicación, inyectando el repositorio
 const userService = new UserService(userRepository);
-// 3. Instanciar el controlador, inyectando el servicio (y futuros validadores/DTOs si aplica)
 const userController = new UserController(userService);
-// --- END Dependency Injection ---
 
 // Initialize controllers
 const sessionTokenRepository = new PrismaSessionTokenRepository();
@@ -57,7 +53,7 @@ const authLimiter = rateLimit({
   max: config.rateLimit.auth.max,
   handler: (req, res) => {
     return res.apiError(
-      429,
+      HTTP_STATUS.TOO_MANY_REQUESTS,
       API_ERROR_CODES.AUTH_RATE_LIMIT,
       'Too many authentication attempts. Please try again later.',
       {
@@ -74,136 +70,10 @@ const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req, res) => {
+    return config.env === 'development' || config.env === 'test';
+  },
 });
-
-// API root route
-router.get(
-  API_ROUTES.BASE,
-  asyncHandler(async (_req, res) => {
-    res.json({
-      status: 'SUCCESS',
-      message: 'Welcome to the Acamae API',
-      data: {
-        version: process.env.npm_package_version,
-        environment: config.env,
-        timestamp: new Date().toISOString(),
-        documentation: '/api-docs',
-        endpoints: {
-          health: API_ROUTES.HEALTH,
-          auth: {
-            login: API_ROUTES.AUTH.LOGIN,
-            register: API_ROUTES.AUTH.REGISTER,
-            refreshToken: API_ROUTES.AUTH.REFRESH_TOKEN,
-            logout: API_ROUTES.AUTH.LOGOUT,
-            verifyEmail: API_ROUTES.AUTH.VERIFY_EMAIL,
-            resendVerification: API_ROUTES.AUTH.RESEND_VERIFICATION,
-            forgotPassword: API_ROUTES.AUTH.FORGOT_PASSWORD,
-            resetPassword: API_ROUTES.AUTH.RESET_PASSWORD,
-            me: API_ROUTES.AUTH.ME,
-          },
-          users: {
-            getAll: API_ROUTES.USERS.GET_ALL,
-            getById: API_ROUTES.USERS.GET_BY_ID,
-            updateById: API_ROUTES.USERS.UPDATE_BY_ID,
-            deleteById: API_ROUTES.USERS.DELETE_BY_ID,
-          },
-          teams: {
-            getAll: API_ROUTES.TEAMS.GET_ALL,
-            getById: API_ROUTES.TEAMS.GET_BY_ID,
-            create: API_ROUTES.TEAMS.CREATE,
-            updateById: API_ROUTES.TEAMS.UPDATE_BY_ID,
-            deleteById: API_ROUTES.TEAMS.DELETE_BY_ID,
-          },
-        },
-      },
-    });
-  })
-);
-
-// API dev route (only in development environment)
-if (config.env === 'development') {
-  router.get(
-    `${API_ROUTES.BASE}/dev`,
-    asyncHandler(async (_req, res) => {
-      res.json({
-        status: 'SUCCESS',
-        message: 'Development API Information',
-        data: {
-          name: 'Esports Management API',
-          version: process.env.npm_package_version,
-          environment: config.env,
-          timestamp: new Date().toISOString(),
-          documentation: '/api-docs',
-          endpoints: {
-            health: API_ROUTES.HEALTH,
-            auth: {
-              login: API_ROUTES.AUTH.LOGIN,
-              register: API_ROUTES.AUTH.REGISTER,
-              refreshToken: API_ROUTES.AUTH.REFRESH_TOKEN,
-              logout: API_ROUTES.AUTH.LOGOUT,
-              verifyEmail: API_ROUTES.AUTH.VERIFY_EMAIL,
-              resendVerification: API_ROUTES.AUTH.RESEND_VERIFICATION,
-              forgotPassword: API_ROUTES.AUTH.FORGOT_PASSWORD,
-              resetPassword: API_ROUTES.AUTH.RESET_PASSWORD,
-              me: API_ROUTES.AUTH.ME,
-            },
-            users: {
-              getAll: API_ROUTES.USERS.GET_ALL,
-              getById: API_ROUTES.USERS.GET_BY_ID,
-              updateById: API_ROUTES.USERS.UPDATE_BY_ID,
-              deleteById: API_ROUTES.USERS.DELETE_BY_ID,
-            },
-            teams: {
-              getAll: API_ROUTES.TEAMS.GET_ALL,
-              getById: API_ROUTES.TEAMS.GET_BY_ID,
-              create: API_ROUTES.TEAMS.CREATE,
-              updateById: API_ROUTES.TEAMS.UPDATE_BY_ID,
-              deleteById: API_ROUTES.TEAMS.DELETE_BY_ID,
-            },
-            admin: {
-              stats: API_ROUTES.ADMIN.STATS,
-              users: API_ROUTES.ADMIN.USERS,
-              teams: API_ROUTES.ADMIN.TEAMS,
-            },
-            manager: {
-              dashboard: API_ROUTES.MANAGER.DASHBOARD,
-            },
-          },
-        },
-      });
-    })
-  );
-
-  // Development endpoint to reset rate limit (only in development)
-  router.post(
-    `${API_ROUTES.BASE}/dev/reset-rate-limit`,
-    asyncHandler(async (req, res) => {
-      // This endpoint allows developers to reset their own rate limit
-      const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
-
-      // Simple approach: return success and let the developer know to restart
-      return res.status(HTTP_STATUS.OK).apiSuccess(
-        {
-          message: 'Rate limit reset requested',
-          ip: clientIp,
-          timestamp: new Date().toISOString(),
-          instructions: [
-            '1. Use npm run dev:rate-limit:reset to reset configuration',
-            '2. Use npm run docker:restart to apply changes',
-            '3. Or wait for the current window to expire (1 minute)',
-          ],
-          currentConfig: {
-            authWindowMs: config.rateLimit.auth.windowMs,
-            authMax: config.rateLimit.auth.max,
-            generalWindowMs: config.rateLimit.windowMs,
-            generalMax: config.rateLimit.max,
-          },
-        },
-        'Rate limit reset instructions for development'
-      );
-    })
-  );
-}
 
 // Health check route
 router.get(
@@ -307,19 +177,19 @@ router.post(
   asyncHandler(authController.resendVerification.bind(authController))
 );
 router.get(
-  '/api/auth/verify-email-sent',
+  API_ROUTES.AUTH.VERIFY_EMAIL_SENT,
   asyncHandler(authController.verifyEmailSent.bind(authController))
 );
 router.get(
-  '/api/auth/verify-email-success',
+  API_ROUTES.AUTH.VERIFY_EMAIL_SUCCESS,
   asyncHandler(authController.verifyEmailSuccess.bind(authController))
 );
 router.get(
-  '/api/auth/verify-email-expired',
+  API_ROUTES.AUTH.VERIFY_EMAIL_EXPIRED,
   asyncHandler(authController.verifyEmailExpired.bind(authController))
 );
 router.get(
-  '/api/auth/verify-email-already-verified',
+  API_ROUTES.AUTH.VERIFY_EMAIL_ALREADY_VERIFIED,
   asyncHandler(authController.verifyEmailAlreadyVerified.bind(authController))
 );
 router.post(
@@ -401,24 +271,5 @@ router.delete(
   authorize('teams', 'delete'),
   asyncHandler(teamController.deleteTeam.bind(teamController))
 );
-
-// TODO: Fix admin routes - commented out temporarily to run compliance tests (TODO: Fix admin routes)
-// router.get(
-//   API_ROUTES.ADMIN.STATS,
-//   authMiddleware,
-//   isAdmin(),
-//   asyncHandler(async (_req, res) => {
-//     res.json({ message: 'Admin stats' });
-//   })
-// );
-
-// router.get(
-//   API_ROUTES.MANAGER.DASHBOARD,
-//   authMiddleware,
-//   isManagerOrAdmin(),
-//   asyncHandler(async (_req, res) => {
-//     res.json({ message: 'Manager dashboard' });
-//   })
-// );
 
 export default router;

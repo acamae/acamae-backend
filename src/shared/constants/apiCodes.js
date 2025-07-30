@@ -33,6 +33,7 @@ export const API_ERROR_CODES = {
   INVALID_JSON: 'INVALID_JSON',
   REQUEST_TOO_LARGE: 'REQUEST_TOO_LARGE',
   INVALID_SCHEMA: 'INVALID_SCHEMA',
+  REQUIRED: 'REQUIRED',
 
   // Authentication errors (401)
   UNAUTHORIZED: 'UNAUTHORIZED',
@@ -190,5 +191,5 @@ export const ERROR_MESSAGES = {
   TEAM_NAME_LENGTH: `Team name must be between ${MIN_TEAM_NAME_LENGTH} and ${MAX_TEAM_NAME_LENGTH} characters`,
   TEAM_TAG_LENGTH: `Team tag must be between ${MIN_TEAM_TAG_LENGTH} and ${MAX_TEAM_TAG_LENGTH} characters`,
   TEAM_TAG_FORMAT: 'Team tag can only contain uppercase letters and numbers',
-  TEAM_DESCRIPTION_LENGTH: `Description must not exceed ${MAX_TEAM_DESCRIPTION_LENGTH} characters`,
+  TEAM_DESCRIPTION_LENGTH: `Team description must be less than ${MAX_TEAM_DESCRIPTION_LENGTH} characters`,
 };

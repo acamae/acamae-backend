@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>12/12</span>
+                <span class='fraction'>9/9</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>12/12</span>
+                <span class='fraction'>9/9</span>
             </div>
         
             
@@ -91,14 +91,7 @@
 <a name='L26'></a><a href='#L26'>26</a>
 <a name='L27'></a><a href='#L27'>27</a>
 <a name='L28'></a><a href='#L28'>28</a>
-<a name='L29'></a><a href='#L29'>29</a>
-<a name='L30'></a><a href='#L30'>30</a>
-<a name='L31'></a><a href='#L31'>31</a>
-<a name='L32'></a><a href='#L32'>32</a>
-<a name='L33'></a><a href='#L33'>33</a>
-<a name='L34'></a><a href='#L34'>34</a>
-<a name='L35'></a><a href='#L35'>35</a>
-<a name='L36'></a><a href='#L36'>36</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L29'></a><a href='#L29'>29</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -110,27 +103,20 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">25x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">24x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">25x</span>
+<span class="cline-any cline-yes">24x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">22x</span>
+<span class="cline-any cline-yes">21x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">22x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">21x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import crypto from 'crypto';
@@ -138,8 +124,8 @@
 import { v4 as uuidv4 } from 'uuid';
 &nbsp;
 /**
- * Middleware para agregar requestId único a cada request
- * Genera un UUID v4 o usa el X-Request-ID header si está presente
+ * Middleware to add a unique requestId to each request
+ * Generates a UUID v4 or uses the X-Request-ID header if present
  *
  * @param {import('express').Request} req - Express request object
  * @param {import('express').Response} res - Express response object
@@ -147,23 +133,16 @@ import { v4 as uuidv4 } from 'uuid';
  */
 export const requestIdMiddleware = (req, res, next) =&gt; {
   try {
-    // Usar el header X-Request-ID si está presente, o generar uno nuevo
+    // Use the X-Request-ID header if present, or generate a new one
     req.requestId = req.headers['x-request-id'] || uuidv4();
 &nbsp;
-    // Agregar el requestId al header de respuesta para trazabilidad
+    // Add the requestId to the response header for traceability
     res.setHeader('X-Request-ID', req.requestId);
 &nbsp;
     next();
   } catch (error) {
-    // En caso de error generando UUID, usar crypto.randomUUID() como fallback seguro
     console.error('Error generating requestId:', error);
-    try {
-      req.requestId = crypto.randomUUID();
-    } catch (cryptoError) {
-      // Último fallback con timestamp + random si crypto también falla
-      console.error('Error generating crypto UUID:', cryptoError);
-      req.requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-    }
+    req.requestId = crypto.randomUUID();
     res.setHeader('X-Request-ID', req.requestId);
     next();
   }
@@ -175,7 +154,7 @@ export const requestIdMiddleware = (req, res, next) =&gt; {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-15T05:42:18.574Z
+                at 2025-07-30T13:38:28.086Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

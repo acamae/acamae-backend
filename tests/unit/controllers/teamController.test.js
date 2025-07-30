@@ -1,5 +1,4 @@
 import { TeamController } from '../../../src/infrastructure/controllers/TeamController.js';
-import { API_ERROR_CODES } from '../../../src/shared/constants/apiCodes.js';
 
 const makeRes = () => {
   const res = {};

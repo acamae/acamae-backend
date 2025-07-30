@@ -1,6 +1,6 @@
-import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
+import { API_ERROR_CODES, ERROR_MESSAGES } from '../../shared/constants/apiCodes.js';
+import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import {
-  ERROR_MESSAGES,
   MAX_EMAIL_LENGTH,
   MAX_NAME_LENGTH,
   MAX_USERNAME_LENGTH,
@@ -115,8 +115,8 @@ export class User {
           details: [
             {
               field: 'username',
-              code: 'REQUIRED',
-              message: 'Username is required',
+              code: API_ERROR_CODES.REQUIRED,
+              message: ERROR_MESSAGES.REQUIRED_FIELD,
             },
           ],
         },
@@ -125,7 +125,7 @@ export class User {
 
     if (this.username.length < MIN_USERNAME_LENGTH || this.username.length > MAX_USERNAME_LENGTH) {
       throw createError({
-        message: `Username must be between ${MIN_USERNAME_LENGTH} and ${MAX_USERNAME_LENGTH} characters`,
+        message: ERROR_MESSAGES.USERNAME_LENGTH,
         code: API_ERROR_CODES.VALIDATION_ERROR,
         status: HTTP_STATUS.BAD_REQUEST,
         errorDetails: {
@@ -133,8 +133,8 @@ export class User {
           details: [
             {
               field: 'username',
-              code: 'INVALID_FORMAT',
-              message: `Username must be between ${MIN_USERNAME_LENGTH} and ${MAX_USERNAME_LENGTH} characters`,
+              code: API_ERROR_CODES.INVALID_FORMAT,
+              message: ERROR_MESSAGES.USERNAME_LENGTH,
             },
           ],
         },
@@ -151,8 +151,8 @@ export class User {
           details: [
             {
               field: 'email',
-              code: 'REQUIRED',
-              message: 'Email is required',
+              code: API_ERROR_CODES.REQUIRED,
+              message: ERROR_MESSAGES.REQUIRED_FIELD,
             },
           ],
         },
@@ -169,8 +169,8 @@ export class User {
           details: [
             {
               field: 'email',
-              code: 'INVALID_FORMAT',
-              message: 'Email is not valid',
+              code: API_ERROR_CODES.INVALID_FORMAT,
+              message: ERROR_MESSAGES.INVALID_EMAIL,
             },
           ],
         },
@@ -179,7 +179,7 @@ export class User {
 
     if (this.email.length > MAX_EMAIL_LENGTH) {
       throw createError({
-        message: `Email must not exceed ${MAX_EMAIL_LENGTH} characters`,
+        message: ERROR_MESSAGES.EMAIL_LENGTH,
         code: API_ERROR_CODES.VALIDATION_ERROR,
         status: HTTP_STATUS.BAD_REQUEST,
         errorDetails: {
@@ -187,8 +187,8 @@ export class User {
           details: [
             {
               field: 'email',
-              code: 'INVALID_FORMAT',
-              message: `Email must not exceed ${MAX_EMAIL_LENGTH} characters`,
+              code: API_ERROR_CODES.INVALID_FORMAT,
+              message: ERROR_MESSAGES.EMAIL_LENGTH,
             },
           ],
         },
@@ -197,7 +197,7 @@ export class User {
 
     if (this.firstName && this.firstName.length > MAX_NAME_LENGTH) {
       throw createError({
-        message: `First name must not exceed ${MAX_NAME_LENGTH} characters`,
+        message: ERROR_MESSAGES.NAME_LENGTH,
         code: API_ERROR_CODES.VALIDATION_ERROR,
         status: HTTP_STATUS.BAD_REQUEST,
         errorDetails: {
@@ -205,8 +205,8 @@ export class User {
           details: [
             {
               field: 'firstName',
-              code: 'INVALID_FORMAT',
-              message: `First name must not exceed ${MAX_NAME_LENGTH} characters`,
+              code: API_ERROR_CODES.INVALID_FORMAT,
+              message: ERROR_MESSAGES.NAME_LENGTH,
             },
           ],
         },
@@ -215,7 +215,7 @@ export class User {
 
     if (this.lastName && this.lastName.length > MAX_NAME_LENGTH) {
       throw createError({
-        message: `Last name must not exceed ${MAX_NAME_LENGTH} characters`,
+        message: ERROR_MESSAGES.NAME_LENGTH,
         code: API_ERROR_CODES.VALIDATION_ERROR,
         status: HTTP_STATUS.BAD_REQUEST,
         errorDetails: {
@@ -223,8 +223,8 @@ export class User {
           details: [
             {
               field: 'lastName',
-              code: 'INVALID_FORMAT',
-              message: `Last name must not exceed ${MAX_NAME_LENGTH} characters`,
+              code: API_ERROR_CODES.INVALID_FORMAT,
+              message: ERROR_MESSAGES.NAME_LENGTH,
             },
           ],
         },
@@ -241,8 +241,8 @@ export class User {
           details: [
             {
               field: 'role',
-              code: 'INVALID_FORMAT',
-              message: 'Role is not valid',
+              code: API_ERROR_CODES.INVALID_ROLE,
+              message: ERROR_MESSAGES.INVALID_ROLE,
             },
           ],
         },
