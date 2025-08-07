@@ -1037,7 +1037,7 @@ export class AuthService {
       });
     }
 
-    // Generar nuevo token de verificación
+    // Generate new verification token
     const verificationToken = uuidv4();
     const verificationExpiresAt = new Date(Date.now() + config.tokens.verificationExpiration);
 
@@ -1047,7 +1047,7 @@ export class AuthService {
       verificationExpiresAt
     );
 
-    // Enviar email de verificación
+    // Send verification email
     await this.sendVerificationEmail(user.email, user.username, verificationToken);
   }
 

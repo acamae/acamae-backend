@@ -44,6 +44,6 @@ export const createError = ({
   error.requestId = requestId;
   error.success = success;
   error.data = data;
-  if (errorDetails) error.error = errorDetails;
+  if (errorDetails) error.errorDetails = errorDetails;
   return error;
 };

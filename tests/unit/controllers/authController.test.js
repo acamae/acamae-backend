@@ -283,7 +283,7 @@ describe('AuthController (unit)', () => {
 
       expect(service.getMe).toHaveBeenCalledWith('1');
       expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
-      expect(res.apiSuccess).toHaveBeenCalledWith(user, 'User retrieved successfully');
+      expect(res.apiSuccess).toHaveBeenCalledWith(user, 'User obtained successfully');
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -488,21 +488,27 @@ describe('AuthController (unit)', () => {
 
       await controller.validateResetToken(req, res, next);
 
-      expect(res.apiError).toHaveBeenCalledWith(
-        HTTP_STATUS.NOT_FOUND,
-        API_ERROR_CODES.INVALID_RESET_TOKEN,
-        'Token validation failed',
-        {
+      // Updated to check for direct JSON response instead of apiError call
+      expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        data: validationResponse, // Now includes validation data
+        status: HTTP_STATUS.NOT_FOUND,
+        code: API_ERROR_CODES.INVALID_RESET_TOKEN,
+        message: 'Token validation failed',
+        timestamp: expect.any(String),
+        requestId: expect.any(String),
+        error: {
           type: 'business',
           details: [
             {
               field: 'token',
-              code: API_ERROR_CODES.INVALID_RESET_TOKEN,
-              message: 'Token validation failed',
+              code: 'NOT_FOUND',
+              message: 'Token not found or user does not exist',
             },
           ],
-        }
-      );
+        },
+      });
     });
 
     it('should return error when token is expired', async () => {
@@ -520,21 +526,27 @@ describe('AuthController (unit)', () => {
 
       await controller.validateResetToken(req, res, next);
 
-      expect(res.apiError).toHaveBeenCalledWith(
-        HTTP_STATUS.BAD_REQUEST,
-        API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-        'Token validation failed',
-        {
+      // Updated to check for direct JSON response instead of apiError call
+      expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        data: validationResponse, // Now includes validation data
+        status: HTTP_STATUS.BAD_REQUEST,
+        code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+        message: 'Token validation failed',
+        timestamp: expect.any(String),
+        requestId: expect.any(String),
+        error: {
           type: 'business',
           details: [
             {
               field: 'token',
-              code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-              message: 'Token validation failed',
+              code: 'EXPIRED',
+              message: 'Token has expired',
             },
           ],
-        }
-      );
+        },
+      });
     });
 
     it('should return error when token is already used', async () => {
@@ -552,21 +564,27 @@ describe('AuthController (unit)', () => {
 
       await controller.validateResetToken(req, res, next);
 
-      expect(res.apiError).toHaveBeenCalledWith(
-        HTTP_STATUS.BAD_REQUEST,
-        API_ERROR_CODES.AUTH_TOKEN_INVALID,
-        'Token validation failed',
-        {
+      // Updated to check for direct JSON response instead of apiError call
+      expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        data: validationResponse, // Now includes validation data
+        status: HTTP_STATUS.BAD_REQUEST,
+        code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
+        message: 'Token validation failed',
+        timestamp: expect.any(String),
+        requestId: expect.any(String),
+        error: {
           type: 'business',
           details: [
             {
               field: 'token',
-              code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
-              message: 'Token validation failed',
+              code: 'INVALID_FORMAT',
+              message: 'Token format is invalid',
             },
           ],
-        }
-      );
+        },
+      });
     });
 
     it('should return bad request for other invalid states', async () => {
@@ -584,21 +602,27 @@ describe('AuthController (unit)', () => {
 
       await controller.validateResetToken(req, res, next);
 
-      expect(res.apiError).toHaveBeenCalledWith(
-        HTTP_STATUS.BAD_REQUEST,
-        API_ERROR_CODES.AUTH_TOKEN_INVALID,
-        'Token validation failed',
-        {
+      // Updated to check for direct JSON response instead of apiError call
+      expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        data: validationResponse, // Now includes validation data
+        status: HTTP_STATUS.BAD_REQUEST,
+        code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
+        message: 'Token validation failed',
+        timestamp: expect.any(String),
+        requestId: expect.any(String),
+        error: {
           type: 'business',
           details: [
             {
               field: 'token',
-              code: API_ERROR_CODES.AUTH_TOKEN_INVALID,
-              message: 'Token validation failed',
+              code: 'INVALID_FORMAT',
+              message: 'Token format is invalid',
             },
           ],
-        }
-      );
+        },
+      });
     });
 
     it('should call next on service error', async () => {

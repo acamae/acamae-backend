@@ -12,7 +12,7 @@ import {
   teamValidation,
   updateUserValidation,
   validateRequest,
-  validateResetTokenValidation,
+  // validateResetTokenValidation,
   validationSchemas,
   verifyEmailValidation,
 } from '../../../src/infrastructure/middleware/validation.js';

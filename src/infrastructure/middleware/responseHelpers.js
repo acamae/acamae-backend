@@ -1,22 +1,23 @@
 import { API_SUCCESS_CODES } from '../../shared/constants/apiCodes.js';
 
 /**
- * Response helpers para respuestas consistentes de la API
- * Implementa la estructura exacta requerida por el frontend
+ * Response helpers for consistent API responses
+ * Implements the exact structure required by the frontend
  */
 
 /**
- * Helper para respuestas exitosas
+ * Helper for successful responses
  * @param {import('express').Response} res - Express response object
- * @param {any} data - Datos a retornar (o null)
- * @param {string} message - Mensaje descriptivo en español
- * @param {object} meta - Metadatos opcionales (paginación, etc.)
+ * @param {any} data - Data to return (or null)
+ * @param {string} message - Descriptive message in English
+ * @param {object} meta - Optional metadata (pagination, etc.)
  * @returns {import('express').Response} Response object
  */
-export const apiSuccess = (res, data = null, message = 'Operación exitosa', meta = null) => {
+export const apiSuccess = (res, data = null, message = 'Operation successful', meta = null) => {
   const response = {
     success: true,
     data,
+    status: res.statusCode,
     code: API_SUCCESS_CODES.SUCCESS,
     message,
     timestamp: new Date().toISOString(),
@@ -32,18 +33,18 @@ export const apiSuccess = (res, data = null, message = 'Operación exitosa', met
 
 /**
  * @typedef {Object} ErrorDetails
- * @property {string} type - Tipo de error
- * @property {Array<Object>} details - Detalles adicionales del error
+ * @property {string} type - Error type
+ * @property {Array<Object>} details - Additional error details
  */
 
 /**
- * Helper para respuestas de error
+ * Helper for error responses
  * @param {import('express').Response} res - Express response object
- * @param {number} status - Código HTTP de estado
- * @param {string} code - Código semántico de error
- * @param {string} message - Mensaje de error en español
- * @param {ErrorDetails} errorDetails - Detalles adicionales del error
- * @param {object} meta - Metadatos opcionales
+ * @param {number} status - HTTP status code
+ * @param {string} code - Semantic error code
+ * @param {string} message - Error message in English
+ * @param {ErrorDetails} errorDetails - Additional error details
+ * @param {object} meta - Optional metadata
  * @returns {import('express').Response} Response object
  */
 export const apiError = (res, status, code, message, errorDetails = null, meta = null) => {
@@ -69,13 +70,13 @@ export const apiError = (res, status, code, message, errorDetails = null, meta =
 };
 
 /**
- * Middleware para agregar helpers a todas las respuestas
+ * Middleware to add helpers to all responses
  * @param {import('express').Request} req - Express request object
  * @param {import('express').Response} res - Express response object
  * @param {import('express').NextFunction} next - Express next function
  */
 export const responseHelpersMiddleware = (req, res, next) => {
-  // Agregar helpers a la respuesta
+  // Add helpers to response
   res.apiSuccess = (data, message, meta) => apiSuccess(res, data, message, meta);
   res.apiError = (statusCode, code, message, errorDetails, meta) =>
     apiError(res, statusCode, code, message, errorDetails, meta);

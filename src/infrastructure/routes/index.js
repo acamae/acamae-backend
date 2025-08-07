@@ -48,7 +48,7 @@ const teamRepository = new PrismaTeamRepository();
 const teamService = new TeamService(teamRepository, userRepository);
 const teamController = new TeamController(teamService);
 
-// Rate limiter para endpoints críticos de autenticación
+// Rate limiter for critical authentication endpoints
 const authLimiter = rateLimit({
   windowMs: config.rateLimit.auth.windowMs,
   max: config.rateLimit.auth.max,
