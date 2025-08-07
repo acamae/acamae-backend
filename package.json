@@ -25,7 +25,7 @@
     "prisma:generate": "cross-env NODE_ENV=development node scripts/_env-manager.js copy && prisma generate",
     "prisma:migrate": "cross-env NODE_ENV=development node scripts/_env-manager.js copy && prisma migrate dev",
     "prisma:push": "cross-env NODE_ENV=development node scripts/_env-manager.js copy && prisma db push",
-    "prisma:studio": "cross-env NODE_ENV=development node scripts/_env-manager.js copy && prisma studio",
+    "prisma:studio": "cross-env NODE_ENV=local node scripts/_env-manager.js copy && prisma studio",
     "prisma:deploy:dev": "cross-env NODE_ENV=development node scripts/_env-manager.js copy && prisma migrate deploy",
     "prisma:deploy:test": "cross-env NODE_ENV=test node scripts/_env-manager.js test && prisma migrate deploy",
     "prisma:deploy:prod": "cross-env NODE_ENV=production node scripts/_env-manager.js copy && prisma migrate deploy",

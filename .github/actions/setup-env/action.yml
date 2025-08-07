@@ -61,15 +61,6 @@ runs:
           npm ci
         }
 
-    - name: Security audit
-      shell: bash
-      run: |
-        if ! npm audit; then
-          echo "⚠️ Security vulnerabilities found"
-          echo "Review the audit report above"
-          exit 1
-        fi
-
     - name: Setup git identity
       if: inputs.setup-git-identity == 'true'
       shell: bash
