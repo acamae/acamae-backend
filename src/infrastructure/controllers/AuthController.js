@@ -92,7 +92,7 @@ export class AuthController {
   async getMe(req, res, next) {
     try {
       const user = await this.authService.getMe(req.user.id);
-      return res.status(HTTP_STATUS.OK).apiSuccess(user, 'User retrieved successfully');
+      return res.status(HTTP_STATUS.OK).apiSuccess(user, 'User obtained successfully');
     } catch (error) {
       next(error);
     }
@@ -166,34 +166,10 @@ export class AuthController {
 
       if (validation.isValid) {
         return res.status(HTTP_STATUS.OK).apiSuccess(validation, 'Token validation successful');
-      } else {
-        // Determine appropriate status code based on validation result
-        let statusCode;
-        let errorCode;
-
-        if (!validation.userExists) {
-          statusCode = HTTP_STATUS.NOT_FOUND;
-          errorCode = API_ERROR_CODES.INVALID_RESET_TOKEN;
-        } else if (validation.isExpired) {
-          statusCode = HTTP_STATUS.BAD_REQUEST;
-          errorCode = API_ERROR_CODES.AUTH_TOKEN_EXPIRED;
-        } else {
-          // Token is invalid for other reasons (used, malformed, etc.)
-          statusCode = HTTP_STATUS.BAD_REQUEST;
-          errorCode = API_ERROR_CODES.AUTH_TOKEN_INVALID;
-        }
-
-        return res.apiError(statusCode, errorCode, 'Token validation failed', {
-          type: 'business',
-          details: [
-            {
-              field: 'token',
-              code: errorCode,
-              message: 'Token validation failed',
-            },
-          ],
-        });
       }
+
+      // Token validation failed - determine error details
+      return this._buildTokenValidationErrorResponse(res, validation);
     } catch (error) {
       next(error);
     }
@@ -382,5 +358,60 @@ export class AuthController {
     } catch (error) {
       next(error);
     }
+  }
+
+  /**
+   * Build token validation error response according to API specification
+   * @param {import('express').Response} res - Express response object
+   * @param {Object} validation - Validation result object
+   * @returns {import('express').Response} Response object
+   * @private
+   */
+  _buildTokenValidationErrorResponse(res, validation) {
+    // Determine status code and error code
+    let statusCode;
+    let errorCode;
+    let detailCode;
+    let detailMessage;
+
+    if (!validation.userExists) {
+      statusCode = HTTP_STATUS.NOT_FOUND;
+      errorCode = API_ERROR_CODES.INVALID_RESET_TOKEN;
+      detailCode = 'NOT_FOUND';
+      detailMessage = 'Token not found or user does not exist';
+    } else if (validation.isExpired) {
+      statusCode = HTTP_STATUS.BAD_REQUEST;
+      errorCode = API_ERROR_CODES.AUTH_TOKEN_EXPIRED;
+      detailCode = 'EXPIRED';
+      detailMessage = 'Token has expired';
+    } else {
+      statusCode = HTTP_STATUS.BAD_REQUEST;
+      errorCode = API_ERROR_CODES.AUTH_TOKEN_INVALID;
+      detailCode = 'INVALID_FORMAT';
+      detailMessage = 'Token format is invalid';
+    }
+
+    // Build error response with validation data as per API specification
+    const errorResponse = {
+      success: false,
+      data: validation, // Include validation data even in error responses
+      status: statusCode,
+      code: errorCode,
+      message: 'Token validation failed',
+      timestamp: new Date().toISOString(),
+      requestId: res.req?.requestId || 'unknown',
+      error: {
+        type: 'business',
+        details: [
+          {
+            field: 'token',
+            code: detailCode,
+            message: detailMessage,
+          },
+        ],
+      },
+    };
+
+    return res.status(statusCode).json(errorResponse);
   }
 }
