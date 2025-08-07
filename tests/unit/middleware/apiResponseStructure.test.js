@@ -36,6 +36,7 @@ describe('API Response Structure Tests (Unit)', () => {
       expect(res.json).toHaveBeenCalledWith({
         success: true,
         data: testData,
+        status: 200,
         code: API_SUCCESS_CODES.SUCCESS,
         message: testMessage,
         timestamp: expect.any(String),
@@ -54,18 +55,19 @@ describe('API Response Structure Tests (Unit)', () => {
         expect.objectContaining({
           success: true,
           data: testData,
+          status: 200,
           message: testMessage,
           meta: testMeta,
         })
       );
     });
 
-    it('should not include status field in response body', () => {
+    it('should include status field in response body', () => {
       res.statusCode = 201; // Simulate Express setting custom status
       res.apiSuccess({ test: 'data' }, 'Created successfully');
 
       const jsonCall = res.json.mock.calls[0][0];
-      expect(jsonCall.status).toBeUndefined();
+      expect(jsonCall.status).toBe(201);
     });
 
     it('should generate valid ISO timestamp', () => {
@@ -153,6 +155,7 @@ describe('API Response Structure Tests (Unit)', () => {
       const requiredFields = [
         'success',
         'data',
+        'status',
         'code',
         'message',
         'timestamp',
@@ -165,6 +168,7 @@ describe('API Response Structure Tests (Unit)', () => {
 
       // Verify data types
       expect(typeof jsonCall.success).toBe('boolean');
+      expect(typeof jsonCall.status).toBe('number');
       expect(typeof jsonCall.code).toBe('string');
       expect(typeof jsonCall.message).toBe('string');
       expect(typeof jsonCall.timestamp).toBe('string');
@@ -227,12 +231,12 @@ describe('API Response Structure Tests (Unit)', () => {
       expect(next).toHaveBeenCalled();
     });
 
-    it('should work with custom status codes without including status in response body', () => {
+    it('should work with custom status codes and include status in response body', () => {
       res.statusCode = 201; // Simulate Express middleware setting status
       res.apiSuccess({ created: true }, 'Resource created');
 
       const jsonCall = res.json.mock.calls[0][0];
-      expect(jsonCall.status).toBeUndefined();
+      expect(jsonCall.status).toBe(201);
     });
   });
 });

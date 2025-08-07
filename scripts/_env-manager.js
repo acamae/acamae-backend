@@ -98,6 +98,9 @@ function getEnvironmentConfig() {
     case 'test':
       envFile = '.env.test';
       break;
+    case 'local':
+      envFile = '.env.local';
+      break;
     case 'development':
     default:
       envFile = '.env.development';

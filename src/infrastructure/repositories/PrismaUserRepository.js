@@ -215,8 +215,8 @@ export class PrismaUserRepository {
       where: { id: parseInt(id) },
       data: {
         is_verified: isVerified,
-        // Mantener el token para detectar intentos posteriores
-        // pero limpiar la fecha de expiración para indicar que ya no está activo
+        // Keep the token to detect subsequent attempts
+        // but clear the expiration date to indicate it's no longer active
         verification_expires_at: null,
       },
     });
@@ -400,7 +400,7 @@ export class PrismaUserRepository {
         }
       });
     } else {
-      // Si no se especifican campos, seleccionar campos básicos para auth
+      // If no fields specified, select basic fields for auth
       select.id = true;
       select.email = true;
       select.username = true;

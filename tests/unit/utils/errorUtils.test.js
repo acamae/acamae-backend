@@ -18,7 +18,7 @@ describe('error utils', () => {
       expect(err.message).toBe('Boom');
       expect(err.code).toBe(API_ERROR_CODES.CONFLICT);
       expect(err.status).toBe(HTTP_STATUS.CONFLICT);
-      expect(err.error).toEqual({
+      expect(err.errorDetails).toEqual({
         type: 'validation',
         details: [{ field: 'email', message: 'Invalid email' }],
       });

@@ -141,7 +141,7 @@ describe('Team entity', () => {
     });
 
     it('should throw error when name is too long', () => {
-      const longName = 'A'.repeat(51); // Assuming MAX_TEAM_NAME_LENGTH is 50
+      const longName = 'A'.repeat(101); // MAX_TEAM_NAME_LENGTH is 100
       const teamData = { ...validTeamData, name: longName };
       const team = new Team(teamData);
 
@@ -218,7 +218,7 @@ describe('Team entity', () => {
     });
 
     it('should throw error when tag is too long', () => {
-      const longTag = 'A'.repeat(11); // Assuming MAX_TEAM_TAG_LENGTH is 10
+      const longTag = 'A'.repeat(17); // MAX_TEAM_TAG_LENGTH is 16
       const teamData = { ...validTeamData, tag: longTag };
       const team = new Team(teamData);
 
