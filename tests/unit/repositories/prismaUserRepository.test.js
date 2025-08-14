@@ -19,6 +19,17 @@ const mockPrisma = {
     delete: jest.fn(),
     updateMany: jest.fn(),
   },
+  gameProfile: {
+    findMany: jest.fn(),
+    count: jest.fn(),
+    upsert: jest.fn(),
+    findFirst: jest.fn(),
+    delete: jest.fn(),
+  },
+  userProfile: {
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
 };
 
 // Mock @prisma/client to prevent real database connections
@@ -50,7 +61,6 @@ describe('PrismaUserRepository', () => {
         last_name: 'Doe',
         role: 'user',
         is_verified: true,
-        is_active: true,
         last_login_at: new Date('2023-01-01'),
         last_login_ip: '127.0.0.1',
         verification_token: 'token123',
@@ -60,6 +70,7 @@ describe('PrismaUserRepository', () => {
         reset_token_used: false,
         created_at: new Date('2023-01-01'),
         updated_at: new Date('2023-01-01'),
+        userProfile: { is_active: true },
       };
 
       mockPrisma.user.findUnique.mockResolvedValue(prismaUser);
@@ -97,7 +108,6 @@ describe('PrismaUserRepository', () => {
         last_name: null,
         role: 'user',
         is_verified: false,
-        is_active: true,
         last_login_at: null,
         last_login_ip: null,
         verification_token: null,
@@ -106,6 +116,7 @@ describe('PrismaUserRepository', () => {
         reset_expires_at: null,
         created_at: new Date('2023-01-01'),
         updated_at: new Date('2023-01-01'),
+        userProfile: { is_active: false },
       };
 
       mockPrisma.user.findUnique.mockResolvedValue(prismaUser);
@@ -120,6 +131,47 @@ describe('PrismaUserRepository', () => {
       expect(result.verificationExpiresAt).toBeUndefined();
       expect(result.resetToken).toBeUndefined();
       expect(result.resetExpiresAt).toBeUndefined();
+    });
+  });
+
+  describe('findUserGames', () => {
+    it('maps joined games correctly', async () => {
+      mockPrisma.gameProfile.findMany.mockResolvedValue([
+        { game: { id: 2, code: 'lol', name_code: 'game.lol', image_filename: 'lol.png' } },
+      ]);
+
+      const result = await repo.findUserGames('9');
+
+      expect(mockPrisma.gameProfile.findMany).toHaveBeenCalledWith({
+        where: { user_id: 9 },
+        select: {
+          game: { select: { id: true, code: true, name_code: true, image_filename: true } },
+        },
+        orderBy: { game_id: 'asc' },
+      });
+      expect(result).toEqual([
+        { id: 2, code: 'lol', nameCode: 'game.lol', imageFilename: 'lol.png' },
+      ]);
+    });
+  });
+
+  describe('getUserTimezone', () => {
+    it('returns timezone from userProfile', async () => {
+      mockPrisma.userProfile.findUnique.mockResolvedValue({ timezone: 'Europe/Madrid' });
+
+      const result = await repo.getUserTimezone('9');
+
+      expect(mockPrisma.userProfile.findUnique).toHaveBeenCalledWith({
+        where: { user_id: 9 },
+        select: { timezone: true },
+      });
+      expect(result).toBe('Europe/Madrid');
+    });
+
+    it('returns undefined when profile missing', async () => {
+      mockPrisma.userProfile.findUnique.mockResolvedValue(null);
+      const result = await repo.getUserTimezone('9');
+      expect(result).toBeUndefined();
     });
   });
 
@@ -145,24 +197,38 @@ describe('PrismaUserRepository', () => {
 
   describe('findById', () => {
     it('returns user or null', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ id: 1, email: 'test@example.com' });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 1,
+        email: 'test@example.com',
+        userProfile: { is_active: false },
+      });
 
       const result = await repo.findById('1');
 
       expect(result).toBeDefined();
       expect(result.id).toBe('1');
-      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 1 },
+        include: { userProfile: true },
+      });
     });
   });
 
   describe('findByUsername', () => {
     it('finds user by username', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ id: 1, username: 'testuser' });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 1,
+        username: 'testuser',
+        userProfile: { is_active: false },
+      });
 
       const result = await repo.findByUsername('testuser');
 
       expect(result).toBeDefined();
-      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({ where: { username: 'testuser' } });
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+        where: { username: 'testuser' },
+        include: { userProfile: true },
+      });
     });
 
     it('returns null if not found', async () => {
@@ -176,13 +242,18 @@ describe('PrismaUserRepository', () => {
 
   describe('findByEmail', () => {
     it('finds user by email', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ id: 1, email: 'test@example.com' });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 1,
+        email: 'test@example.com',
+        userProfile: { is_active: false },
+      });
 
       const result = await repo.findByEmail('test@example.com');
 
       expect(result).toBeDefined();
       expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
         where: { email: 'test@example.com' },
+        include: { userProfile: true },
       });
     });
 
@@ -218,11 +289,11 @@ describe('PrismaUserRepository', () => {
         last_name: userData.lastName,
         role: userData.role,
         is_verified: false,
-        is_active: true,
         verification_token: userData.verificationToken,
         verification_expires_at: userData.verificationExpiresAt,
         created_at: new Date(),
         updated_at: new Date(),
+        userProfile: { is_active: false },
       });
 
       const result = await repo.create(userData);
@@ -237,14 +308,15 @@ describe('PrismaUserRepository', () => {
           last_name: userData.lastName,
           role: userData.role,
           is_verified: false,
-          is_active: true,
           last_login_at: userData.lastLoginAt,
           last_login_ip: userData.lastLoginIp,
           verification_token: userData.verificationToken,
           verification_expires_at: userData.verificationExpiresAt,
           reset_token: userData.resetToken,
           reset_expires_at: userData.resetExpiresAt,
+          userProfile: { create: { is_active: false } },
         },
+        include: { userProfile: true },
       });
       expect(result.id).toBe('1');
     });
@@ -266,11 +338,11 @@ describe('PrismaUserRepository', () => {
         last_name: null,
         role: 'user',
         is_verified: false,
-        is_active: true,
         verification_token: null,
         verification_expires_at: null,
         created_at: new Date(),
         updated_at: new Date(),
+        userProfile: { is_active: false },
       });
 
       await repo.create(userData);
@@ -279,8 +351,9 @@ describe('PrismaUserRepository', () => {
         data: expect.objectContaining({
           role: 'user',
           is_verified: false,
-          is_active: true,
+          userProfile: { create: { is_active: false } },
         }),
+        include: { userProfile: true },
       });
     });
 
@@ -340,6 +413,7 @@ describe('PrismaUserRepository', () => {
         password_hash: 'newhashedpassword',
         first_name: updateData.firstName,
         updated_at: new Date(),
+        userProfile: { is_active: false },
       });
 
       const result = await repo.update('1', updateData);
@@ -367,6 +441,7 @@ describe('PrismaUserRepository', () => {
         email: updateData.email,
         first_name: updateData.firstName,
         updated_at: new Date(),
+        userProfile: { is_active: false },
       });
 
       await repo.update('1', updateData);
@@ -462,12 +537,17 @@ describe('PrismaUserRepository', () => {
 
   describe('findByVerificationToken', () => {
     it('finds user by token (includes expired)', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue({ id: 1, verification_token: 'token123' });
+      mockPrisma.user.findFirst.mockResolvedValue({
+        id: 1,
+        verification_token: 'token123',
+        userProfile: { is_active: false },
+      });
 
       const result = await repo.findByVerificationToken('token123');
 
       expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({
         where: { verification_token: 'token123' },
+        include: { userProfile: true },
       });
       expect(result).toBeDefined();
     });
@@ -483,7 +563,11 @@ describe('PrismaUserRepository', () => {
 
   describe('findByValidVerificationToken', () => {
     it('finds user by valid token (not expired)', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue({ id: 1, verification_token: 'token123' });
+      mockPrisma.user.findFirst.mockResolvedValue({
+        id: 1,
+        verification_token: 'token123',
+        userProfile: { is_active: false },
+      });
 
       const result = await repo.findByValidVerificationToken('token123');
 
@@ -492,6 +576,7 @@ describe('PrismaUserRepository', () => {
           verification_token: 'token123',
           verification_expires_at: { gt: expect.any(Date) },
         },
+        include: { userProfile: true },
       });
       expect(result).toBeDefined();
     });
@@ -507,7 +592,11 @@ describe('PrismaUserRepository', () => {
 
   describe('findByResetToken', () => {
     it('finds user by valid reset token', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue({ id: 1, reset_token: 'resettoken' });
+      mockPrisma.user.findFirst.mockResolvedValue({
+        id: 1,
+        reset_token: 'resettoken',
+        userProfile: { is_active: false },
+      });
 
       const result = await repo.findByResetToken('resettoken');
 
@@ -517,6 +606,7 @@ describe('PrismaUserRepository', () => {
           reset_expires_at: { gt: expect.any(Date) },
           reset_token_used: false,
         },
+        include: { userProfile: true },
       });
       expect(result).toBeDefined();
     });
@@ -533,19 +623,28 @@ describe('PrismaUserRepository', () => {
   describe('findByIdWithFields', () => {
     it('selects specific fields when provided', async () => {
       const fields = ['id', 'email', 'username'];
-      mockPrisma.user.findUnique.mockResolvedValue({ id: 1, email: 'test@example.com' });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 1,
+        email: 'test@example.com',
+        userProfile: { is_active: false },
+      });
 
       const result = await repo.findByIdWithFields('1', fields);
 
       expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
         where: { id: 1 },
-        select: { id: true, email: true, username: true },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          userProfile: { select: { is_active: true } },
+        },
       });
       expect(result).toBeDefined();
     });
 
     it('uses default fields when none specified', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ id: 1 });
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 1, userProfile: { is_active: false } });
 
       const result = await repo.findByIdWithFields('1');
 
@@ -555,6 +654,7 @@ describe('PrismaUserRepository', () => {
           id: true,
           email: true,
           username: true,
+          userProfile: { select: { is_active: true } },
         }),
       });
       expect(result).toBeDefined();
@@ -651,7 +751,6 @@ describe('PrismaUserRepository', () => {
         last_name: null,
         role: 'user',
         is_verified: true,
-        is_active: true,
         last_login_at: null,
         last_login_ip: null,
         verification_token: null,
@@ -661,6 +760,7 @@ describe('PrismaUserRepository', () => {
         reset_token_used: true, // Used
         created_at: new Date('2023-01-01'),
         updated_at: new Date('2023-01-01'),
+        userProfile: { is_active: true },
       };
 
       mockPrisma.user.findFirst.mockResolvedValue(prismaUser);
@@ -671,6 +771,7 @@ describe('PrismaUserRepository', () => {
         where: {
           reset_token: 'reset123',
         },
+        include: { userProfile: true },
       });
       expect(result.resetToken).toBe('reset123');
       expect(result.resetTokenUsed).toBe(true);
@@ -696,7 +797,6 @@ describe('PrismaUserRepository', () => {
         last_name: null,
         role: 'user',
         is_verified: true,
-        is_active: true,
         last_login_at: null,
         last_login_ip: null,
         verification_token: null,
@@ -706,6 +806,7 @@ describe('PrismaUserRepository', () => {
         reset_token_used: true,
         created_at: new Date('2023-01-01'),
         updated_at: new Date('2023-01-01'),
+        userProfile: { is_active: true },
       };
 
       mockPrisma.user.update.mockResolvedValue(prismaUser);
@@ -736,7 +837,6 @@ describe('PrismaUserRepository', () => {
         last_name: null,
         role: 'user',
         is_verified: true,
-        is_active: true,
         last_login_at: null,
         last_login_ip: null,
         verification_token: null,
@@ -746,6 +846,7 @@ describe('PrismaUserRepository', () => {
         reset_token_used: false,
         created_at: new Date('2023-01-01'),
         updated_at: new Date('2023-01-01'),
+        userProfile: { is_active: true },
       };
 
       mockPrisma.user.update.mockResolvedValue(prismaUser);
@@ -777,7 +878,6 @@ describe('PrismaUserRepository', () => {
         last_name: null,
         role: 'user',
         is_verified: true,
-        is_active: true,
         last_login_at: null,
         last_login_ip: null,
         verification_token: null,
@@ -787,6 +887,7 @@ describe('PrismaUserRepository', () => {
         reset_token_used: true,
         created_at: new Date('2023-01-01'),
         updated_at: new Date('2023-01-01'),
+        userProfile: { is_active: true },
       };
 
       mockPrisma.user.update.mockResolvedValue(prismaUser);
@@ -819,7 +920,6 @@ describe('PrismaUserRepository', () => {
         last_name: null,
         role: 'user',
         is_verified: true,
-        is_active: true,
         last_login_at: null,
         last_login_ip: null,
         verification_token: null,
@@ -829,6 +929,7 @@ describe('PrismaUserRepository', () => {
         reset_token_used: false,
         created_at: new Date('2023-01-01'),
         updated_at: new Date('2023-01-01'),
+        userProfile: { is_active: true },
       };
 
       mockPrisma.user.findFirst.mockResolvedValue(prismaUser);
@@ -843,6 +944,7 @@ describe('PrismaUserRepository', () => {
           },
           reset_token_used: false,
         },
+        include: { userProfile: true },
       });
       expect(result.resetToken).toBe('reset123');
       expect(result.resetTokenUsed).toBe(false);
@@ -868,7 +970,6 @@ describe('PrismaUserRepository', () => {
         last_name: null,
         role: 'user',
         is_verified: true,
-        is_active: true,
         last_login_at: null,
         last_login_ip: null,
         verification_token: null,
@@ -878,6 +979,7 @@ describe('PrismaUserRepository', () => {
         reset_token_used: true,
         created_at: new Date('2023-01-01'),
         updated_at: new Date('2023-01-01'),
+        userProfile: { is_active: true },
       };
 
       mockPrisma.user.findUnique.mockResolvedValue(prismaUser);
@@ -897,7 +999,6 @@ describe('PrismaUserRepository', () => {
         last_name: null,
         role: 'user',
         is_verified: true,
-        is_active: true,
         last_login_at: null,
         last_login_ip: null,
         verification_token: null,
@@ -907,6 +1008,7 @@ describe('PrismaUserRepository', () => {
         // reset_token_used: not provided
         created_at: new Date('2023-01-01'),
         updated_at: new Date('2023-01-01'),
+        userProfile: { is_active: true },
       };
 
       mockPrisma.user.findUnique.mockResolvedValue(prismaUser);

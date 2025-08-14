@@ -34,7 +34,6 @@ export class PrismaUserRepository {
       lastName: prismaUser.last_name || undefined,
       role: prismaUser.role,
       isVerified: prismaUser.is_verified,
-      isActive: prismaUser.is_active, // NEW: Active status
       lastLoginAt: prismaUser.last_login_at || undefined, // NEW: Last login timestamp
       lastLoginIp: prismaUser.last_login_ip || undefined, // NEW: Last login IP
       verificationToken: prismaUser.verification_token || undefined,
@@ -60,8 +59,15 @@ export class PrismaUserRepository {
       skip: (page - 1) * limit,
       take: limit,
       where: filters,
+      include: { userProfile: true },
     });
-    return users.map((user) => this.#toDomainModel(user)).filter(Boolean);
+    return users
+      .map((user) => {
+        const mapped = this.#toDomainModel(user);
+        if (mapped) mapped.isActive = user.userProfile?.is_active || false;
+        return mapped;
+      })
+      .filter(Boolean);
   }
 
   /**
@@ -72,8 +78,12 @@ export class PrismaUserRepository {
   async findById(id) {
     const user = await this.#prisma.user.findUnique({
       where: { id: parseInt(id) },
+      include: { userProfile: true },
     });
-    return user ? this.#toDomainModel(user) : null;
+    if (!user) return null;
+    const mapped = this.#toDomainModel(user);
+    mapped.isActive = user.userProfile?.is_active || false;
+    return mapped;
   }
 
   /**
@@ -84,8 +94,12 @@ export class PrismaUserRepository {
   async findByUsername(username) {
     const user = await this.#prisma.user.findUnique({
       where: { username },
+      include: { userProfile: true },
     });
-    return user ? this.#toDomainModel(user) : null;
+    if (!user) return null;
+    const mapped = this.#toDomainModel(user);
+    mapped.isActive = user.userProfile?.is_active || false;
+    return mapped;
   }
 
   /**
@@ -96,8 +110,12 @@ export class PrismaUserRepository {
   async findByEmail(email) {
     const user = await this.#prisma.user.findUnique({
       where: { email },
+      include: { userProfile: true },
     });
-    return user ? this.#toDomainModel(user) : null;
+    if (!user) return null;
+    const mapped = this.#toDomainModel(user);
+    mapped.isActive = user.userProfile?.is_active || false;
+    return mapped;
   }
 
   /**
@@ -118,17 +136,20 @@ export class PrismaUserRepository {
           last_name: userData.lastName,
           role: userData.role || 'user',
           is_verified: false,
-          is_active: userData.isActive !== undefined ? userData.isActive : true, // NEW: Default to active
           last_login_at: userData.lastLoginAt, // NEW: Last login timestamp
           last_login_ip: userData.lastLoginIp, // NEW: Last login IP
           verification_token: userData.verificationToken,
           verification_expires_at: userData.verificationExpiresAt,
           reset_token: userData.resetToken,
           reset_expires_at: userData.resetExpiresAt,
+          userProfile: { create: { is_active: false } },
         },
+        include: { userProfile: true },
       });
 
-      return this.#toDomainModel(user);
+      const mapped = this.#toDomainModel(user);
+      mapped.isActive = user.userProfile?.is_active || false;
+      return mapped;
     } catch (error) {
       if (error.code === 'P2002') {
         if (error.meta?.target?.includes('email')) {
@@ -172,7 +193,6 @@ export class PrismaUserRepository {
       last_name: userData.lastName,
       role: userData.role,
       is_verified: userData.isVerified,
-      is_active: userData.isActive, // NEW: Active status
       last_login_at: userData.lastLoginAt, // NEW: Last login timestamp
       last_login_ip: userData.lastLoginIp, // NEW: Last login IP
       verification_token: userData.verificationToken,
@@ -293,9 +313,13 @@ export class PrismaUserRepository {
       where: {
         verification_token: token,
       },
+      include: { userProfile: true },
     });
 
-    return user ? this.#toDomainModel(user) : null;
+    if (!user) return null;
+    const mapped = this.#toDomainModel(user);
+    mapped.isActive = user.userProfile?.is_active || false;
+    return mapped;
   }
 
   /**
@@ -311,9 +335,13 @@ export class PrismaUserRepository {
           gt: new Date(),
         },
       },
+      include: { userProfile: true },
     });
 
-    return user ? this.#toDomainModel(user) : null;
+    if (!user) return null;
+    const mapped = this.#toDomainModel(user);
+    mapped.isActive = user.userProfile?.is_active || false;
+    return mapped;
   }
 
   /**
@@ -330,9 +358,13 @@ export class PrismaUserRepository {
         },
         reset_token_used: false,
       },
+      include: { userProfile: true },
     });
 
-    return user ? this.#toDomainModel(user) : null;
+    if (!user) return null;
+    const mapped = this.#toDomainModel(user);
+    mapped.isActive = user.userProfile?.is_active || false;
+    return mapped;
   }
 
   /**
@@ -345,9 +377,13 @@ export class PrismaUserRepository {
       where: {
         reset_token: token,
       },
+      include: { userProfile: true },
     });
 
-    return user ? this.#toDomainModel(user) : null;
+    if (!user) return null;
+    const mapped = this.#toDomainModel(user);
+    mapped.isActive = user.userProfile?.is_active || false;
+    return mapped;
   }
 
   /**
@@ -382,7 +418,6 @@ export class PrismaUserRepository {
       username: 'username',
       role: 'role',
       isVerified: 'is_verified',
-      isActive: 'is_active', // NEW: Active status mapping
       lastLoginAt: 'last_login_at', // NEW: Last login timestamp mapping
       lastLoginIp: 'last_login_ip', // NEW: Last login IP mapping
       firstName: 'first_name',
@@ -406,15 +441,106 @@ export class PrismaUserRepository {
       select.username = true;
       select.role = true;
       select.is_verified = true;
-      select.is_active = true; // NEW: Include active status by default
     }
 
+    // Ensure userProfile.is_active is available without using include
+    select.userProfile = { select: { is_active: true } };
     const user = await this.#prisma.user.findUnique({
       where: { id: parseInt(id) },
       select,
     });
 
-    return user ? this.#toDomainModel(user) : null;
+    if (!user) return null;
+    const mapped = this.#toDomainModel(user);
+    mapped.isActive = user.userProfile?.is_active || false;
+    return mapped;
+  }
+
+  async #recalculateUserProfileActive(userId) {
+    const [profile, gamesCount] = await Promise.all([
+      this.#prisma.userProfile.findUnique({
+        where: { user_id: parseInt(userId) },
+        select: { timezone: true },
+      }),
+      this.#prisma.gameProfile.count({ where: { user_id: parseInt(userId) } }),
+    ]);
+    const active = Boolean(profile?.timezone) && gamesCount > 0;
+    await this.#prisma.userProfile.update({
+      where: { user_id: parseInt(userId) },
+      data: { is_active: active },
+    });
+    return active;
+  }
+
+  async setTimezone(userId, timezone) {
+    await this.#prisma.userProfile.update({
+      where: { user_id: parseInt(userId) },
+      data: { timezone },
+    });
+    return await this.#recalculateUserProfileActive(userId);
+  }
+
+  async addGame(userId, gameId) {
+    await this.#prisma.gameProfile.upsert({
+      where: {
+        user_id_game_id: {
+          user_id: parseInt(userId),
+          game_id: parseInt(gameId),
+        },
+      },
+      update: {},
+      create: { user_id: parseInt(userId), game_id: parseInt(gameId) },
+    });
+    return await this.#recalculateUserProfileActive(userId);
+  }
+
+  async removeGame(userId, gameId) {
+    try {
+      const gp = await this.#prisma.gameProfile.findFirst({
+        where: { user_id: parseInt(userId), game_id: parseInt(gameId) },
+        select: { id: true },
+      });
+      if (gp) {
+        await this.#prisma.gameProfile.delete({ where: { id: gp.id } });
+      }
+    } finally {
+      // Always recalc regardless of deletion outcome
+      return await this.#recalculateUserProfileActive(userId);
+    }
+  }
+
+  /**
+   * List selected games for a user by joining game_profiles → games
+   * @param {string} userId
+   * @returns {Promise<import('../../domain/entities/Game').Game[]>}
+   */
+  async findUserGames(userId) {
+    const list = await this.#prisma.gameProfile.findMany({
+      where: { user_id: parseInt(userId) },
+      select: {
+        game: { select: { id: true, code: true, name_code: true, image_filename: true } },
+      },
+      orderBy: { game_id: 'asc' },
+    });
+    return list.map((row) => ({
+      id: row.game.id,
+      code: row.game.code,
+      nameCode: row.game.name_code,
+      imageFilename: row.game.image_filename || undefined,
+    }));
+  }
+
+  /**
+   * Get user's timezone from profile
+   * @param {string} userId
+   * @returns {Promise<string|undefined>}
+   */
+  async getUserTimezone(userId) {
+    const profile = await this.#prisma.userProfile.findUnique({
+      where: { user_id: parseInt(userId) },
+      select: { timezone: true },
+    });
+    return profile?.timezone || undefined;
   }
 
   /**

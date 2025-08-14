@@ -49,7 +49,7 @@ import { API_ROUTES } from '../../src/shared/constants/apiRoutes.js';
 describe('Protected routes with JWT (mocked)', () => {
   it('GET /api/users should return list when authenticated', async () => {
     const res = await request(app)
-      .get(API_ROUTES.USERS.GET_ALL)
+      .get(`${API_ROUTES.BASE}${API_ROUTES.USERS.GET_ALL}`)
       .set('Authorization', 'Bearer fake')
       .expect(200);
     expect(res.body.data).toEqual([{ id: '1', username: 'u1' }]);
@@ -57,7 +57,7 @@ describe('Protected routes with JWT (mocked)', () => {
 
   it('GET /api/teams should return list', async () => {
     const res = await request(app)
-      .get(API_ROUTES.TEAMS.GET_ALL)
+      .get(`${API_ROUTES.BASE}${API_ROUTES.TEAMS.GET_ALL}`)
       .set('Authorization', 'Bearer fake')
       .expect(200);
     expect(res.body.data).toEqual([{ id: '1', name: 'T1', tag: 'TAG' }]);
@@ -66,7 +66,7 @@ describe('Protected routes with JWT (mocked)', () => {
   it('POST /api/teams should create new team', async () => {
     const payload = { name: 'NewTeam', tag: 'NEW', ownerId: '1' };
     const res = await request(app)
-      .post(API_ROUTES.TEAMS.CREATE)
+      .post(`${API_ROUTES.BASE}${API_ROUTES.TEAMS.CREATE}`)
       .set('Authorization', 'Bearer fake')
       .send(payload)
       .expect(201);

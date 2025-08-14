@@ -33,6 +33,10 @@ jobs:
       - run: npm run lint:fix
       - run: npm run lint
 
+      # Build timezones catalog (keeps /api/timezones up-to-date)
+      - name: Build timezones catalog
+        run: npm run build:timezones
+
       # SONARQUBE CACHE
       - name: Cache SonarQube packages
         uses: actions/cache@v4

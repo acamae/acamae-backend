@@ -2,11 +2,20 @@
 **/dist
 **/coverage
 **/logs
+**/.cache
+**/.next
+**/.turbo
+**/.DS_Store
 
 node_modules
 *.log
-Dockerfile
-.dockerignore
 .git/
 .gitignore
 .env.local
+.env*
+!.env.example
+docker-compose.yml
+Dockerfile
+*.pem
+*.key
+*.crt

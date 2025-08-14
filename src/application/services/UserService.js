@@ -188,4 +188,108 @@ export class UserService {
     }
     return true;
   }
+
+  /**
+   * Get public profile for a user (no sensitive data)
+   * @param {string} id
+   */
+  async getPublicProfile(id) {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.RESOURCE_NOT_FOUND],
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: { type: 'business', details: [{ field: 'user', code: 'NOT_FOUND' }] },
+      });
+    }
+    const { passwordHash, verificationToken, resetToken, ...safeUser } = user;
+    const [games, timezoneRaw] = await Promise.all([
+      this.userRepository.findUserGames(id),
+      this.userRepository.getUserTimezone(id),
+    ]);
+    const timezone = timezoneRaw ?? null;
+    // Availability storage is not yet implemented → return empty list consistently
+    const availability = [];
+    return { user: safeUser, games, timezone, availability };
+  }
+
+  /**
+   * Get user availability windows
+   * @param {string} id
+   */
+  async getAvailability(id) {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.RESOURCE_NOT_FOUND],
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: { type: 'business', details: [{ field: 'user', code: 'NOT_FOUND' }] },
+      });
+    }
+    return { timezone: undefined, availability: [] };
+  }
+
+  /**
+   * Replace user availability (idempotent)
+   * @param {string} id
+   * @param {{ timezone?: string, windows: Array<{dayOfWeek:number,start:string,end:string}> }} payload
+   */
+  async replaceAvailability(id, payload) {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.RESOURCE_NOT_FOUND],
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: { type: 'business', details: [{ field: 'user', code: 'NOT_FOUND' }] },
+      });
+    }
+    const timezone = payload?.timezone;
+    let isActive = user.isActive;
+    if (timezone) {
+      // Persist timezone in user profile and recalc active flag
+      isActive = await this.userRepository.setTimezone(id, timezone);
+    }
+    return { timezone, availability: payload?.windows || [], isActive };
+  }
+
+  /**
+   * Add a game to the user (idempotent)
+   * @param {string} id
+   * @param {number} gameId
+   */
+  async addGame(id, gameId) {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.RESOURCE_NOT_FOUND],
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: { type: 'business', details: [{ field: 'user', code: 'NOT_FOUND' }] },
+      });
+    }
+    const isActive = await this.userRepository.addGame(id, gameId);
+    return { gameId: Number(gameId), selected: true, profileIsActive: isActive };
+  }
+
+  /**
+   * Remove a game from the user (idempotent)
+   * @param {string} id
+   * @param {number} gameId
+   */
+  async removeGame(id, gameId) {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw createError({
+        message: ERROR_MESSAGES[API_ERROR_CODES.RESOURCE_NOT_FOUND],
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+        status: HTTP_STATUS.NOT_FOUND,
+        errorDetails: { type: 'business', details: [{ field: 'user', code: 'NOT_FOUND' }] },
+      });
+    }
+    const isActive = await this.userRepository.removeGame(id, gameId);
+    return { gameId: Number(gameId), selected: false, profileIsActive: isActive };
+  }
 }

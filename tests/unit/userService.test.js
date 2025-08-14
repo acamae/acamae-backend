@@ -12,6 +12,11 @@ const makeRepo = () => ({
   findByUsername: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),
+  addGame: jest.fn(),
+  removeGame: jest.fn(),
+  setTimezone: jest.fn(),
+  findUserGames: jest.fn(),
+  getUserTimezone: jest.fn(),
 });
 
 const stripPassword = (u) => {
@@ -107,6 +112,48 @@ describe('UserService', () => {
       const result = await service.deleteUser('1');
       expect(repo.delete).toHaveBeenCalledWith('1');
       expect(result).toBe(true);
+    });
+  });
+
+  describe('games toggle', () => {
+    it('addGame devuelve { gameId, selected:true, profileIsActive }', async () => {
+      const repo = makeRepo();
+      const user = makeUser({ id: '9' });
+      repo.findById.mockResolvedValue(user);
+      repo.addGame.mockResolvedValue(false);
+      const service = new UserService(repo);
+      const result = await service.addGame('9', 17);
+      expect(repo.addGame).toHaveBeenCalledWith('9', 17);
+      expect(result).toEqual({ gameId: 17, selected: true, profileIsActive: false });
+    });
+
+    it('removeGame devuelve { gameId, selected:false, profileIsActive }', async () => {
+      const repo = makeRepo();
+      const user = makeUser({ id: '9' });
+      repo.findById.mockResolvedValue(user);
+      repo.removeGame.mockResolvedValue(true);
+      const service = new UserService(repo);
+      const result = await service.removeGame('9', 17);
+      expect(repo.removeGame).toHaveBeenCalledWith('9', 17);
+      expect(result).toEqual({ gameId: 17, selected: false, profileIsActive: true });
+    });
+  });
+
+  describe('getPublicProfile', () => {
+    it('returns user, games, timezone and availability always present', async () => {
+      const repo = makeRepo();
+      const user = makeUser({ id: '9', passwordHash: 'hash' });
+      repo.findById.mockResolvedValue(user);
+      repo.findUserGames.mockResolvedValue([{ id: 2, code: 'lol', nameCode: 'game.lol' }]);
+      repo.getUserTimezone.mockResolvedValue('Europe/Madrid');
+
+      const service = new UserService(repo);
+      const result = await service.getPublicProfile('9');
+
+      expect(result.user.id).toBe('9');
+      expect(result.games).toHaveLength(1);
+      expect(result.timezone).toBe('Europe/Madrid');
+      expect(Array.isArray(result.availability)).toBe(true);
     });
   });
 });

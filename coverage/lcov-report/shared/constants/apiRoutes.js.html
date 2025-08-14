@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/17</span>
+                <span class='fraction'>17/17</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/8</span>
+                <span class='fraction'>8/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/11</span>
+                <span class='fraction'>17/17</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -128,7 +128,17 @@
 <a name='L63'></a><a href='#L63'>63</a>
 <a name='L64'></a><a href='#L64'>64</a>
 <a name='L65'></a><a href='#L65'>65</a>
-<a name='L66'></a><a href='#L66'>66</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -176,88 +186,108 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export const API_ROUTES = <span class="cstat-no" title="statement not covered" >{</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export const API_ROUTES = {
   BASE: '/api',
-  HEALTH: '/api/health',
-  DEV: '/api/dev',
+  HEALTH: '/health',
+  DEV: '/dev',
   AUTH: {
-    BASE: '/api/auth',
-    LOGIN: '/api/auth/login',
-    REGISTER: '/api/auth/register',
-    REFRESH_TOKEN: '/api/auth/refresh-token',
-    LOGOUT: '/api/auth/logout',
-    VERIFY_EMAIL: '/api/auth/verify-email/:token',
-    VERIFY_EMAIL_RESEND: '/api/auth/verify-email-resend',
-    VERIFY_EMAIL_SENT: '/api/auth/verify-email-sent',
-    VERIFY_EMAIL_SUCCESS: '/api/auth/verify-email-success',
-    VERIFY_EMAIL_EXPIRED: '/api/auth/verify-email-expired',
-    VERIFY_EMAIL_ALREADY_VERIFIED: '/api/auth/verify-email-already-verified',
-    FORGOT_PASSWORD: '/api/auth/forgot-password',
-    RESET_PASSWORD: '/api/auth/reset-password/:token',
-    ME: '/api/auth/me',
+    LOGIN: '/auth/login',
+    REGISTER: '/auth/register',
+    REFRESH_TOKEN: '/auth/refresh-token',
+    LOGOUT: '/auth/logout',
+    VERIFY_EMAIL: '/auth/verify-email/:token',
+    VERIFY_EMAIL_RESEND: '/auth/verify-email-resend',
+    VERIFY_EMAIL_SENT: '/auth/verify-email-sent',
+    VERIFY_EMAIL_SUCCESS: '/auth/verify-email-success',
+    VERIFY_EMAIL_EXPIRED: '/auth/verify-email-expired',
+    VERIFY_EMAIL_ALREADY_VERIFIED: '/auth/verify-email-already-verified',
+    FORGOT_PASSWORD: '/auth/forgot-password',
+    RESET_PASSWORD: '/auth/reset-password/:token',
+    ME: '/auth/me',
   },
   USERS: {
-    BASE: '/api/users',
-    GET_ALL: '/api/users',
-    GET_BY_ID: '/api/users/:id',
-    UPDATE_BY_ID: '/api/users/:id',
-    DELETE_BY_ID: '/api/users/:id',
+    GET_ALL: '/users',
+    GET_BY_ID: '/users/:id',
+    UPDATE_BY_ID: '/users/:id',
+    DELETE_BY_ID: '/users/:id',
+    PREFERENCES: '/users/:id/preferences',
+    PUBLIC_PROFILE: '/users/:id/public',
+    AVAILABILITY: '/users/:id/availability',
+    GAMES: '/users/:id/games',
+  },
+  GAMES: {
+    GET_ALL: '/games',
   },
   TEAMS: {
-    BASE: '/api/teams',
-    GET_ALL: '/api/teams',
-    GET_BY_ID: '/api/teams/:id',
-    CREATE: '/api/teams',
-    UPDATE_BY_ID: '/api/teams/:id',
-    DELETE_BY_ID: '/api/teams/:id',
+    GET_ALL: '/teams',
+    GET_BY_ID: '/teams/:id',
+    CREATE: '/teams',
+    UPDATE_BY_ID: '/teams/:id',
+    DELETE_BY_ID: '/teams/:id',
   },
   ADMIN: {
-    BASE: '/api/admin',
-    USERS: '/api/admin/users',
-    TEAMS: '/api/admin/teams',
-    STATS: '/api/admin/stats',
+    USERS: '/admin/users',
+    TEAMS: '/admin/teams',
+    STATS: '/admin/stats',
   },
   MANAGER: {
-    BASE: '/api/manager',
-    DASHBOARD: '/api/manager/dashboard',
+    DASHBOARD: '/manager/dashboard',
   },
+  TIMEZONES: '/timezones',
+  COUNTRIES: '/countries',
 };
 &nbsp;
 // Auxiliary functions for routes with parameters
-export const getAuthVerifyEmailUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(t</span>oken) =&gt;</span>
-<span class="cstat-no" title="statement not covered" >  API_ROUTES.AUTH.VERIFY_EMAIL.replace(':token', token);</span>
+export const getAuthVerifyEmailUrl = (token) =&gt;
+  `${API_ROUTES.BASE}${API_ROUTES.AUTH.VERIFY_EMAIL.replace(':token', token)}`;
 &nbsp;
-export const getAuthResetPasswordUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(t</span>oken) =&gt;</span>
-<span class="cstat-no" title="statement not covered" >  API_ROUTES.AUTH.RESET_PASSWORD.replace(':token', token);</span>
+export const getAuthResetPasswordUrl = (token) =&gt;
+  `${API_ROUTES.BASE}${API_ROUTES.AUTH.RESET_PASSWORD.replace(':token', token)}`;
 &nbsp;
-export const getUserByIdUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >API_ROUTES.USERS.GET_BY_ID.replace(':id', id);</span></span>
+export const getUserByIdUrl = (id) =&gt;
+  `${API_ROUTES.BASE}${API_ROUTES.USERS.GET_BY_ID.replace(':id', id)}`;
 &nbsp;
-export const getUpdateUserByIdUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >API_ROUTES.USERS.UPDATE_BY_ID.replace(':id', id);</span></span>
+export const getUpdateUserByIdUrl = (id) =&gt;
+  `${API_ROUTES.BASE}${API_ROUTES.USERS.UPDATE_BY_ID.replace(':id', id)}`;
 &nbsp;
-export const getDeleteUserByIdUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >API_ROUTES.USERS.DELETE_BY_ID.replace(':id', id);</span></span>
+export const getDeleteUserByIdUrl = (id) =&gt;
+  `${API_ROUTES.BASE}${API_ROUTES.USERS.DELETE_BY_ID.replace(':id', id)}`;
 &nbsp;
-export const getTeamByIdUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >API_ROUTES.TEAMS.GET_BY_ID.replace(':id', id);</span></span>
+export const getTeamByIdUrl = (id) =&gt;
+  `${API_ROUTES.BASE}${API_ROUTES.TEAMS.GET_BY_ID.replace(':id', id)}`;
 &nbsp;
-export const getUpdateTeamByIdUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >API_ROUTES.TEAMS.UPDATE_BY_ID.replace(':id', id);</span></span>
+export const getUpdateTeamByIdUrl = (id) =&gt;
+  `${API_ROUTES.BASE}${API_ROUTES.TEAMS.UPDATE_BY_ID.replace(':id', id)}`;
 &nbsp;
-export const getDeleteTeamByIdUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d) =&gt; <span class="cstat-no" title="statement not covered" >API_ROUTES.TEAMS.DELETE_BY_ID.replace(':id', id);</span></span>
+export const getDeleteTeamByIdUrl = (id) =&gt;
+  `${API_ROUTES.BASE}${API_ROUTES.TEAMS.DELETE_BY_ID.replace(':id', id)}`;
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -265,7 +295,7 @@ export const getDeleteTeamByIdUrl = <span class="cstat-no" title="statement not 
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-07T18:07:12.924Z
+                at 2025-08-14T01:35:58.140Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

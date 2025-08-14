@@ -22,6 +22,9 @@ describe('UserController (unit)', () => {
       getUserById: jest.fn(),
       updateUser: jest.fn(),
       deleteUser: jest.fn(),
+      addGame: jest.fn(),
+      removeGame: jest.fn(),
+      getPublicProfile: jest.fn(),
     };
     controller = new UserController(service);
     res = makeRes();
@@ -125,5 +128,40 @@ describe('UserController (unit)', () => {
       expect(next).toHaveBeenCalledWith(error);
       expect(res.status).not.toHaveBeenCalled();
     });
+  });
+
+  describe('addGame/removeGame', () => {
+    it('addGame -> 200 y payload esperado', async () => {
+      const payload = { gameId: 17, selected: true, profileIsActive: false };
+      service.addGame.mockResolvedValue(payload);
+      const req = { params: { id: '9' }, body: { gameId: 17 } };
+      await controller.addGame(req, res, next);
+      expect(service.addGame).toHaveBeenCalledWith('9', 17);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.apiSuccess).toHaveBeenCalledWith(payload, 'Games updated');
+    });
+
+    it('removeGame -> 200 y payload esperado', async () => {
+      const payload = { gameId: 17, selected: false, profileIsActive: true };
+      service.removeGame.mockResolvedValue(payload);
+      const req = { params: { id: '9' }, body: { gameId: 17 } };
+      await controller.removeGame(req, res, next);
+      expect(service.removeGame).toHaveBeenCalledWith('9', 17);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.apiSuccess).toHaveBeenCalledWith(payload, 'Games updated');
+    });
+  });
+
+  it('getPublicProfile -> 200 devuelve perfil público sin usar includeAvailability', async () => {
+    const payload = { user: { id: '9' }, games: [], timezone: 'Europe/Madrid', availability: [] };
+    service.getPublicProfile.mockResolvedValue(payload);
+
+    const req = { params: { id: '9' }, query: { includeAvailability: 'true' } };
+    await controller.getPublicProfile(req, res, next);
+
+    expect(service.getPublicProfile).toHaveBeenCalledWith('9');
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.apiSuccess).toHaveBeenCalledWith(payload, 'Public profile retrieved');
+    expect(next).not.toHaveBeenCalled();
   });
 });

@@ -174,6 +174,161 @@ components:
           type: string
           example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
 
+    # ===== TIMEZONES CATALOG =====
+    Timezone:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 'Europe/Madrid'
+          description: IANA timezone identifier
+        altName:
+          type: string
+          nullable: true
+          example: 'Central European Time'
+        countryCode:
+          type: string
+          nullable: true
+          description: ISO 3166-1 alpha-2 country code
+          example: 'ES'
+        countryName:
+          type: string
+          description: Country name
+          example: 'Spain'
+        continentCode:
+          type: string
+          description: Continent code
+          example: 'EU'
+        continentName:
+          type: string
+          description: Continent name
+          example: 'Europe'
+        group:
+          type: array
+          description: Aliases grouped with this timezone
+          items:
+            type: string
+            example: 'Europe/Madrid'
+        utcOffset:
+          type: string
+          description: Current offset from UTC for this timezone
+          example: '+01:00'
+        isDST:
+          type: boolean
+          nullable: true
+          description: Whether Daylight Saving Time is currently in effect
+          example: true
+
+    TimezonesCatalog:
+      type: object
+      properties:
+        version:
+          type: string
+          example: '2025a'
+        lastUpdated:
+          type: string
+          format: date-time
+          example: '2025-08-09T12:34:56.000Z'
+        source:
+          type: string
+          enum: [tzdb]
+          example: 'tzdb'
+        timezones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Timezone'
+
+    # ===== GAMES AND AVAILABILITY SCHEMAS =====
+    Game:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 7
+        code:
+          type: string
+          example: 'lol'
+        nameCode:
+          type: string
+          example: 'user-profile.games.list.lol.title'
+        imageFilename:
+          type: string
+          example: 'lol-icon-500.png'
+
+    GameToggleResponse:
+      type: object
+      properties:
+        gameId:
+          type: integer
+          example: 17
+        selected:
+          type: boolean
+          example: true
+        profileIsActive:
+          type: boolean
+          example: false
+
+    AvailabilityWindow:
+      type: object
+      properties:
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+          example: 1
+        start:
+          type: string
+          example: '18:00'
+          description: HH:mm
+        end:
+          type: string
+          example: '21:00'
+          description: HH:mm
+
+    PutAvailabilityPayload:
+      type: object
+      properties:
+        userId:
+          type: integer
+          example: 12
+        timezone:
+                            type: string
+                            nullable: true
+          example: 'Europe/Madrid'
+          description: Optional. If provided, updates UserProfile.timezone
+        windows:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilityWindow'
+      required:
+        - userId
+        - windows
+
+    AvailabilityResponse:
+      type: object
+      properties:
+        timezone:
+          type: string
+          nullable: true
+          example: 'Europe/Madrid'
+        availability:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilityWindow'
+
+    UserGamesPayload:
+      type: object
+      properties:
+        userId:
+          type: integer
+          example: 12
+        gameId:
+          type: integer
+          example: 7
+      required:
+        - userId
+        - gameId
+
     # ===== PAYLOADS =====
     LoginPayload:
       type: object
@@ -352,8 +507,135 @@ components:
                       message: 'Request timed out'
 
 paths:
+  # ===== TIMEZONES =====
+  /api/timezones:
+    get:
+      tags:
+        - Utilities
+      summary: Get timezones catalog
+      description: |
+        Returns the catalog of timezones used by clients to render a timezone selector.
+        Data is generated from TZDB only (no Intl fallback), and refreshed on deployments.
+        In development/local environments, caching is disabled (Cache-Control: no-store) to ease testing.
+      responses:
+        '200':
+          description: Timezones catalog
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TimezonesCatalog'
+              examples:
+                catalog:
+                  summary: Timezones catalog example
+                  value:
+                    success: true
+                    data:
+                      version: '2025a'
+                      lastUpdated: '2025-08-09T12:34:56.000Z'
+                      source: 'tzdb'
+                       timezones:
+                        - id: 'Europe/Madrid'
+                          altName: 'Central European Time'
+                          countryCode: 'ES'
+                          countryName: 'Spain'
+                          continentCode: 'EU'
+                          continentName: 'Europe'
+                          group: ['Europe/Madrid']
+                          utcOffset: '+01:00'
+                          isDST: true
+                        - id: 'Asia/Tokyo'
+                          altName: 'Japan Standard Time'
+                          countryCode: 'JP'
+                          countryName: 'Japan'
+                          continentCode: 'AS'
+                          continentName: 'Asia'
+                          group: ['Asia/Tokyo']
+                          utcOffset: '+09:00'
+                          isDST: false
+                    status: 200
+                    code: 'SUCCESS'
+                    message: 'Timezones catalog'
+                    timestamp: '2025-08-09T12:34:56.000Z'
+                    requestId: '550e8400-e29b-41d4-a716-446655440000'
+        '503':
+          description: Service unavailable (catalog not available)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                unavailable:
+                  summary: Catalog unavailable
+                  value:
+                    success: false
+                    data: null
+                    status: 503
+                    code: 'SERVICE_UNAVAILABLE'
+                    message: 'Timezones catalog not available'
+                    timestamp: '2025-08-09T12:34:56.000Z'
+                    requestId: '550e8400-e29b-41d4-a716-446655440000'
+                    error:
+                      type: 'server'
+                      details:
+                        - field: 'timezones'
+                          code: 'UNAVAILABLE'
+                          message: 'Catalog not available'
+        default:
+          $ref: '#/components/responses/NetworkError'
+
+  # ===== GAMES AND AVAILABILITY =====
+  /api/games:
+    get:
+      tags:
+        - Games
+      summary: Get games catalog
+      description: Returns the catalog of games available for selection
+      responses:
+        '200':
+          description: Games catalog
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          games:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Game'
+              examples:
+                ok:
+                  value:
+                    success: true
+                    data:
+                      games:
+                        - id: 1
+                          code: 'lol'
+                          nameCode: 'user-profile.games.list.lol.title'
+                          imageFilename: 'lol-icon-500.png'
+                    status: 200
+                    code: 'SUCCESS'
+                    message: 'Games catalog'
+                    timestamp: '2025-08-09T12:34:56.000Z'
+                    requestId: '550e8400-e29b-41d4-a716-446655440000'
+        '500':
+          description: Database error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
   # ===== AUTHENTICATION =====
-  /auth/login:
+  /api/auth/login:
     post:
       tags:
         - Authentication
@@ -550,7 +832,7 @@ paths:
         default:
           $ref: '#/components/responses/NetworkError'
 
-  /auth/register:
+  /api/auth/register:
     post:
       tags:
         - Authentication
@@ -722,7 +1004,7 @@ paths:
         default:
           $ref: '#/components/responses/NetworkError'
 
-  /auth/verify-email/{token}:
+  /api/auth/verify-email/{token}:
     get:
       tags:
         - Authentication
@@ -875,7 +1157,7 @@ paths:
         default:
           $ref: '#/components/responses/NetworkError'
 
-  /auth/verify-email-resend:
+  /api/auth/verify-email-resend:
     post:
       tags:
         - Authentication
@@ -1005,7 +1287,7 @@ paths:
         default:
           $ref: '#/components/responses/NetworkError'
 
-  /auth/forgot-password:
+  /api/auth/forgot-password:
     post:
       tags:
         - Authentication
@@ -1112,7 +1394,7 @@ paths:
   # 2. PUT /auth/reset-password/{token} - Update password (requires valid token)
   # This provides better UX and follows REST semantics correctly.
 
-  /auth/reset-password/{token}:
+  /api/auth/reset-password/{token}:
     post:
       tags:
         - Authentication
@@ -1431,7 +1713,7 @@ paths:
         default:
           $ref: '#/components/responses/NetworkError'
 
-  /auth/refresh-token:
+  /api/auth/refresh-token:
     post:
       tags:
         - Authentication
@@ -1590,7 +1872,7 @@ paths:
         default:
           $ref: '#/components/responses/NetworkError'
 
-  /auth/logout:
+  /api/auth/logout:
     post:
       tags:
         - Authentication
@@ -1651,7 +1933,7 @@ paths:
         default:
           $ref: '#/components/responses/NetworkError'
 
-  /auth/me:
+  /api/auth/me:
     get:
       tags:
         - Authentication
@@ -1709,7 +1991,7 @@ paths:
           $ref: '#/components/responses/NetworkError'
 
   # ===== USER MANAGEMENT =====
-  /users:
+  /api/users:
     get:
       tags:
         - Users
@@ -1813,7 +2095,7 @@ paths:
         default:
           $ref: '#/components/responses/NetworkError'
 
-  /users/{id}:
+  /api/users/{id}:
     get:
       tags:
         - Users
@@ -2018,6 +2300,231 @@ paths:
                     requestId: '550e8400-e29b-41d4-a716-446655440000'
         default:
           $ref: '#/components/responses/NetworkError'
+
+  /api/users/{id}/games:
+    put:
+      tags:
+        - Users
+      summary: Add a game to the user (idempotent)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserGamesPayload'
+      responses:
+        '200':
+          description: Games updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GameToggleResponse'
+              examples:
+                selected:
+                  value:
+                    success: true
+                    data:
+                      gameId: 17
+                      selected: true
+                      profileIsActive: false
+                    status: 200
+                    code: 'SUCCESS'
+                    message: 'Games updated'
+                    timestamp: '2025-08-14T00:05:22.755Z'
+                    requestId: '550e8400-e29b-41d4-a716-446655440000'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '403':
+          description: Forbidden (self policy)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '404':
+          description: User or game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+    delete:
+      tags:
+        - Users
+      summary: Remove a game from the user (idempotent)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserGamesPayload'
+      responses:
+        '200':
+          description: Games updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GameToggleResponse'
+              examples:
+                deselected:
+                  value:
+                    success: true
+                    data:
+                      gameId: 17
+                      selected: false
+                      profileIsActive: true
+                    status: 200
+                    code: 'SUCCESS'
+                    message: 'Games updated'
+                    timestamp: '2025-08-14T00:05:22.755Z'
+                    requestId: '550e8400-e29b-41d4-a716-446655440000'
+        '401': { $ref: '#/components/responses/NetworkError' }
+
+  /api/users/{id}/availability:
+    get:
+      tags:
+        - Users
+      summary: Get user availability
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Availability
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AvailabilityResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '403':
+          description: Forbidden (self policy)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+    put:
+      tags:
+        - Users
+      summary: Replace user availability (idempotent)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PutAvailabilityPayload'
+      responses:
+        '200':
+          description: Availability updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AvailabilityResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/users/{id}/public:
+    get:
+      tags:
+        - Users
+      summary: Get public user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Public profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+                          games:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Game'
+                          timezone:
+                            type: string
+                            example: 'Europe/Madrid'
+                          availability:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AvailabilityWindow'
 # ===== ERROR CODES =====
 # Available error codes:
 # AUTH_INVALID_CREDENTIALS, AUTH_USER_ALREADY_EXISTS, AUTH_USER_ALREADY_VERIFIED

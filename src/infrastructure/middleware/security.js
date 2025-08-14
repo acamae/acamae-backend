@@ -177,10 +177,8 @@ export const applySecurityMiddleware = (app) => {
     // Prevent XSS in old browsers
     res.setHeader('X-XSS-Protection', '1; mode=block');
 
-    // Cache Control
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    // Global default: do not enforce no-cache for all endpoints.
+    // Cache will be controlled per-endpoint using cache middleware.
 
     // Referrer Policy
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');

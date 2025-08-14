@@ -92,7 +92,7 @@ export class AuthController {
   async getMe(req, res, next) {
     try {
       const user = await this.authService.getMe(req.user.id);
-      return res.status(HTTP_STATUS.OK).apiSuccess(user, 'User obtained successfully');
+      return res.status(HTTP_STATUS.OK).apiSuccess(user, 'User retrieved successfully');
     } catch (error) {
       next(error);
     }

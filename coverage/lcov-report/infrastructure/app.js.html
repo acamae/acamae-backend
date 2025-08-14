@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/11</span>
+                <span class='fraction'>11/11</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/11</span>
+                <span class='fraction'>11/11</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -114,35 +114,35 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import express from 'express';
@@ -155,35 +155,35 @@ import { responseHelpersMiddleware } from './middleware/responseHelpers.js';
 import { applySecurityMiddleware } from './middleware/security.js';
 import router from './routes/index.js';
 &nbsp;
-const app = <span class="cstat-no" title="statement not covered" >express();</span>
+const app = express();
 &nbsp;
 // Apply request ID middleware first (needed by other middlewares)
-<span class="cstat-no" title="statement not covered" >app.use(requestIdMiddleware);</span>
+app.use(requestIdMiddleware);
 &nbsp;
 // Apply response helpers middleware (needed by other middlewares)
-<span class="cstat-no" title="statement not covered" >app.use(responseHelpersMiddleware);</span>
+app.use(responseHelpersMiddleware);
 &nbsp;
 // Apply security middleware
-<span class="cstat-no" title="statement not covered" >applySecurityMiddleware(app);</span>
+applySecurityMiddleware(app);
 &nbsp;
 // Apply logging middleware
-<span class="cstat-no" title="statement not covered" >applyLoggingMiddleware(app);</span>
+applyLoggingMiddleware(app);
 &nbsp;
 // Apply compression middleware
-<span class="cstat-no" title="statement not covered" >applyCompression(app);</span>
+applyCompression(app);
 &nbsp;
 // Parse JSON bodies
-<span class="cstat-no" title="statement not covered" >app.use(express.json({ limit: '10mb' }));</span>
-<span class="cstat-no" title="statement not covered" >app.use(express.urlencoded({ extended: true, limit: '10mb' }));</span>
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 &nbsp;
 // Routes
-<span class="cstat-no" title="statement not covered" >app.use(router);</span>
+app.use(router);
 &nbsp;
 // 404 handler
-<span class="cstat-no" title="statement not covered" >app.use(notFoundHandler);</span>
+app.use(notFoundHandler);
 &nbsp;
 // Error handler (must be last)
-<span class="cstat-no" title="statement not covered" >app.use(errorHandler);</span>
+app.use(errorHandler);
 &nbsp;
 export default app;
 &nbsp;</pre></td></tr></table></pre>
@@ -193,7 +193,7 @@ export default app;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-07T18:07:12.924Z
+                at 2025-08-14T01:35:58.140Z
             </div>
         <script src="../prettify.js"></script>
         <script>

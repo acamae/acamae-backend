@@ -19,7 +19,6 @@ model User {
   last_name            String?                 @db.VarChar(50)
   role                 String                  @default("user") @db.VarChar(20)
   is_verified          Boolean                 @default(false)
-  is_active            Boolean                 @default(true)  // NEW: Profile is active and renewed
   last_login_at        DateTime?               // NEW: Last login timestamp
   last_login_ip        String?                 @db.VarChar(45) // NEW: Last login IP (supports IPv6)
   verification_token   String?                 @db.VarChar(255)
@@ -47,7 +46,7 @@ model Game {
   id               Int           @id @default(autoincrement()) @db.UnsignedInt
   code             String        @unique @db.VarChar(20)      // e.g., "LoL", "VAL"
   name_code        String        @db.VarChar(100)             // e.g., "game.lol"
-  image_url        String?       @db.VarChar(255)
+  image_filename   String?       @db.VarChar(255)
   description_code String?       @db.VarChar(100)             // e.g., "game.lol.description"
   created_at       DateTime      @default(now()) @map("created_at")
   updated_at       DateTime      @default(now()) @updatedAt @map("updated_at")
@@ -56,7 +55,6 @@ model Game {
   positions        Position[]
   gameProfiles     GameProfile[]
   teamProfiles     TeamProfile[]
-  userProfiles     UserProfile[] @relation("PreferredGame")
 
   @@map("games")
 }
@@ -195,23 +193,30 @@ model UserPlaystyle {
 model UserProfile {
   id                  Int      @id @default(autoincrement()) @db.UnsignedInt
   user_id             Int      @unique @db.UnsignedInt
-  nickname            String?  @db.VarChar(50)              // Optional, can match in-game name
   country_code        String?  @db.Char(2)                  // ISO 3166-1 alpha-2, e.g., 'ES'
   timezone            String?  @db.VarChar(50)              // e.g., "Europe/Madrid"
   bio                 String?  @db.Text
   discord_id          String?  @db.VarChar(100)
   riot_id             String?  @db.VarChar(100)             // For LoL and Valorant
-  profile_image_url   String?  @db.VarChar(255)
-  preferred_game_id   Int?     @db.UnsignedInt              // LoL or Valorant
-  expires_at          DateTime? @map("expires_at")
+  profile_image_filename String?  @db.VarChar(255)
+  is_active           Boolean  @default(false)
   created_at          DateTime @default(now()) @map("created_at")
   updated_at          DateTime @default(now()) @updatedAt @map("updated_at")
 
   // Relations
   user                User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  preferredGame       Game?    @relation("PreferredGame", fields: [preferred_game_id], references: [id])
 
   @@map("user_profiles")
+}
+
+// NEW: Countries catalog
+model Country {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  code       String   @unique @db.Char(2)          // ISO 3166-1 alpha-2, e.g., "ES"
+  name       String   @db.VarChar(100)             // English short name (can be localized client-side)
+  created_at DateTime @default(now()) @map("created_at")
+
+  @@map("countries")
 }
 
 model Team {
@@ -220,6 +225,7 @@ model Team {
   tag            String    @unique @db.VarChar(16)
   description    String?   @db.Text
   logo_filename  String?   @db.VarChar(255)
+  is_active      Boolean   @default(true)
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId         Int       @map("user_id") @db.UnsignedInt
   created_at     DateTime  @default(now()) @map("created_at")

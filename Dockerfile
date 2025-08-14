@@ -1,41 +1,60 @@
-FROM node:22-alpine
+##############################
+# Base deps layer (cacheable)
+##############################
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 
-# Define NODE_ENV variable
+# Build args (can be overridden at build time)
 ARG NODE_ENV=development
+ENV NODE_ENV=${NODE_ENV}
 
-# Install curl for health checks and create non-privileged user
-RUN apk add --no-cache curl && addgroup -S appuser && adduser -S appuser -G appuser
+# Install minimal tools
+RUN apk add --no-cache curl tzdata
 
-# Copy configuration files
+# Install dependencies first (better cache reuse)
 COPY package*.json ./
-COPY prisma ./prisma/
-COPY ./src /app/src
-# Copy specific environment file, excluding .env.local
-COPY .env.${NODE_ENV} /app/.env.${NODE_ENV}
+# If BuildKit is enabled, this uses a persistent cache; otherwise it behaves as a normal RUN
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 
-# Create logs directory and change owner
-RUN mkdir -p logs \
-  && npm install -g --ignore-scripts nodemon \
-  && npm install --save-dev --ignore-scripts prisma \
-  && npx prisma generate
+##############################
+# Prisma client generation
+##############################
+FROM deps AS prisma
+WORKDIR /app
+COPY prisma ./prisma
+# Generate Prisma client during build (no DB access needed)
+RUN npx prisma generate
 
-# Copy remaining code
-COPY . .
+##############################
+# Final runtime image
+##############################
+FROM node:22-alpine AS runner
 
-# Change ownership of all files
-RUN chown -R appuser:appuser /app
+WORKDIR /app
 
-# Configure Prisma to use the binary engine
+# Non-root user and tzdata for full IANA coverage
+RUN apk add --no-cache curl tzdata && addgroup -S appuser && adduser -S appuser -G appuser
+
+# Copy node_modules with generated @prisma/client from prisma stage
+COPY --from=prisma /app/node_modules ./node_modules
+
+# App sources
+COPY package*.json ./
+COPY prisma ./prisma
+COPY scripts ./scripts
+COPY src ./src
+
+# Optional: logs directory
+RUN mkdir -p logs && chown -R appuser:appuser /app
+
+# Env
+ARG PORT=4000
+ENV PORT=${PORT}
 ENV PRISMA_CLIENT_ENGINE_TYPE=binary
 
-# Environment variables for development
-ENV NODE_ENV=$NODE_ENV
-ENV PORT=$PORT
-
-# Switch to non-privileged user
 USER appuser
+EXPOSE ${PORT}
 
-# Expose port
-EXPOSE $PORT
+# Note: no CMD defined here; docker-compose controls the command.
+# For a clean build from zero, run with: --no-cache and/or disable BuildKit.

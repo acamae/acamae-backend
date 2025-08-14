@@ -18,7 +18,7 @@ import { createError } from '../../shared/utils/error.js';
  * @property {string} passwordHash - User password hash
  * @property {string} role - User role
  * @property {boolean} isVerified - Verification status
- * @property {boolean} isActive - Profile is active and renewed
+ * @property {boolean} isActive - Whether the user's profile is active (from UserProfile)
  * @property {Date} [lastLoginAt] - Last login timestamp
  * @property {string} [lastLoginIp] - Last login IP address
  * @property {string} [verificationToken] - Verification token
@@ -68,7 +68,7 @@ export class User {
    * @param {string} [data.lastName] - Last name
    * @param {string} [data.role='user'] - User role
    * @param {boolean} [data.isVerified=false] - Whether the user is verified
-   * @param {boolean} [data.isActive=true] - Whether the profile is active
+   * @param {boolean} [data.isActive=false] - Profile active flag (derived from UserProfile)
    * @param {Date} [data.lastLoginAt] - Last login timestamp
    * @param {string} [data.lastLoginIp] - Last login IP address
    * @param {string} [data.verificationToken] - Verification token
@@ -87,7 +87,7 @@ export class User {
     this.lastName = data.lastName;
     this.role = data.role || USER_ROLES.USER;
     this.isVerified = data.isVerified || false;
-    this.isActive = data.isActive || true;
+    this.isActive = data.isActive || false;
     this.lastLoginAt = data.lastLoginAt;
     this.lastLoginIp = data.lastLoginIp;
     this.verificationToken = data.verificationToken;

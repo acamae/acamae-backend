@@ -143,3 +143,13 @@ export const authorize = (roles = []) => {
     }
   };
 };
+
+/**
+ * Convenience middleware: allow only admin role
+ */
+export const isAdmin = authorize(['admin']);
+
+/**
+ * Convenience middleware: allow manager or admin roles
+ */
+export const isManagerOrAdmin = authorize(['manager', 'admin']);

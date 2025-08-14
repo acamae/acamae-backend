@@ -11,6 +11,11 @@
  * @property {function(string, boolean): Promise<void>} setVerified - Set the verification status
  * @property {function(string, string, Date): Promise<void>} setResetToken - Set the reset token
  * @property {function(string, string[]): Promise<User|null>} findByIdWithFields - Find user by ID with specific fields
+ * @property {function(string, string): Promise<boolean>} setTimezone - Set timezone on user profile and recalc is_active
+ * @property {function(string, number): Promise<boolean>} addGame - Add a game to the user's game profiles and recalc is_active
+ * @property {function(string, number): Promise<boolean>} removeGame - Remove a game and recalc is_active
+ * @property {function(string): Promise<import('../entities/Game').Game[]>} findUserGames - List selected games for a user
+ * @property {function(string): Promise<string|undefined>} getUserTimezone - Get user's timezone from profile
  * @property {function(): Promise<number>} cleanExpiredVerificationTokens - Clean expired verification tokens
  */
 
@@ -131,6 +136,49 @@ export class UserRepository {
    * @returns {Promise<User|null>}
    */
   async findByIdWithFields(id, fields = []) {
+    throw new Error('Method not implemented');
+  }
+  /**
+   * Set timezone on user profile and recalc is_active
+   * @param {string} userId
+   * @param {string} timezone
+   * @returns {Promise<boolean>} New is_active value
+   */
+  async setTimezone(userId, timezone) {
+    throw new Error('Method not implemented');
+  }
+  /**
+   * Add a game to user's game profiles and recalc is_active
+   * @param {string} userId
+   * @param {number} gameId
+   * @returns {Promise<boolean>} New is_active value
+   */
+  async addGame(userId, gameId) {
+    throw new Error('Method not implemented');
+  }
+  /**
+   * Remove a game and recalc is_active
+   * @param {string} userId
+   * @param {number} gameId
+   * @returns {Promise<boolean>} New is_active value
+   */
+  async removeGame(userId, gameId) {
+    throw new Error('Method not implemented');
+  }
+  /**
+   * List selected games for a user
+   * @param {string} userId
+   * @returns {Promise<import('../entities/Game').Game[]>}
+   */
+  async findUserGames(userId) {
+    throw new Error('Method not implemented');
+  }
+  /**
+   * Get user's timezone from profile
+   * @param {string} userId
+   * @returns {Promise<string|undefined>}
+   */
+  async getUserTimezone(userId) {
     throw new Error('Method not implemented');
   }
   /**

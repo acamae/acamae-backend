@@ -91,14 +91,14 @@ describe('Auth flow integration', () => {
     const post = (url) => agent.post(url).set('Connection', 'close');
 
     // Register
-    const registerRes = await post(API_ROUTES.AUTH.REGISTER)
+    const registerRes = await post(`${API_ROUTES.BASE}${API_ROUTES.AUTH.REGISTER}`)
       .send({ email: mockUser.email, username: mockUser.username, password: 'Password123!' })
       .expect(201);
 
     expect(registerRes.body.success).toBe(true);
 
     // Login
-    const loginRes = await post(API_ROUTES.AUTH.LOGIN)
+    const loginRes = await post(`${API_ROUTES.BASE}${API_ROUTES.AUTH.LOGIN}`)
       .send({ email: mockUser.email, password: 'Password123!' })
       .expect(200);
 
@@ -106,7 +106,7 @@ describe('Auth flow integration', () => {
     expect(loginRes.body.data).toHaveProperty('refreshToken', 'refresh-token-456');
 
     // Refresh token
-    const refreshRes = await post(API_ROUTES.AUTH.REFRESH_TOKEN)
+    const refreshRes = await post(`${API_ROUTES.BASE}${API_ROUTES.AUTH.REFRESH_TOKEN}`)
       .send({ refreshToken: 'refresh-token-456' })
       .expect(200);
 
@@ -114,7 +114,7 @@ describe('Auth flow integration', () => {
     expect(refreshRes.body.data).toHaveProperty('refreshToken', 'new-refresh-token-101');
 
     // Logout
-    const logoutRes = await post(API_ROUTES.AUTH.LOGOUT)
+    const logoutRes = await post(`${API_ROUTES.BASE}${API_ROUTES.AUTH.LOGOUT}`)
       .send({ refreshToken: 'new-refresh-token-101' })
       .expect(200);
 

@@ -1,18 +1,19 @@
 ---
-description: Commit messages
-globs:
+description: Whenever I ask to write a commit message
 alwaysApply: false
 ---
+
 **Commit Message Guidelines**
 
-* **Format**:
+- **Format**:
+
   ```
   type(scope): concise description
 
   - Optional bullet points for details
   ```
 
-* **Types**:
+- **Types**:
   - `feat`: New feature
   - `fix`: Bug fix
   - `docs`: Documentation changes
@@ -21,7 +22,7 @@ alwaysApply: false
   - `test`: Adding or modifying tests
   - `chore`: Changes to build process, tools, etc
 
-* **Rules**:
+- **Rules**:
   - Keep first line under 100 characters
   - Use imperative mood ("add" not "added")
   - No period at the end
@@ -30,7 +31,7 @@ alwaysApply: false
   - Prefer single-line messages when possible
   - Use English for all messages
 
-* **Examples**:
+- **Examples**:
   ```
   feat(auth): add OpenAPI documentation for authentication endpoints
   fix(api): handle null response in user service

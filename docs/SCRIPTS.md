@@ -116,18 +116,25 @@ npm run db:status                    # Check database health
 
 ## 🐳 Docker Operations
 
-| Command                        | Description                          | When to Use                       |
-| ------------------------------ | ------------------------------------ | --------------------------------- |
-| `npm run docker:up`            | Start all services                   | Development with Docker           |
-| `npm run docker:down`          | Stop backend service                 | When done developing              |
-| `npm run docker:down:all`      | Stop all services and remove volumes | Complete cleanup                  |
-| `npm run docker:restart`       | Restart backend service              | After configuration changes       |
-| `npm run docker:reset`         | Complete Docker reset                | When Docker environment is broken |
-| `npm run docker:build`         | Build Docker images                  | After Dockerfile changes          |
-| `npm run docker:build:nocache` | Build without cache                  | Force clean build                 |
-| `npm run docker:logs`          | View backend logs                    | Debugging Docker issues           |
-| `npm run docker:shell`         | Access backend container shell       | Advanced debugging                |
-| `npm run docker:create:net`    | Create Docker network                | Initial Docker setup              |
+| Command                        | Description                                      | When to Use                       |
+| ------------------------------ | ------------------------------------------------ | --------------------------------- |
+| `npm run docker:up`            | Start all services                               | Development with Docker           |
+| `npm run docker:down`          | Stop services (keeps volumes/data)               | Daily stop/restart (safe)         |
+| `npm run docker:down:all`      | Stop all services and remove volumes (DATA LOSS) | Only when you want a clean DB     |
+| `npm run docker:purge`         | Alias of `docker:down:all` (DATA LOSS)           | Full cleanup incl. DB data        |
+| `npm run docker:restart`       | Restart backend service                          | After configuration changes       |
+| `npm run docker:reset`         | Complete Docker reset (images + volumes)         | When Docker environment is broken |
+| `npm run docker:build`         | Build Docker images                              | After Dockerfile changes          |
+| `npm run docker:build:nocache` | Build without cache                              | Force clean build                 |
+| `npm run docker:logs`          | View backend logs                                | Debugging Docker issues           |
+| `npm run docker:shell`         | Access backend container shell                   | Advanced debugging                |
+| `npm run docker:create:net`    | Create Docker network                            | Initial Docker setup              |
+
+> Important:
+>
+> - Use `docker:down` to keep database data (named volume persists).
+> - `docker:down:all` and `docker:purge` remove the named volume `mariadb_data` and you will lose all DB data.
+> - `docker:reset` is a nuclear option: removes volumes and images.
 
 **Examples:**
 
@@ -474,6 +481,9 @@ npm run docker:up
 
 # 3. Apply migrations (if any)
 npm run prisma:deploy:dev
+
+# 4. Stop services safely (keeps DB data)
+npm run docker:down
 ```
 
 ### **For database changes:**

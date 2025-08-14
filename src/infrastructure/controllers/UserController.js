@@ -87,4 +87,72 @@ export class UserController {
       next(error);
     }
   }
+
+  /**
+   * Get user public profile
+   */
+  async getPublicProfile(req, res, next) {
+    try {
+      const { id } = req.params;
+      const data = await this.userService.getPublicProfile(id);
+      return res.status(HTTP_STATUS.OK).apiSuccess(data, 'Public profile retrieved');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get availability
+   */
+  async getAvailability(req, res, next) {
+    try {
+      const { id } = req.params;
+      const data = await this.userService.getAvailability(id);
+      return res.status(HTTP_STATUS.OK).apiSuccess(data, 'Availability retrieved');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Replace availability
+   */
+  async replaceAvailability(req, res, next) {
+    try {
+      const { id } = req.params;
+      const payload = req.body;
+      const data = await this.userService.replaceAvailability(id, payload);
+      return res.status(HTTP_STATUS.OK).apiSuccess(data, 'Availability updated');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Add game
+   */
+  async addGame(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { gameId } = req.body || {};
+      const data = await this.userService.addGame(id, gameId);
+      return res.status(HTTP_STATUS.OK).apiSuccess(data, 'Games updated');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Remove game
+   */
+  async removeGame(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { gameId } = req.body || {};
+      const data = await this.userService.removeGame(id, gameId);
+      return res.status(HTTP_STATUS.OK).apiSuccess(data, 'Games updated');
+    } catch (error) {
+      next(error);
+    }
+  }
 }

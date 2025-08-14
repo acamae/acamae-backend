@@ -283,7 +283,7 @@ describe('AuthController (unit)', () => {
 
       expect(service.getMe).toHaveBeenCalledWith('1');
       expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.OK);
-      expect(res.apiSuccess).toHaveBeenCalledWith(user, 'User obtained successfully');
+      expect(res.apiSuccess).toHaveBeenCalledWith(user, 'User retrieved successfully');
       expect(next).not.toHaveBeenCalled();
     });
 
