@@ -711,4 +711,54 @@ describe('Validation Middleware', () => {
       expect(() => validationSchemas.validateResetToken.parse(data)).toThrow();
     });
   });
+
+  describe('profileTimezonePayload schema', () => {
+    it('should accept empty string and transform to null', () => {
+      const data = { timezone: '' };
+      const result = validationSchemas.profileTimezonePayload.parse(data);
+      expect(result.timezone).toBeNull();
+    });
+
+    it('should accept null', () => {
+      const data = { timezone: null };
+      const result = validationSchemas.profileTimezonePayload.parse(data);
+      expect(result.timezone).toBeNull();
+    });
+
+    it('should accept valid IANA timezone', () => {
+      const data = { timezone: 'Europe/Madrid' };
+      const result = validationSchemas.profileTimezonePayload.parse(data);
+      expect(result.timezone).toBe('Europe/Madrid');
+    });
+
+    it('should reject invalid timezone format', () => {
+      const data = { timezone: 'Madrid' };
+      expect(() => validationSchemas.profileTimezonePayload.parse(data)).toThrow();
+    });
+  });
+
+  describe('profileCountryPayload schema', () => {
+    it('should accept empty string and transform to null', () => {
+      const data = { countryCode: '' };
+      const result = validationSchemas.profileCountryPayload.parse(data);
+      expect(result.countryCode).toBeNull();
+    });
+
+    it('should accept null', () => {
+      const data = { countryCode: null };
+      const result = validationSchemas.profileCountryPayload.parse(data);
+      expect(result.countryCode).toBeNull();
+    });
+
+    it('should accept valid ISO 3166-1 alpha-2 and uppercase it', () => {
+      const data = { countryCode: 'es' };
+      const result = validationSchemas.profileCountryPayload.parse(data);
+      expect(result.countryCode).toBe('ES');
+    });
+
+    it('should reject invalid country code length', () => {
+      const data = { countryCode: 'ESP' };
+      expect(() => validationSchemas.profileCountryPayload.parse(data)).toThrow();
+    });
+  });
 });

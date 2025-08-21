@@ -175,6 +175,50 @@ export const validationSchemas = {
   refreshToken: z.object({
     refreshToken: z.string().min(1, ERROR_MESSAGES.INVALID_REFRESH_TOKEN),
   }),
+
+  // Profiles: games payload
+  profileGamesPayload: z.object({
+    gameId: z.number({ invalid_type_error: 'gameId must be a number' }).int().positive(),
+  }),
+
+  // Profiles: timezone payload
+  profileTimezonePayload: z.object({
+    timezone: z
+      .union([
+        z.string().regex(/^[A-Za-z_]+\/[A-Za-z_\-+]+$/, 'Invalid timezone format'),
+        z.literal(''),
+        z.null(),
+      ])
+      .transform((v) => (v === '' ? null : v)),
+  }),
+
+  // Profiles: country payload
+  profileCountryPayload: z.object({
+    countryCode: z
+      .union([
+        z.string().length(2, 'countryCode must be ISO 3166-1 alpha-2'),
+        z.literal(''),
+        z.null(),
+      ])
+      .transform((v) => (v === '' ? null : typeof v === 'string' ? v.toUpperCase() : v)),
+  }),
+
+  // Profiles: availability payload
+  putAvailabilityPayload: z.object({
+    timezone: z
+      .string()
+      .regex(/^[A-Za-z_]+\/[A-Za-z_\-+]+$/, 'Invalid timezone format')
+      .optional(),
+    windows: z
+      .array(
+        z.object({
+          dayOfWeek: z.number().int().min(0).max(6),
+          start: z.string().regex(/^\d{2}:\d{2}$/, 'Expected HH:mm'),
+          end: z.string().regex(/^\d{2}:\d{2}$/, 'Expected HH:mm'),
+        })
+      )
+      .min(0),
+  }),
 };
 
 /**
@@ -491,6 +535,13 @@ export const validateResetTokenValidation = (req, res, next) => {
  * Validation rules for refreshing token
  */
 export const refreshTokenValidation = validateRequest('refreshToken');
+
+// Profiles validations
+export const addProfileGameValidation = validateRequest('profileGamesPayload');
+export const removeProfileGameValidation = validateRequest('profileGamesPayload');
+export const putAvailabilityValidation = validateRequest('putAvailabilityPayload');
+export const profileTimezoneValidation = validateRequest('profileTimezonePayload');
+export const profileCountryValidation = validateRequest('profileCountryPayload');
 
 /**
  * Sanitization middleware for query parameters

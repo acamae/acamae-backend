@@ -76,7 +76,7 @@ describe('PrismaUserRepository', () => {
       mockPrisma.user.findUnique.mockResolvedValue(prismaUser);
       const result = await repo.findById('1');
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         id: '1', // Converted to string
         email: 'test@example.com',
         username: 'testuser',
@@ -134,46 +134,7 @@ describe('PrismaUserRepository', () => {
     });
   });
 
-  describe('findUserGames', () => {
-    it('maps joined games correctly', async () => {
-      mockPrisma.gameProfile.findMany.mockResolvedValue([
-        { game: { id: 2, code: 'lol', name_code: 'game.lol', image_filename: 'lol.png' } },
-      ]);
-
-      const result = await repo.findUserGames('9');
-
-      expect(mockPrisma.gameProfile.findMany).toHaveBeenCalledWith({
-        where: { user_id: 9 },
-        select: {
-          game: { select: { id: true, code: true, name_code: true, image_filename: true } },
-        },
-        orderBy: { game_id: 'asc' },
-      });
-      expect(result).toEqual([
-        { id: 2, code: 'lol', nameCode: 'game.lol', imageFilename: 'lol.png' },
-      ]);
-    });
-  });
-
-  describe('getUserTimezone', () => {
-    it('returns timezone from userProfile', async () => {
-      mockPrisma.userProfile.findUnique.mockResolvedValue({ timezone: 'Europe/Madrid' });
-
-      const result = await repo.getUserTimezone('9');
-
-      expect(mockPrisma.userProfile.findUnique).toHaveBeenCalledWith({
-        where: { user_id: 9 },
-        select: { timezone: true },
-      });
-      expect(result).toBe('Europe/Madrid');
-    });
-
-    it('returns undefined when profile missing', async () => {
-      mockPrisma.userProfile.findUnique.mockResolvedValue(null);
-      const result = await repo.getUserTimezone('9');
-      expect(result).toBeUndefined();
-    });
-  });
+  // NOTE: Game and timezone operations have been moved to ProfileRepository
 
   describe('findAll', () => {
     it('returns mapped array', async () => {

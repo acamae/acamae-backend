@@ -89,19 +89,6 @@ export class UserController {
   }
 
   /**
-   * Get user public profile
-   */
-  async getPublicProfile(req, res, next) {
-    try {
-      const { id } = req.params;
-      const data = await this.userService.getPublicProfile(id);
-      return res.status(HTTP_STATUS.OK).apiSuccess(data, 'Public profile retrieved');
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
    * Get availability
    */
   async getAvailability(req, res, next) {

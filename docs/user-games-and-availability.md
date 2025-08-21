@@ -13,7 +13,7 @@
 
 ### 2) Estado actual (resumen)
 
-- Prisma ya define `Game` y `GameProfile` (N:1 con `User`, clave única `user_id + game_id`).
+- Prisma ya define `Game` y `GameProfile` (N:1 con `UserProfile`, clave única `profile_id + game_id`).
 - No existe aún un modelo de disponibilidad semanal.
 - `UserProfile` ya incluye `timezone`, útil para disponibilidad.
 
@@ -28,9 +28,9 @@
 model GameProfile {
   // ... existing fields ...
 
-  @@unique([user_id, game_id])
+  @@unique([profile_id, game_id])
   @@index([game_id])
-  @@index([user_id])
+  @@index([profile_id])
   @@map("game_profiles")
 }
 ```
@@ -188,8 +188,8 @@ Todas las rutas de modificación están protegidas por `authenticate` y un middl
 
 #### 5.1) Juegos del usuario (toggle idempotente)
 
-- PUT `/api/users/:id/games`
-  - Body: `{ userId: number, gameId: number }`
+- PUT `/api/profiles/:id/games`
+  - Body: `{ gameId: number }`
   - Efecto: asegura que el juego queda seleccionado (crea `GameProfile` si no existe). Idempotente.
   - Respuesta 200:
     ```json
@@ -197,14 +197,15 @@ Todas las rutas de modificación están protegidas por `authenticate` y un middl
     ```
     - `profileIsActive` refleja `user_profile.is_active` tras la operación.
 
-- DELETE `/api/users/:id/games`
-  - Body: `{ userId: number, gameId: number }`
+- DELETE `/api/profiles/:id/games`
+  - Body: `{ gameId: number }`
   - Efecto: asegura que el juego queda deseleccionado (borra `GameProfile` si existe). Idempotente.
   - Respuesta 200:
     ```json
     { "gameId": 17, "selected": false, "profileIsActive": false }
     ```
     - `profileIsActive` se recalcula tras la operación. No se devuelve lista completa de juegos.
+  - Posible 409 opcional si se aplica una regla de negocio adicional (documentar en Swagger si se habilita).
 
 Notas de seguridad:
 
@@ -212,11 +213,10 @@ Notas de seguridad:
 
 #### 5.2) Disponibilidad semanal del usuario
 
-- PUT `/api/users/:id/availability`
+- PUT `/api/profiles/:id/availability`
   - Body ejemplo (strings HH:mm):
     ```json
     {
-      "userId": 12,
       "timezone": "Europe/Madrid",
       "windows": [
         { "dayOfWeek": 1, "start": "18:00", "end": "21:00" },
@@ -224,10 +224,15 @@ Notas de seguridad:
       ]
     }
     ```
-  - Semántica: operación de reemplazo. El servicio valida y reemplaza todas las ventanas del usuario. Si `timezone` llega, actualizar `UserProfile.timezone`. Transacción: borrar existentes y crear las nuevas.
+  - Semántica: operación de reemplazo idempotente. El servicio valida y reemplaza todas las ventanas del usuario. Si `timezone` llega (IANA válida), actualizar `UserProfile.timezone`. Transacción: borrar existentes y crear las nuevas.
   - Respuesta 200: `{ timezone, availability: [ ...normalizadas... ] }` con tiempos en minutos o en `HH:mm`.
+  - Reglas:
+    - `dayOfWeek` 0..6 (0=Lunes, 6=Domingo).
+    - `start < end`. El fin `"00:00"` se interpreta como 1440 (fin de día) para validar `start < end`.
+    - Ventanas no solapadas por `(userId, dayOfWeek)`.
+    - Límite de ventanas por día (p. ej., 12) para evitar abusos.
 
-- GET `/api/users/:id/availability`
+- GET `/api/profiles/:id/availability`
   - Respuesta 200: `{ timezone, availability: [ { dayOfWeek, start, end } ] }`.
 
 #### 5.3) Catálogo de juegos
@@ -237,9 +242,63 @@ Notas de seguridad:
 
 #### 5.4) Perfil público del usuario
 
-- GET `/api/users/:id/public`
-  - Respuesta 200: `{ user: { id, username, ... }, games: [...], timezone: string|null, availability: [...] }`.
-  - Siempre devuelve toda la información pública del perfil. El parámetro `includeAvailability` ha sido eliminado.
+- GET `/api/profiles/:id` (canónico)
+  - Respuesta 200: `{ user: { id, username, ... }, games: [...], timezone: string|null, availability: [...], country: { ... } }`.
+  - Endpoint público para lectura del perfil completo.
+- GET `/api/profiles/:id/public` (deprecated)
+  - Alias histórico. Sustituido por `GET /api/profiles/:id`.
+
+#### 5.5) Endpoints deprecados (lectura fragmentada)
+
+- `GET /api/profiles/:id/availability` (deprecated)
+  - Sustituido por `GET /api/profiles/:id`.
+- `GET /api/profiles/:id/timezone` (deprecated)
+  - Sustituido por `GET /api/profiles/:id`.
+- `GET /api/profiles/:id/country` (deprecated)
+  - Sustituido por `GET /api/profiles/:id`.
+
+Política de deprecación:
+
+- Los endpoints deprecados se mantendrán al menos una versión menor tras su marcado, salvo indicación contraria.
+- Se recomienda migrar a los endpoints canónicos de inmediato.
+- Las respuestas de endpoints deprecados pueden incluir cabecera `Sunset` con fecha de retirada (RFC 8594).
+
+#### 5.6) Zona horaria del perfil (IANA)
+
+- GET `/api/profiles/:id/timezone`
+  - Seguridad: `authenticate`, `ensureSelfProfile('id')` en backend.
+  - Respuesta 200:
+    ```json
+    { "timezone": "Europe/Madrid", "profileIsActive": true }
+    ```
+    - `timezone` puede ser `null` si aún no se ha configurado.
+    - `profileIsActive` refleja `user_profile.is_active` según el estado actual.
+
+- PUT `/api/profiles/:id/timezone`
+  - Seguridad: `authenticate`, `ensureSelfProfile('id')`.
+  - Body:
+    ```json
+    { "timezone": "Europe/Paris" }
+    ```
+  - Semántica: establece la IANA en `UserProfile.timezone` y recalcula `is_active` con la regla:
+    ```
+    is_active = Boolean(country_code) && Boolean(timezone) && (gamesCount > 0)
+    ```
+  - Respuesta 200:
+    ```json
+    { "timezone": "Europe/Paris", "profileIsActive": true }
+    ```
+  - Validaciones/errores:
+    - 400 `VALIDATION_ERROR` si la IANA es inválida/desconocida (verificar contra catálogo de `timezones.json` o librería de zonas).
+    - 400 `INVALID_TIMEZONE` puede usarse específicamente para IANA desconocida (alineado con Swagger).
+    - 401 `UNAUTHORIZED` si no hay token o es inválido.
+    - 403 `FORBIDDEN` si `:id` no coincide con `req.user.id`.
+    - 404 `RESOURCE_NOT_FOUND` si el perfil no existe.
+
+Notas:
+
+- La implementación actual realiza el recálculo en el repositorio (`PrismaProfileRepository.setUserTimezone`) tras persistir la zona horaria.
+- La respuesta incluye el estado recalculado (`profileIsActive`).
 
 #### 5.5) Búsqueda (opcional, genérica y flexible)
 
@@ -247,7 +306,7 @@ Notas de seguridad:
   - Soporta añadir más filtros en el futuro (vía query params o JSON en POST `/api/users/search`).
   - Implementación recomendada más adelante (no requerida ahora).
 
-#### 5.6) Catálogo de zonas horarias (TZDB)
+#### 5.7) Catálogo de zonas horarias (TZDB)
 
 - GET `/api/timezones`
   - Respuesta 200 (JSON generado exclusivamente desde TZDB; sin fallback a Intl):
@@ -291,16 +350,15 @@ Notas de seguridad:
 - Zod schemas (en `validation.js`):
   - `addUserGameValidation`, `removeUserGameValidation`:
     - `params.id`: entero positivo.
-    - `body.userId`: entero positivo, debe coincidir con `params.id`.
     - `body.gameId`: entero positivo.
   - `putAvailabilityValidation`:
     - `params.id`: entero positivo y self.
-    - `body.timezone`: opcional, string válida IANA.
+    - `body.timezone`: opcional, string IANA válida.
     - `body.windows[]` objetos con:
       - `dayOfWeek`: entero 0..6 (0=Lunes, 6=Domingo; documentar convención).
       - `start`, `end`: formato `HH:mm` (o `startMinute`, `endMinute` enteros 0..1440).
     - Reglas de negocio:
-      - `start < end`.
+      - `start < end` (con `end: "00:00"` ≡ 1440).
       - Sin solape por `(userId, dayOfWeek)`.
       - Cotas: máximo N ventanas/día (p. ej., 12) para evitar abusos.
 
@@ -348,7 +406,6 @@ findByCode(code: string): Promise<Game | null>;
 // GameProfileRepository
 addUserGame(userId: string | number, gameId: string | number): Promise<void>; // idempotente
 removeUserGame(userId: string | number, gameId: string | number): Promise<void>; // idempotente
-getUserGames(userId: string | number): Promise<Game[]>;
 
 // AvailabilityRepository
 replaceUserAvailability(userId: string | number, windows: AvailabilityWindowInput[]): Promise<void>;
@@ -379,7 +436,7 @@ Notas transaccionales:
   - `removeGameFromUser(userId, gameId)` → valida; `deleteMany`; devuelve lista actual de juegos.
   - `putAvailability(userId, payload)` → normaliza a minutos, valida solapes/tiempos, transacción de reemplazo; devuelve disponibilidad actual.
   - `getAvailability(userId)` → devuelve disponibilidad actual.
-  - `getPublicProfile(userId, { includeAvailability })` → datos públicos + juegos (+ disponibilidad opcional).
+  - `getPublicProfile(userId)` → datos públicos + juegos + disponibilidad.
 
 Validaciones en servicio:
 
@@ -390,11 +447,15 @@ Validaciones en servicio:
 ### 10) Controladores y rutas
 
 - Rutas (añadir a `API_ROUTES`):
-  - `USERS.ADD_GAME = '/api/users/:id/games'`
-  - `USERS.REMOVE_GAME = '/api/users/:id/games'` (mismo path, método DELETE)
-  - `USERS.PUT_AVAILABILITY = '/api/users/:id/availability'`
-  - `USERS.GET_AVAILABILITY = '/api/users/:id/availability'`
-  - `USERS.PUBLIC_PROFILE = '/api/users/:id/public'`
+  - `PROFILES.ADD_GAME = '/api/profiles/:id/games'`
+  - `PROFILES.REMOVE_GAME = '/api/profiles/:id/games'` (mismo path, método DELETE)
+  - `PROFILES.PUT_AVAILABILITY = '/api/profiles/:id/availability'`
+  - `PROFILES.GET_AVAILABILITY = '/api/profiles/:id/availability'`
+  - `PROFILES.PUBLIC_PROFILE = '/api/profiles/:id/public'`
+  - `PROFILES.GET_TIMEZONE = '/api/profiles/:id/timezone'`
+  - `PROFILES.PUT_TIMEZONE = '/api/profiles/:id/timezone'`
+  - `PROFILES.PUT_COUNTRY = '/api/profiles/:id/country'`
+  - `PROFILES.GET_COUNTRY = '/api/profiles/:id/country'`
   - `GAMES.LIST = '/api/games'`
 
 - Middlewares: `authenticate`, `ensureSelfParam('id')`, validaciones Zod por endpoint.
@@ -429,7 +490,7 @@ export const ensureSelfParam =
 ```js
 // src/infrastructure/routes/index.js (fragmento)
 router.put(
-  `${API_ROUTES.BASE}${API_ROUTES.USERS.ADD_GAME}`,
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.ADD_GAME}`,
   authenticate,
   ensureSelfParam('id'),
   addUserGameValidation,
@@ -437,7 +498,7 @@ router.put(
 );
 
 router.delete(
-  `${API_ROUTES.BASE}${API_ROUTES.USERS.REMOVE_GAME}`,
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.REMOVE_GAME}`,
   authenticate,
   ensureSelfParam('id'),
   removeUserGameValidation,
@@ -445,7 +506,7 @@ router.delete(
 );
 
 router.put(
-  `${API_ROUTES.BASE}${API_ROUTES.USERS.PUT_AVAILABILITY}`,
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.PUT_AVAILABILITY}`,
   authenticate,
   ensureSelfParam('id'),
   putAvailabilityValidation,
@@ -453,7 +514,7 @@ router.put(
 );
 
 router.get(
-  `${API_ROUTES.BASE}${API_ROUTES.USERS.GET_AVAILABILITY}`,
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.GET_AVAILABILITY}`,
   authenticate,
   ensureSelfParam('id'),
   asyncHandler(userController.getAvailability.bind(userController))
@@ -484,7 +545,7 @@ router.get(
 
 ### 11) Respuestas (formatos sugeridos y errores)
 
-- `PUT /api/users/:id/games` y `DELETE /api/users/:id/games`:
+- `PUT /api/profiles/:id/games` y `DELETE /api/profiles/:id/games`:
 
   ```json
   { "gameId": 7, "selected": true, "profileIsActive": false }
@@ -498,7 +559,7 @@ router.get(
   - 409 CONFLICT (si aplicas regla de negocio adicional)
   - 500 DATABASE_ERROR (error inesperado de BD)
 
-- `PUT/GET /api/users/:id/availability`:
+- `PUT/GET /api/profiles/:id/availability`:
 
   ```json
   {
@@ -535,7 +596,7 @@ router.get(
   Posibles errores:
   - 500 DATABASE_ERROR (fallo inesperado de BD)
 
-- `GET /api/users/:id/public`:
+- `GET /api/profiles/:id/public`:
 
   ```json
   {
@@ -596,19 +657,19 @@ router.get(
 
 - El catálogo (`GET /api/games`) permite mapear `code` ↔ `id` en cliente.
 - Para pintar botones activos:
-  - `GET /api/users/:id/public` → lista de juegos del usuario.
+  - `GET /api/profiles/:id/public` → lista de juegos del usuario.
 - Toggle:
-  - Activar → `PUT /api/users/:id/games`.
-  - Desactivar → `DELETE /api/users/:id/games`.
+  - Activar → `PUT /api/profiles/:id/games`.
+  - Desactivar → `DELETE /api/profiles/:id/games`.
 - Disponibilidad:
-  - UI de lunes a domingo mandatada a lista de ventanas. Enviar `PUT /api/users/:id/availability` con las ventanas vigentes (reemplazo total).
+  - UI de lunes a domingo mandatada a lista de ventanas. Enviar `PUT /api/profiles/:id/availability` con las ventanas vigentes (reemplazo total).
 
 ### 15) Extensiones futuras (ejemplos)
 
 - Cambio de email del usuario:
-  - `PUT /api/users/:id/email { newEmail }` → dispara verificación por correo. Autorizado solo para self. Patrón similar al flujo de verificación ya existente.
+  - `PUT /api/profiles/:id/email { newEmail }` → dispara verificación por correo. Autorizado solo para self. Patrón similar al flujo de verificación ya existente.
 - Cambio de contraseña:
-  - `PUT /api/users/:id/password { currentPassword, newPassword }` → verificar `currentPassword`, políticas de contraseña, registrar auditoría. Solo self.
+  - `PUT /api/profiles/:id/password { currentPassword, newPassword }` → verificar `currentPassword`, políticas de contraseña, registrar auditoría. Solo self.
 - Atributos avanzados:
   - Usar `UserAttribute` para guardar preferencias adicionales sin migrar BD.
 
@@ -617,12 +678,12 @@ router.get(
 - Un usuario autenticado puede activar/desactivar juegos; la operación es idempotente y segura (solo su perfil).
 - El catálogo de juegos está disponible vía API y sincronizado con el cliente.
 - El usuario puede definir franjas por día; no se permiten solapes.
-- `GET /api/users/:id/public` devuelve juegos (y disponibilidad si se solicita) para UI.
+- `GET /api/profiles/:id/public` devuelve juegos y disponibilidad para UI.
 - Diseño preparado para búsqueda por juego + franja sin cambios estructurales futuros.
 
 ### 17) Notas de rendimiento
 
-- Índices en `game_profiles(game_id)`, `game_profiles(user_id)`, `availability_windows(user_id, day_of_week)` y `availability_windows(game_id, day_of_week)` minimizan tiempos de búsqueda.
+- Índices en `game_profiles(game_id)`, `game_profiles(user_id)`, `availability_windows(user_id, day_of_week)` minimizan tiempos de búsqueda.
 - Usar `createMany` para seeds y operaciones de reemplazo de disponibilidad.
 
 ### 18) Seguridad y cumplimiento
@@ -702,11 +763,10 @@ El cliente define una tabla semanal con 6 tramos fijos por día de 4h (00-04, 04
   };
   ```
 
-- Payload `PUT /api/users/:id/availability` (ejemplo) derivado del `TIMETABLE`:
+- Payload `PUT /api/profiles/:id/availability` (ejemplo) derivado del `TIMETABLE`:
 
   ```json
   {
-    "userId": 12,
     "timezone": "Europe/Madrid",
     "windows": [
       { "dayOfWeek": 0, "start": "16:00", "end": "20:00" },

@@ -23,9 +23,14 @@ export const API_ROUTES = {
     UPDATE_BY_ID: '/users/:id',
     DELETE_BY_ID: '/users/:id',
     PREFERENCES: '/users/:id/preferences',
-    PUBLIC_PROFILE: '/users/:id/public',
-    AVAILABILITY: '/users/:id/availability',
-    GAMES: '/users/:id/games',
+  },
+  PROFILES: {
+    GET_BY_ID: '/profiles/:id',
+    PUBLIC: '/profiles/:id/public',
+    AVAILABILITY: '/profiles/:id/availability',
+    GAMES: '/profiles/:id/games',
+    COUNTRY: '/profiles/:id/country',
+    TIMEZONE: '/profiles/:id/timezone',
   },
   GAMES: {
     GET_ALL: '/games',

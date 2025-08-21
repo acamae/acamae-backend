@@ -24,7 +24,7 @@ describe('UserController (unit)', () => {
       deleteUser: jest.fn(),
       addGame: jest.fn(),
       removeGame: jest.fn(),
-      getPublicProfile: jest.fn(),
+      getUserProfile: jest.fn(),
     };
     controller = new UserController(service);
     res = makeRes();
@@ -152,16 +152,5 @@ describe('UserController (unit)', () => {
     });
   });
 
-  it('getPublicProfile -> 200 devuelve perfil público sin usar includeAvailability', async () => {
-    const payload = { user: { id: '9' }, games: [], timezone: 'Europe/Madrid', availability: [] };
-    service.getPublicProfile.mockResolvedValue(payload);
-
-    const req = { params: { id: '9' }, query: { includeAvailability: 'true' } };
-    await controller.getPublicProfile(req, res, next);
-
-    expect(service.getPublicProfile).toHaveBeenCalledWith('9');
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.apiSuccess).toHaveBeenCalledWith(payload, 'Public profile retrieved');
-    expect(next).not.toHaveBeenCalled();
-  });
+  // Public profile moved to ProfileController
 });

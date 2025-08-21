@@ -12,7 +12,7 @@ import { createError } from '../../shared/utils/error.js';
 
 /**
  * @typedef {Object} User
- * @property {string} id - Unique user ID
+ * @property {number} id - Unique user ID
  * @property {string} email - User email
  * @property {string} username - User username
  * @property {string} passwordHash - User password hash

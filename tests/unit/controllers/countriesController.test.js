@@ -46,4 +46,3 @@ describe('CountriesController (unit)', () => {
     expect(res.apiSuccess).toHaveBeenCalledWith(data, 'Countries catalog');
   });
 });
-

@@ -6,6 +6,7 @@ import { AuthService } from '../../application/services/AuthService.js';
 import { CountriesService } from '../../application/services/CountriesService.js';
 import { GameService } from '../../application/services/GameService.js';
 import { ManagerService } from '../../application/services/ManagerService.js';
+import { ProfileService } from '../../application/services/ProfileService.js';
 import { TeamService } from '../../application/services/TeamService.js';
 import { UserService } from '../../application/services/UserService.js';
 import { API_ERROR_CODES } from '../../shared/constants/apiCodes.js';
@@ -17,22 +18,28 @@ import { AuthController } from '../controllers/AuthController.js';
 import { CountriesController } from '../controllers/CountriesController.js';
 import { GameController } from '../controllers/GameController.js';
 import { ManagerController } from '../controllers/ManagerController.js';
+import { ProfileController } from '../controllers/ProfileController.js';
 import { TeamController } from '../controllers/TeamController.js';
 import { TimezonesController } from '../controllers/TimezonesController.js';
 import { UserController } from '../controllers/UserController.js';
 import { authenticate as authMiddleware, authorize } from '../middleware/auth.js';
 import { cacheFromLoader, cachePublicSimple } from '../middleware/cache.js';
-import { ensureSelfParam } from '../middleware/ensureSelf.js';
+import { ensureSelfParam, ensureSelfProfile } from '../middleware/ensureSelf.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { timeoutMiddleware } from '../middleware/timeout.js';
 import {
+  addProfileGameValidation,
   forgotPasswordValidation,
   // idValidation,
   loginValidation,
   logoutValidation,
   // paginationValidation,
+  profileCountryValidation,
+  profileTimezoneValidation,
+  putAvailabilityValidation,
   refreshTokenValidation,
   registerValidation,
+  removeProfileGameValidation,
   resendVerificationValidation,
   resetPasswordValidation,
   teamValidation,
@@ -42,6 +49,7 @@ import {
 } from '../middleware/validation.js';
 import { PrismaCountryRepository } from '../repositories/PrismaCountryRepository.js';
 import { PrismaGameRepository } from '../repositories/PrismaGameRepository.js';
+import { PrismaProfileRepository } from '../repositories/PrismaProfileRepository.js';
 import { PrismaSessionTokenRepository } from '../repositories/PrismaSessionTokenRepository.js';
 import { PrismaTeamRepository } from '../repositories/PrismaTeamRepository.js';
 import { PrismaUserRepository } from '../repositories/PrismaUserRepository.js';
@@ -53,6 +61,9 @@ const router = Router();
 const userRepository = new PrismaUserRepository();
 const userService = new UserService(userRepository);
 const userController = new UserController(userService);
+const profileRepository = new PrismaProfileRepository();
+const profileService = new ProfileService(profileRepository, userRepository);
+const profileController = new ProfileController(profileService);
 
 // Initialize controllers
 const sessionTokenRepository = new PrismaSessionTokenRepository();
@@ -517,36 +528,67 @@ router.get(
   authorize('users', 'read'),
   asyncHandler(userController.getUserById.bind(userController))
 );
-// User games (idempotent add/remove)
+// Profile routes
+// Public profile (no auth required)
+router.get(
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.PUBLIC}`,
+  asyncHandler(profileController.getUserProfile.bind(profileController))
+);
+// Public profile canonical path (no auth required)
+router.get(
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.GET_BY_ID}`,
+  asyncHandler(profileController.getUserProfile.bind(profileController))
+);
+// Profile games (idempotent add/remove)
 router.put(
-  `${API_ROUTES.BASE}${API_ROUTES.USERS.GAMES}`,
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.GAMES}`,
   authMiddleware,
-  ensureSelfParam('id'),
-  asyncHandler(userController.addGame.bind(userController))
+  ensureSelfProfile('id'),
+  addProfileGameValidation,
+  asyncHandler(profileController.addGame.bind(profileController))
 );
 router.delete(
-  `${API_ROUTES.BASE}${API_ROUTES.USERS.GAMES}`,
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.GAMES}`,
   authMiddleware,
-  ensureSelfParam('id'),
-  asyncHandler(userController.removeGame.bind(userController))
+  ensureSelfProfile('id'),
+  removeProfileGameValidation,
+  asyncHandler(profileController.removeGame.bind(profileController))
 );
 // Availability
 router.get(
-  `${API_ROUTES.BASE}${API_ROUTES.USERS.AVAILABILITY}`,
-  authMiddleware,
-  ensureSelfParam('id'),
-  asyncHandler(userController.getAvailability.bind(userController))
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.AVAILABILITY}`,
+  asyncHandler(profileController.getAvailability.bind(profileController))
 );
 router.put(
-  `${API_ROUTES.BASE}${API_ROUTES.USERS.AVAILABILITY}`,
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.AVAILABILITY}`,
   authMiddleware,
-  ensureSelfParam('id'),
-  asyncHandler(userController.replaceAvailability.bind(userController))
+  ensureSelfProfile('id'),
+  putAvailabilityValidation,
+  asyncHandler(profileController.replaceAvailability.bind(profileController))
 );
-// Public profile (no auth required)
+// Profile country
 router.get(
-  `${API_ROUTES.BASE}${API_ROUTES.USERS.PUBLIC_PROFILE}`,
-  asyncHandler(userController.getPublicProfile.bind(userController))
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.COUNTRY}`,
+  asyncHandler(profileController.getUserCountry.bind(profileController))
+);
+router.put(
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.COUNTRY}`,
+  authMiddleware,
+  ensureSelfProfile('id'),
+  profileCountryValidation,
+  asyncHandler(profileController.setUserCountry.bind(profileController))
+);
+// Profile timezone
+router.get(
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.TIMEZONE}`,
+  asyncHandler(profileController.getUserTimezone.bind(profileController))
+);
+router.put(
+  `${API_ROUTES.BASE}${API_ROUTES.PROFILES.TIMEZONE}`,
+  authMiddleware,
+  ensureSelfProfile('id'),
+  profileTimezoneValidation,
+  asyncHandler(profileController.setUserTimezone.bind(profileController))
 );
 router.put(
   `${API_ROUTES.BASE}${API_ROUTES.USERS.UPDATE_BY_ID}`,

@@ -39,4 +39,3 @@ describe('PrismaGameRepository (unit)', () => {
     expect(game).toEqual({ id: 1, code: 'lol', nameCode: 'n', imageFilename: 'a.png' });
   });
 });
-

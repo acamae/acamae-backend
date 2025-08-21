@@ -32,4 +32,3 @@ describe('ManagerController (unit)', () => {
     expect(res.apiSuccess).toHaveBeenCalledWith(dashboard, 'Manager dashboard');
   });
 });
-

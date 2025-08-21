@@ -33,10 +33,9 @@ model User {
   teams                Team[]
   emailVerificationTokens EmailVerificationToken[]
   sessionTokens        SessionToken[]
-  userProfile          UserProfile?            // NEW: One-to-one relation
-  gameProfiles         GameProfile[]           // NEW: User's game profiles
-  teamProfiles         TeamProfile[]           // NEW: User's team profiles
-  userLanguages        UserLanguage[]          // NEW: User's languages
+  userProfile          UserProfile?            // One-to-one relation
+  teamProfiles         TeamProfile[]           // User's team profiles
+  userLanguages        UserLanguage[]          // User's languages
 
   @@map("users")
 }
@@ -59,7 +58,6 @@ model Game {
   @@map("games")
 }
 
-// NEW: Positions table
 model Position {
   id              Int               @id @default(autoincrement()) @db.UnsignedInt
   code            String            @db.VarChar(50)               // e.g., "position.top"
@@ -74,25 +72,25 @@ model Position {
   @@map("positions")
 }
 
-// NEW: Game profiles table
+// Game profiles table
 model GameProfile {
   id              Int               @id @default(autoincrement()) @db.UnsignedInt
-  user_id         Int               @db.UnsignedInt
+  profile_id      Int               @db.UnsignedInt
   game_id         Int               @db.UnsignedInt
   created_at      DateTime          @default(now()) @map("created_at")
   updated_at      DateTime          @default(now()) @updatedAt @map("updated_at")
 
   // Relations
-  user            User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  profile         UserProfile       @relation(fields: [profile_id], references: [id], onDelete: Cascade)
   game            Game              @relation(fields: [game_id], references: [id], onDelete: Cascade)
   playerPositions PlayerPosition[]
   userPlaystyles  UserPlaystyle[]
 
-  @@unique([user_id, game_id])
+  @@unique([profile_id, game_id])
   @@map("game_profiles")
 }
 
-// NEW: Player positions (many-to-many between game_profiles and positions)
+// Player positions (many-to-many between game_profiles and positions)
 model PlayerPosition {
   game_profile_id Int         @db.UnsignedInt
   position_id     Int         @db.UnsignedInt
@@ -105,7 +103,7 @@ model PlayerPosition {
   @@map("player_positions")
 }
 
-// NEW: Team roles table
+// Team roles table
 model TeamRole {
   id         Int      @id @default(autoincrement()) @db.UnsignedInt
   code       String   @unique @db.VarChar(50)      // e.g., "role.coach"
@@ -114,7 +112,7 @@ model TeamRole {
   @@map("team_roles")
 }
 
-// NEW: Team profiles table
+// Team profiles table
 model TeamProfile {
   id              Int      @id @default(autoincrement()) @db.UnsignedInt
   user_id         Int      @db.UnsignedInt
@@ -137,7 +135,7 @@ model TeamProfile {
   @@map("team_profiles")
 }
 
-// NEW: Languages table
+// Languages table
 model Language {
   id            Int            @id @default(autoincrement()) @db.UnsignedInt
   code          String         @unique @db.VarChar(10)      // e.g., "en", "es", "fr"
@@ -150,7 +148,7 @@ model Language {
   @@map("languages")
 }
 
-// NEW: User languages (many-to-many between users and languages)
+// User languages (many-to-many between users and languages)
 model UserLanguage {
   user_id     Int      @db.UnsignedInt
   language_id Int      @db.UnsignedInt
@@ -163,7 +161,7 @@ model UserLanguage {
   @@map("user_languages")
 }
 
-// NEW: Playstyles table
+// Playstyles table
 model Playstyle {
   id               Int             @id @default(autoincrement()) @db.UnsignedInt
   code             String          @unique @db.VarChar(50)      // e.g., "playstyle.casual"
@@ -176,7 +174,7 @@ model Playstyle {
   @@map("playstyles")
 }
 
-// NEW: User playstyles (many-to-many between game_profiles and playstyles)
+// User playstyles (many-to-many between game_profiles and playstyles)
 model UserPlaystyle {
   game_profile_id Int         @db.UnsignedInt
   playstyle_id    Int         @db.UnsignedInt
@@ -189,7 +187,7 @@ model UserPlaystyle {
   @@map("user_playstyles")
 }
 
-// NEW: User profiles table
+// User profiles table
 model UserProfile {
   id                  Int      @id @default(autoincrement()) @db.UnsignedInt
   user_id             Int      @unique @db.UnsignedInt
@@ -205,11 +203,11 @@ model UserProfile {
 
   // Relations
   user                User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  gameProfiles        GameProfile[]
 
   @@map("user_profiles")
 }
 
-// NEW: Countries catalog
 model Country {
   id         Int      @id @default(autoincrement()) @db.UnsignedInt
   code       String   @unique @db.Char(2)          // ISO 3166-1 alpha-2, e.g., "ES"

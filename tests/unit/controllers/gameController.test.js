@@ -41,4 +41,3 @@ describe('GameController (unit)', () => {
     expect(next).toHaveBeenCalledWith(err);
   });
 });
-

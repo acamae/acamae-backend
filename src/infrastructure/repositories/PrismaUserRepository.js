@@ -43,6 +43,12 @@ export class PrismaUserRepository {
       resetTokenUsed: prismaUser.reset_token_used || false,
       createdAt: prismaUser.created_at,
       updatedAt: prismaUser.updated_at,
+      userProfile: prismaUser.userProfile
+        ? {
+            id: prismaUser.userProfile.id,
+            isActive: prismaUser.userProfile.is_active,
+          }
+        : undefined,
     };
   }
 
@@ -454,93 +460,6 @@ export class PrismaUserRepository {
     const mapped = this.#toDomainModel(user);
     mapped.isActive = user.userProfile?.is_active || false;
     return mapped;
-  }
-
-  async #recalculateUserProfileActive(userId) {
-    const [profile, gamesCount] = await Promise.all([
-      this.#prisma.userProfile.findUnique({
-        where: { user_id: parseInt(userId) },
-        select: { timezone: true },
-      }),
-      this.#prisma.gameProfile.count({ where: { user_id: parseInt(userId) } }),
-    ]);
-    const active = Boolean(profile?.timezone) && gamesCount > 0;
-    await this.#prisma.userProfile.update({
-      where: { user_id: parseInt(userId) },
-      data: { is_active: active },
-    });
-    return active;
-  }
-
-  async setTimezone(userId, timezone) {
-    await this.#prisma.userProfile.update({
-      where: { user_id: parseInt(userId) },
-      data: { timezone },
-    });
-    return await this.#recalculateUserProfileActive(userId);
-  }
-
-  async addGame(userId, gameId) {
-    await this.#prisma.gameProfile.upsert({
-      where: {
-        user_id_game_id: {
-          user_id: parseInt(userId),
-          game_id: parseInt(gameId),
-        },
-      },
-      update: {},
-      create: { user_id: parseInt(userId), game_id: parseInt(gameId) },
-    });
-    return await this.#recalculateUserProfileActive(userId);
-  }
-
-  async removeGame(userId, gameId) {
-    try {
-      const gp = await this.#prisma.gameProfile.findFirst({
-        where: { user_id: parseInt(userId), game_id: parseInt(gameId) },
-        select: { id: true },
-      });
-      if (gp) {
-        await this.#prisma.gameProfile.delete({ where: { id: gp.id } });
-      }
-    } finally {
-      // Always recalc regardless of deletion outcome
-      return await this.#recalculateUserProfileActive(userId);
-    }
-  }
-
-  /**
-   * List selected games for a user by joining game_profiles → games
-   * @param {string} userId
-   * @returns {Promise<import('../../domain/entities/Game').Game[]>}
-   */
-  async findUserGames(userId) {
-    const list = await this.#prisma.gameProfile.findMany({
-      where: { user_id: parseInt(userId) },
-      select: {
-        game: { select: { id: true, code: true, name_code: true, image_filename: true } },
-      },
-      orderBy: { game_id: 'asc' },
-    });
-    return list.map((row) => ({
-      id: row.game.id,
-      code: row.game.code,
-      nameCode: row.game.name_code,
-      imageFilename: row.game.image_filename || undefined,
-    }));
-  }
-
-  /**
-   * Get user's timezone from profile
-   * @param {string} userId
-   * @returns {Promise<string|undefined>}
-   */
-  async getUserTimezone(userId) {
-    const profile = await this.#prisma.userProfile.findUnique({
-      where: { user_id: parseInt(userId) },
-      select: { timezone: true },
-    });
-    return profile?.timezone || undefined;
   }
 
   /**
